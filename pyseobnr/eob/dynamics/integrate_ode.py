@@ -1,0 +1,248 @@
+#!/usr/bin/env python
+from typing import Dict
+from xml.dom.expatbuilder import ElementInfo
+import numpy as np
+from scipy.integrate import solve_ivp, ode
+from scipy.interpolate import CubicSpline
+from scipy.signal import argrelmin
+from .initial_conditions_aligned import computeIC
+from .initial_conditions_aligned_opt import computeIC_opt
+from .rhs_aligned import get_rhs
+
+from jax.config import config
+from numba import jit
+
+config.update("jax_enable_x64", True)
+
+from pygsl import spline
+import pygsl.errno as errno
+import pygsl.odeiv2 as odeiv2
+
+step = odeiv2.pygsl_odeiv2_step
+_control = odeiv2.pygsl_odeiv2_control
+evolve = odeiv2.pygsl_odeiv2_evolve
+
+
+class control_y_new(_control):
+    def __init__(self, eps_abs, eps_rel):
+        a_y = 1
+        a_dydt = 1
+        _control.__init__(self, eps_abs, eps_rel, a_y, a_dydt, None)
+
+
+def augment_dynamics(dynamics, chi_1, chi_2, m_1, m_2, H):
+    """Compute dynamical quantities we need for the waveform
+
+    Args:
+        dynamics (np,ndarray): The dynamics array: t,r,phi,pr,pphi
+    """
+    result = []
+    for i, row in enumerate(dynamics):
+        q = row[1:3]
+        p = row[3:5]
+        p_c = np.array([0.0, p[1]])
+        # Evaluate a few things: H, omega,omega_circ
+
+        dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
+        omega = dyn[3]
+        H_val = dyn[4]
+
+        omega_c = H.omega(q, p_c, chi_1, chi_2, m_1, m_2)
+
+        result.append([H_val, omega, omega_c])
+    result = np.array(result)
+    return np.c_[dynamics, result]
+
+
+@jit(nopython=True)
+def h_max(r):
+    return 1
+
+
+def ODE_system_RHS_opt(t: float, z: np.ndarray, args) -> np.ndarray:
+    """Return the dynamics equations for aligned-spin systems
+
+    Args:
+        t (float): The current time
+        z (np.array): The dynamics variables, stored as (q,p)
+        H (Hamiltonian): The Hamiltonian object to use
+        RR (function): The RR force to use. Must have same signature as Hamiltonian
+        chi_1 (float): z-component of the primary spin
+        chi_2 (float): z-component of the secondary spin
+        m_1 (float): mass of the primary
+        m_2 (float): mass of the secondary
+
+    Returns:
+        np.array: The dynamics equations, including RR
+    """
+    return get_rhs(t, z, *args)
+
+
+def compute_dynamics_opt(
+    omega0,
+    H,
+    RR,
+    chi_1,
+    chi_2,
+    m_1,
+    m_2,
+    rtol=1e-11,
+    atol=1e-12,
+    backend="solve_ivp",
+    params=None,
+    step_back=100,
+    max_step=0.1,
+    min_step=1.0e-9,
+    y_init=None,
+):
+    sys = odeiv2.system(
+        ODE_system_RHS_opt, None, 4, [H, RR, chi_1, chi_2, m_1, m_2, params]
+    )
+
+    T = odeiv2.step_rk8pd
+    s = step(T, 4)
+    c = control_y_new(atol, rtol)
+    e = evolve(4)
+
+    t = 0
+    t1 = 1.0e7
+
+    if y_init is None:
+
+        r0, pphi0, pr0 = computeIC_opt(
+            omega0, H, RR, chi_1, chi_2, m_1, m_2, params=params
+        )
+        y0 = np.array([r0, 0.0, pr0, pphi0])
+    else:
+        y0 = y_init.copy()
+    y = y0
+    if y_init is None:
+        h = 2 * np.pi / omega0 / 5
+    else:
+        h = 0.1
+    omega_previous = omega0
+    res_gsl = []
+    ts = []
+    omegas = []
+    ts.append(0.0)
+    res_gsl.append(y)
+
+    p_circ = np.zeros(2)
+    peak_omega = False
+    while t < t1:
+
+        # Take a step
+        status, t, h, y = e.apply(c, s, sys, t, t1, h, y)
+        if status != errno.GSL_SUCCESS:
+            print("break status", status)
+            break
+        # Compute the error for the step controller
+        e.get_yerr()
+
+        # Append the last step
+        res_gsl.append(y)
+        ts.append(t)
+
+        # Comute the RHS after the step is done
+
+        r = y[0]
+
+        # Check if the proposed step is larger than the maximum timestep
+        h_mx = h_max(r)
+        h = h / h_mx
+
+        # Handle termination conditions
+        if r <= 6:
+            deriv = ODE_system_RHS_opt(t, y, [H, RR, chi_1, chi_2, m_1, m_2, params])
+            drdt = deriv[0]
+            omega = deriv[1]
+            dprdt = deriv[2]
+            """
+            h_small = np.max((0.01,2*np.pi/(2.*omega) / (1 + np.exp(-(r - 4) / 0.13))))
+            if h > h_small:
+                h = h_small
+            """
+
+            if omega < omega_previous:
+                peak_omega = True
+                break
+            if drdt > 0 or dprdt > 0:
+                break
+            if r <= 1.4:
+                break
+            if r < 3:
+                q_vec = y[:2]
+                p_circ[1] = y[-1]
+                omega_circ = H.omega(q_vec, p_circ, chi_1, chi_2, m_1, m_2)
+                if omega_circ > 1:
+                    break
+            omega_previous = omega
+
+    ts = np.array(ts)
+    dyn = np.array(res_gsl)
+
+    if peak_omega:
+        t_desired = ts[-1] - step_back - 50
+    else:
+        t_desired = ts[-1] - step_back
+    idx_close = np.argmin(np.abs(ts - t_desired))
+    if ts[idx_close] > t_desired:
+        idx_close -= 1
+
+    dyn_coarse = np.c_[ts[:idx_close], dyn[:idx_close]]
+    dyn_fine = np.c_[ts[idx_close:], dyn[idx_close:]]
+    dyn_coarse = augment_dynamics(dyn_coarse, chi_1, chi_2, m_1, m_2, H)
+    dyn_fine = augment_dynamics(dyn_fine, chi_1, chi_2, m_1, m_2, H)
+    t_peak = None
+    if peak_omega:
+        intrp = CubicSpline(dyn_fine[:, 0], dyn_fine[:, -2])
+        left = dyn_fine[0, 0]
+        right = dyn_fine[-1, 0]
+        t_peak = iterative_refinement(intrp.derivative(), [left, right])
+
+    dyn_fine = interpolate_dynamics(
+        dyn_fine[:, :-3], peak_omega=t_peak, step_back=step_back
+    )
+    dyn_fine = augment_dynamics(dyn_fine, chi_1, chi_2, m_1, m_2, H)
+
+    return dyn_coarse, dyn_fine
+
+
+def iterative_refinement(f, interval, levels=2, dt_initial=0.1):
+    left = interval[0]
+    right = interval[1]
+    for n in range(1, levels + 1):
+        dt = dt_initial / (10**n)
+        t_fine = np.arange(interval[0], interval[1], dt)
+        deriv = np.abs(f(t_fine))
+
+        mins = argrelmin(deriv, order=3)[0]
+        if len(mins) > 0:
+            result = t_fine[mins[0]]
+
+            interval = max(result - 10 * dt, left), min(result + 10 * dt, right)
+
+        else:
+
+            return (interval[0] + interval[-1]) / 2
+    return result
+
+
+def interpolate_dynamics(dyn_fine, dt=0.1, peak_omega=None, step_back=250.0):
+
+    res = []
+    n = len(dyn_fine)
+
+    if peak_omega:
+        t_new = np.arange(peak_omega - step_back, peak_omega, dt)
+
+    else:
+        t_new = np.arange(dyn_fine[0, 0], dyn_fine[-1, 0], dt)
+
+    for i in range(1, dyn_fine.shape[1]):
+        intrp = CubicSpline(dyn_fine[:, 0], dyn_fine[:, i])
+        res.append(intrp(t_new))
+
+    res = np.array(res)
+    res = res.T
+    return np.c_[t_new, res]

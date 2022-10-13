@@ -1,0 +1,17 @@
+#!/bin/bash -
+#SBATCH -J {{job_name}}_{{label}}
+#SBATCH -o {{job_name}}_{{label}}.stdout           # Output file name
+#SBATCH -e {{job_name}}_{{label}}.stderr           # Error file name
+#SBATCH -n {{ncores}}                # Number of cores
+#SBATCH --ntasks-per-node {{ncores}}         # number of MPI ranks per node
+#SBATCH -p {{queue}}                 # Queue name
+#SBATCH -t {{time}}:00:00            # Run time
+#SBATCH --no-requeue
+
+source {{env}}/bin/activate
+export HDF5_USE_FILE_LOCKING='FALSE'
+export OMP_NUM_THREADS=1
+
+
+
+{{exec_script}}
