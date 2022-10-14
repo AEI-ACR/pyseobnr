@@ -1,11 +1,7 @@
 #!/usr/bin/env python
-from typing import Dict
-from xml.dom.expatbuilder import ElementInfo
 import numpy as np
-from scipy.integrate import solve_ivp, ode
 from scipy.interpolate import CubicSpline
 from scipy.signal import argrelmin
-from .initial_conditions_aligned import computeIC
 from .initial_conditions_aligned_opt import computeIC_opt
 from .rhs_aligned import get_rhs
 
@@ -14,7 +10,6 @@ from numba import jit
 
 config.update("jax_enable_x64", True)
 
-from pygsl import spline
 import pygsl.errno as errno
 import pygsl.odeiv2 as odeiv2
 
