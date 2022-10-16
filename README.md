@@ -5,6 +5,7 @@ pyseobnr provides state-of-the-art gravitational waveforms using the effective-o
 To install, you can do:
 
 ```
+pip install -U pip wheel setuptools numpy
 pip install .
 ```
 
