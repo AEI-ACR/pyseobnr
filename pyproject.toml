@@ -23,6 +23,7 @@ authors = [
 	{ name = "Deyan Mihaylov", email = "deyan.mihaylov@ligo.org"},
 	{ name = "Antoni Ramos Buades", email = "antoni.ramos.buades@aei.mpg.de"},
 	{ name = "Michael Puerrer", email = "michael.puerrer@ligo.org"},
+	{ name = "Hector Estelles", email = "hector.estelles@ligo.org"}
 
 ]
 license = { text = "GPL-3.0-or-later" }
@@ -55,10 +56,17 @@ dependencies = [
         "jax",
         "jaxlib",
         "rich",
-        "pygsl"
+        "pygsl",
+		"lalsuite"
 ]
 
 # dynamic properties set by tools:
 dynamic = [
 	"version",
 ]
+
+[project.optional-dependencies]
+checks = ['bilby',
+'waveform_tools @  git+https://sergei_ossokine@bitbucket.org/sergei_ossokine/waveform_tools.git',
+'gwsurrogate',
+'pathos']
