@@ -167,7 +167,6 @@ class SEOBNRv5HM_opt(Model):
 
         for mode in self.return_modes:
             if mode not in VALID_MODES:
-                print(f"{mode} is not valid!")
                 logger.error(f"The specified mode, {mode} is not available!")
                 logger.error(f"The allowed modes are: {VALID_MODES}")
                 raise ValueError
