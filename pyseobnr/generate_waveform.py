@@ -177,6 +177,8 @@ class GenerateWaveform:
             approx == "SEOBNRv5HM"
         ):  # If aligned-spin model, compute negative modes using equatorial symmetry
             for ellm, mode in h.items():
+                ell = int(ellm[0])
+                emm = int(ellm[2])
                 hlm_dict[(ell, -emm)] = pow(-1, ell) * fac * np.conj(mode)
 
         if self.swap_masses is True:
