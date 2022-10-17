@@ -38,8 +38,7 @@ def GSF_amplitude_fits(nu:float)->Dict[str,Any]:
         (18778864 / 12629925) / nu,
         -0.654,
         -3.69,
-        18.5,
-        -(2465107182496333 / 460490801971200) / nu,
+        18.5 - (2465107182496333 / 460490801971200) / nu,
         (174381 / 67760) / nu,
     ]
 
@@ -62,7 +61,6 @@ def GSF_amplitude_fits(nu:float)->Dict[str,Any]:
         h32_v10,
         h32_vlog10,
         h43_v4,
-        h43_v5,
         h43_v6,
         h43_v8,
         h43_vlog8,
@@ -86,7 +84,6 @@ def GSF_amplitude_fits(nu:float)->Dict[str,Any]:
         "h32_v10": h32_v10,
         "h32_vlog10": h32_vlog10,
         "h43_v4": h43_v4,
-        "h43_v5": h43_v5,
         "h43_v6": h43_v6,
         "h43_v8": h43_v8,
         "h43_vlog8": h43_vlog8,
