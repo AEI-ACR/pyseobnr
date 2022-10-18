@@ -8,6 +8,7 @@ import numpy as np
 from pyseobnr.models.model import Model
 from rich.logging import RichHandler
 from rich.traceback import install
+from scipy.interpolate import CubicSpline
 
 from .default_settings import default_unfaitfulness_mode_by_mode_settings
 from .unfaithfulness_mode_by_mode import (
@@ -88,7 +89,10 @@ class UnfaithfulnessModeByModeLAL(Metric):
                 np.real(target.waveform_modes[f"{ell},{m}"]), delta_t=target.delta_T
             )
             t1 = target.t
-            omega1 = target.omega0
+            #omega1 = target.omega0
+            # Estimate the actual starting frequency from (2,2) mode
+            intrp = CubicSpline(target.t,np.unwrap(np.angle(target.waveform_modes['2,2'])))
+            omega1 = np.abs(intrp.derivative()(target.t[0]))/2.
             logger.debug("Target was a Model, grabbed stuff")
         else:
             # Assume that otherwise it's a call to LAL and special care has to be taken
