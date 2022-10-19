@@ -8,6 +8,8 @@ import lal
 import lalsimulation as lalsim
 import numpy as np
 
+import time
+
 
 def generate_modes_opt(
     q, chi1, chi2, omega0, approximant="SEOBNRv5HM", settings=None, debug=False
@@ -40,20 +42,21 @@ class GenerateWaveform:
 
             mass1: Mass of companion 1, in solar masses - Required
             mass2: Mass of companion 2, in solar masses - Required
-            spin1x: x-component of dimensionless spin of companion 1 - Required
-            spin1y: y-component of dimensionless spin of companion 1 - Required
-            spin1z: z-component of dimensionless spin of companion 1 - Required
-            spin2x: x-component of dimensionless spin of companion 2 - Required
-            spin2y: y-component of dimensionless spin of companion 2 - Required
-            spin2z: z-component of dimensionless spin of companion 2 - Required
-            distance: Distance to the source, in Mpc - Required
-            inclination: Inclination of the source, in radians - Required.
-            phi_ref: Orbital phase at the reference frequency, in radians - Required.
-            f22_start: Starting waveform generation frequency, in Hz - Required
-            deltaT: Time spacing, in seconds - Required
-            f_max: Maximum frequency, in Hz - Required
-            deltaF: Frequency spacing, in Hz - Required
-            approximant: 'SEOBNRv5HM' or 'SEOBNRv5PHM' (not implemented yet).
+            spin1x: x-component of dimensionless spin of companion 1 - Default: 0
+            spin1y: y-component of dimensionless spin of companion 1 - Default: 0
+            spin1z: z-component of dimensionless spin of companion 1 - Default: 0
+            spin2x: x-component of dimensionless spin of companion 2 - Default: 0
+            spin2y: y-component of dimensionless spin of companion 2 - Default: 0
+            spin2z: z-component of dimensionless spin of companion 2 - Default: 0
+            distance: Distance to the source, in Mpc - Default: 100 Mpc
+            inclination: Inclination of the source, in radians - Default: 0
+            phi_ref: Orbital phase at the reference frequency, in radians - Default: 0
+            f22_start: Starting waveform generation frequency, in Hz - Default: 20 Hz
+            deltaT: Time spacing, in seconds - Default: 1/2048 seconds
+            f_max: Maximum frequency, in Hz - Default: 1024 Hz
+            deltaF: Frequency spacing, in Hz - Default: 0.125
+            mode_array: Mode content (only positive must be specified, e.g [(2,2),(2,1)]) - Default: None (all modes)
+            approximant: 'SEOBNRv5HM' or 'SEOBNRv5PHM' (not implemented yet), Default: 'SEOBNRv5HM'
 
         """
 
@@ -87,6 +90,7 @@ class GenerateWaveform:
             "deltaT": 1.0 / 2048.0,
             "f_max": 1024.0,
             "deltaF": 0.125,
+            "mode_array": None,
             "approximant": "SEOBNRv5HM",
         }
 
@@ -156,6 +160,10 @@ class GenerateWaveform:
             }
         else:
             settings = {"dt": dt, "M": Mtot}
+
+        if self.parameters["mode_array"] != None:
+            settings["return_modes"] = self.parameters["mode_array"] #Select mode array
+
         times, h = generate_modes_opt(
             q, chi1, chi2, omega0, approximant=approx, settings=settings
         )
@@ -241,9 +249,9 @@ class GenerateWaveform:
         Routine similar to LAL SimInspiralFD, but without modifying starting frequency.
         """
 
+        # Adjust deltaT depending on sampling rate
         fmax = self.parameters["f_max"]
         f_nyquist = fmax
-        # print(f_nyquist)
         deltaF = 0
         if "deltaF" in self.parameters.keys():
             deltaF = self.parameters["deltaF"]
@@ -253,13 +261,14 @@ class GenerateWaveform:
             if ((n & (n - 1)) == 0) and n != 0:
                 chirplen_exp = np.frexp(n)
                 f_nyquist = np.ldexp(0.5, chirplen_exp[1]) * deltaF
-            # print(f_nyquist)
 
         deltaT = 0.5 / f_nyquist
         self.parameters["deltaT"] = deltaT
 
+        # Generate conditioned TD polarizations
         hp, hc = self.generate_td_polarizations_conditioned()
 
+        #Adjust signal duration
         if deltaF == 0:
             chirplen = hp.data.length
             chirplen_exp = np.frexp(chirplen)
@@ -273,6 +282,7 @@ class GenerateWaveform:
         lal.ResizeREAL8TimeSeries(hp, hp.data.length - chirplen, chirplen)
         lal.ResizeREAL8TimeSeries(hc, hc.data.length - chirplen, chirplen)
 
+        # FFT - Using LAL routines
         hptilde = lal.CreateCOMPLEX16FrequencySeries(
             "FD H_PLUS",
             hp.epoch,
@@ -291,16 +301,13 @@ class GenerateWaveform:
         )
 
         plan = lal.CreateForwardREAL8FFTPlan(chirplen, 0)
-
         lal.REAL8TimeFreqFFT(hctilde, hc, plan)
         lal.REAL8TimeFreqFFT(hptilde, hp, plan)
 
+        # Adjust timeshift in FD signal to match LAL conventions
         shift = float(hp.deltaT * hp.data.length - hp.epoch)
+        expshift = np.exp(2j * np.pi * shift * np.arange(hptilde.data.length) * hptilde.deltaF)
+        hptilde.data.data *= expshift
+        hctilde.data.data *= expshift
 
-        for idx in range(hptilde.data.length):
-            ff = idx * hptilde.deltaF
-            facshift = np.exp(2j * np.pi * shift * ff)
-            hptilde.data.data[idx] *= facshift
-            hctilde.data.data[idx] *= facshift
-        # return FrequencySeries(hpf, frequencies = hpf.sample_frequencies), FrequencySeries(hcf, frequencies = hcf.sample_frequencies)
         return hptilde, hctilde
