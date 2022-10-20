@@ -11,13 +11,11 @@ extensions = [
     ),
     Extension("pyseobnr.eob.waveform.waveform", ["pyseobnr/eob/waveform/waveform.pyx"],
               include_dirs=[np.get_include(),"pyseobnr/eob/utils"],
-              extra_compile_args=['-O3','-march=native'],
-              extra_link_args=['-march=native']
+              extra_compile_args=['-O3'],
     ),
     Extension("pyseobnr.eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C", ["pyseobnr/eob/hamiltonian/Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C.pyx"],
                 include_dirs=[np.get_include(),"pyseobnr/eob/utils"],
-              extra_compile_args=['-O3','-march=native'],
-              extra_link_args=['-march=native']
+              extra_compile_args=['-O3']
      ),
     Extension("pyseobnr.eob.hamiltonian.Hamiltonian_C", ["pyseobnr/eob/hamiltonian/Hamiltonian_C.pyx"],
               include_dirs=[np.get_include(),"pyseobnr/eob/utils"],
@@ -30,7 +28,7 @@ extensions = [
     ),
     Extension("pyseobnr.auxiliary.interpolate._ppoly", ["pyseobnr/auxiliary/interpolate/_ppoly.pyx"],
               include_dirs=[np.get_include()],
-              extra_compile_args = ["-flto", "-O3","-mavx", "-ftree-vectorize"]),
+              extra_compile_args = ["-flto", "-O3", "-ftree-vectorize"]),
 
 ]
 
