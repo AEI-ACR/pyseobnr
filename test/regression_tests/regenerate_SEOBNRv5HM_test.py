@@ -1,9 +1,9 @@
+from datetime import datetime
+
 import lal
 import numpy as np
-from jinja2 import Template
-from pyseobnr.generate_waveform import GenerateWaveform, generate_modes_opt
 from jinja2 import Environment, FileSystemLoader
-
+from pyseobnr.generate_waveform import GenerateWaveform, generate_modes_opt
 
 np.set_printoptions(precision=16)
 
@@ -81,6 +81,7 @@ prog = template.render(
     modes_SI=data_SI,
     indices=indices,
     indices_waveform=indices_waveform,
+    now=datetime.now(),
 )
 with open("test_SEOBNRv5HM.py", "w") as fw:
     fw.write(prog)

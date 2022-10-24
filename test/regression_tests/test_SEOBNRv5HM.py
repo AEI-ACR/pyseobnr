@@ -1,7 +1,7 @@
 """
 Perform several regression tests of the SEOBNRv5HM model.
 
-This file was automatically generated on .
+This file was automatically generated on 2022-10-24 14:10:41.366988.
 """
 
 import pytest
