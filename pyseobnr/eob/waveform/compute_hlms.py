@@ -5,9 +5,7 @@ import numexpr
 
 numexpr.set_num_threads(1)
 import numpy as jnp
-from pesummary.gw.conversions.nrutils import (
-    bbh_final_mass_non_precessing_UIB2016,
-    bbh_final_spin_non_precessing_HBR2016)
+from lalinference.imrtgr import nrutils
 from pygsl import spline
 from pyseobnr.auxiliary.mode_mixing.auxiliary_functions_modemixing import *
 from scipy.interpolate import CubicSpline
@@ -59,7 +57,7 @@ def concatenate_modes(hlms_1, hlms_2):
     return hlms
 
 
-def interpolate_modes_fast(t_old, t_new, modes_dict, phi_orb,m_max=5):
+def interpolate_modes_fast(t_old, t_new, modes_dict, phi_orb, m_max=5):
     """Construct intertial frame modes on a new regularly
     spaced time grid. Does this by employing a carrier
     signal. See the idea in https://arxiv.org/pdf/2003.12079.pdf
@@ -78,49 +76,49 @@ def interpolate_modes_fast(t_old, t_new, modes_dict, phi_orb,m_max=5):
 
     n = len(t_old)
     intrp_orb = spline.cspline(n)
-    intrp_orb.init(t_old,phi_orb)
+    intrp_orb.init(t_old, phi_orb)
     phi_orb_interp = intrp_orb.eval_e_vector(t_new)
-    tmp_store = np.zeros(len(phi_orb_interp),dtype=np.complex128)
+    tmp_store = np.zeros(len(phi_orb_interp), dtype=np.complex128)
     intrp_re = spline.cspline(n)
     intrp_im = spline.cspline(n)
 
-    factors = np.zeros((m_max,len(phi_orb_interp)),dtype=np.complex128)
-    compute_factors(phi_orb_interp,m_max,factors)
+    factors = np.zeros((m_max, len(phi_orb_interp)), dtype=np.complex128)
+    compute_factors(phi_orb_interp, m_max, factors)
     for key, item in modes_dict.items():
         m = key[1]
 
         tmp = item * np.exp(1j * m * phi_orb)
 
-        intrp_re.init(t_old,tmp.real)
-        intrp_im.init(t_old,tmp.imag)
+        intrp_re.init(t_old, tmp.real)
+        intrp_im.init(t_old, tmp.imag)
         result_re = intrp_re.eval_e_vector(t_new)
         result_im = intrp_im.eval_e_vector(t_new)
-        unrotate_leading_pn(result_re,result_im,factors[m-1],tmp_store)
-        modes_intrp[key] = 1*tmp_store
+        unrotate_leading_pn(result_re, result_im, factors[m - 1], tmp_store)
+        modes_intrp[key] = 1 * tmp_store
     return modes_intrp
 
 
-
-def iterative_refinement(f,interval,levels=3,dt_initial = 0.1):
+def iterative_refinement(f, interval, levels=3, dt_initial=0.1):
     left = interval[0]
     right = interval[1]
-    for n in range(1,levels+1):
-        dt = dt_initial/(10**n)
-        t_fine = np.arange(interval[0],interval[1],dt)
+    for n in range(1, levels + 1):
+        dt = dt_initial / (10**n)
+        t_fine = np.arange(interval[0], interval[1], dt)
         deriv = np.abs(f(t_fine))
 
         mins = argrelmin(deriv, order=3)[0]
-        if len(mins)>0:
+        if len(mins) > 0:
             result = t_fine[mins[0]]
 
-            interval = max(result-10*dt,left),min(result+10*dt,right)
+            interval = max(result - 10 * dt, left), min(result + 10 * dt, right)
 
         else:
 
-            return (interval[0]+interval[-1])/2
+            return (interval[0] + interval[-1]) / 2
     return result
 
-def get_attachment_reference_point(omega_orb, t, guess, step_back=100.0,dt=0.1):
+
+def get_attachment_reference_point(omega_orb, t, guess, step_back=100.0, dt=0.1):
     intrp = CubicSpline(t, omega_orb)
     omega_dot = intrp.derivative()
 
@@ -142,17 +140,17 @@ def get_attachment_reference_point(omega_orb, t, guess, step_back=100.0,dt=0.1):
     else:
         return t[-1]
 
-
-    result = iterative_refinement(omega_dot,[max(result-10*dt,left),min(result+10*dt,right)])
+    result = iterative_refinement(
+        omega_dot, [max(result - 10 * dt, left), min(result + 10 * dt, right)]
+    )
     return result
-
 
 
 def get_attachment_reference_point_pr(pr, t, guess, step_back=100.0):
     intrp = CubicSpline(t, pr)
 
     # Bracketing interval for minimum
-    #print(f"guess={guess},step_back={step_back}")
+    # print(f"guess={guess},step_back={step_back}")
     left = guess - 0.95 * step_back
     right = t[-1]
 
@@ -240,10 +238,11 @@ def compute_IMR_modes(
     if final_state:
         final_mass, final_spin = final_state
     else:
-        final_mass = bbh_final_mass_non_precessing_UIB2016(m1, m2, chi1, chi2)
-        final_spin = bbh_final_spin_non_precessing_HBR2016(
+
+        final_mass = nrutils.bbh_final_mass_non_precessing_UIB2016(m1, m2, chi1, chi2)
+        final_spin = nrutils.bbh_final_spin_non_precessing_HBR2016(
             m1, m2, chi1, chi2, version="M3J4"
-        )[0]
+        )
 
     omega_complex = compute_QNM(2, 2, 0, final_spin, final_mass).conjugate()
     damping_time = 1 / np.imag(omega_complex)
@@ -286,13 +285,16 @@ def compute_IMR_modes(
         phase = jnp.unwrap(jnp.angle(mode))
         # Here
 
+        idx_interp = np.argmin(np.abs(t_for_compute - t_a))
+        left = np.max((0, idx_interp - N_interp))
+        right = np.min((idx_interp + N_interp, len(t_for_compute)))
 
-        idx_interp = np.argmin(np.abs(t_for_compute-t_a))
-        left = np.max((0,idx_interp-N_interp))
-        right = np.min((idx_interp+N_interp,len(t_for_compute)))
-
-        intrp_amp = InterpolatedUnivariateSpline(t_for_compute[left:right], amp[left:right])
-        intrp_phase = InterpolatedUnivariateSpline(t_for_compute[left:right], phase[left:right])
+        intrp_amp = InterpolatedUnivariateSpline(
+            t_for_compute[left:right], amp[left:right]
+        )
+        intrp_phase = InterpolatedUnivariateSpline(
+            t_for_compute[left:right], phase[left:right]
+        )
         amp_max = intrp_amp(t_a)
         damp_max = intrp_amp.derivative()(t_a)
         phi_match = intrp_phase(t_a)
@@ -398,8 +400,8 @@ def compute_mixed_mode(
     # First the (ell,m) mode
     idx_match = np.argmin(np.abs(t - t_match))
     N = 5
-    left = np.max((0,idx_match-N))
-    right = np.min((idx_match+N,len(t)))
+    left = np.max((0, idx_match - N))
+    right = np.min((idx_match + N, len(t)))
     amp = jnp.abs(mode_lm)
     phase = jnp.unwrap(jnp.angle(mode_lm))
     intrp_amp = InterpolatedUnivariateSpline(t[left:right], amp[left:right])
@@ -601,7 +603,7 @@ def NQC_correction(
                 m_2,
                 chi_1,
                 chi_2,
-                nrDeltaT - extra, # FIXME for the (5,5) mode
+                nrDeltaT - extra,  # FIXME for the (5,5) mode
                 fits_dict,
             )
 
@@ -628,28 +630,3 @@ def apply_nqc_corrections(
             continue
         correction = EOBNonQCCorrection(r, None, pr, None, omega_orb, NQC_coeffs)
         hlms[key] *= correction
-
-
-def Kerr_ISCO_mod(
-    chi1,
-    chi2,
-    m1,
-    m2,
-):
-
-    ap = m1*chi1+m2*chi2
-    q = m1/m2
-    nu = q/(1+q)**2
-    a = bbh_final_spin_non_precessing_HBR2016(m1, m2, chi1, chi2, version="M3J4" )[0]
-
-    # Modified spin such that r_ISCO is always before the end of the dynamics
-    a_mod = a*(1-np.abs(ap)*(nu+0.01))
-
-    # Compute the ISCO radius for this spin
-    Z_1 = 1+(1-a_mod**2)**(1./3)*((1+a_mod)**(1./3)+(1-a_mod)**(1./3))
-    Z_2 = np.sqrt(3*a_mod**2+Z_1**2)
-    r_ISCO = 3+Z_2-a_mod/np.abs(a_mod)*np.sqrt((3-Z_1)*(3+Z_1+2*Z_2))
-    # Compute the ISCO L for this spin
-    L_ISCO = 2/(3*np.sqrt(3))*(1+2*np.sqrt(3*r_ISCO)-2)
-
-    return np.array([r_ISCO,L_ISCO])

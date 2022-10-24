@@ -13,10 +13,7 @@ from scipy import optimize
 from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
 from scipy import integrate
 
-from pesummary.gw.conversions.nrutils import (
-    bbh_final_mass_non_precessing_UIB2016,
-    bbh_final_spin_non_precessing_HBR2016,
-)
+from lalinference.imrtgr import nrutils
 
 from .integrate_ode import compute_dynamics_opt as compute_dynamics
 from .integrate_ode import augment_dynamics
@@ -116,9 +113,10 @@ cpdef Kerr_ISCO(
     # pphi_ISCO = 2 / (3 * np.sqrt(3)) * (1 + 2 * np.sqrt(3 * r_ISCO) - 2)
     # return r_ISCO, pphi_ISCO
 
-    a = bbh_final_spin_non_precessing_HBR2016(
-        m1, m2, chi1, chi2, version="M3J4"
-    )[0]
+
+    a = nrutils.bbh_final_spin_non_precessing_HBR2016(
+            m1, m2, chi1, chi2, version="M3J4"
+    )
     # Compute the ISCO radius for this spin
     Z_1 = 1+(1-a**2)**(1./3)*((1+a)**(1./3)+(1-a)**(1./3))
     Z_2 = np.sqrt(3*a**2+Z_1**2)

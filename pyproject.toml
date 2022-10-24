@@ -51,7 +51,6 @@ dependencies = [
         "numba",
         "qnm",
         "scri",
-        "pesummary",
         "setuptools",
         "jax",
         "jaxlib",
