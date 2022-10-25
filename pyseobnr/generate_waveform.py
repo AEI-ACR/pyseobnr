@@ -52,6 +52,7 @@ class GenerateWaveform:
             inclination: Inclination of the source, in radians - Default: 0
             phi_ref: Orbital phase at the reference frequency, in radians - Default: 0
             f22_start: Starting waveform generation frequency, in Hz - Default: 20 Hz
+            f_ref: The reference frequency, in Hz - Default: f22_start
             deltaT: Time spacing, in seconds - Default: 1/2048 seconds
             f_max: Maximum frequency, in Hz - Default: 1024 Hz
             deltaF: Frequency spacing, in Hz - Default: 0.125
@@ -87,6 +88,7 @@ class GenerateWaveform:
             "inclination": 0.0,
             "phi_ref": 0.0,
             "f22_start": 20.0,
+            "f_ref": 20.0,
             "deltaT": 1.0 / 2048.0,
             "f_max": 1024.0,
             "deltaF": 0.125,
@@ -99,7 +101,7 @@ class GenerateWaveform:
                 parameters[param] = default_params[param]
 
         if (
-            parameters["approximant"] is "SEOBNRv5HM"
+            parameters["approximant"] == "SEOBNRv5HM"
             and (
                 np.abs(parameters["spin1x"])
                 + np.abs(parameters["spin1y"])
@@ -162,8 +164,11 @@ class GenerateWaveform:
             settings = {"dt": dt, "M": Mtot}
 
         if self.parameters["mode_array"] != None:
-            settings["return_modes"] = self.parameters["mode_array"] #Select mode array
+            settings["return_modes"] = self.parameters[
+                "mode_array"
+            ]  # Select mode array
 
+        settings.update(f_ref=self.parameters["f_ref"])
         times, h = generate_modes_opt(
             q, chi1, chi2, omega0, approximant=approx, settings=settings
         )
@@ -268,7 +273,7 @@ class GenerateWaveform:
         # Generate conditioned TD polarizations
         hp, hc = self.generate_td_polarizations_conditioned()
 
-        #Adjust signal duration
+        # Adjust signal duration
         if deltaF == 0:
             chirplen = hp.data.length
             chirplen_exp = np.frexp(chirplen)
@@ -305,9 +310,11 @@ class GenerateWaveform:
         lal.REAL8TimeFreqFFT(hptilde, hp, plan)
 
         # Adjust timeshift in FD signal to match LAL conventions
-        shift = float(hp.deltaT * hp.data.length - hp.epoch)
-        expshift = np.exp(2j * np.pi * shift * np.arange(hptilde.data.length) * hptilde.deltaF)
-        hptilde.data.data *= expshift
-        hctilde.data.data *= expshift
+        # shift = float(hp.deltaT * hp.data.length - hp.epoch)
+        # expshift = np.exp(
+        #    2j * np.pi * shift * np.arange(hptilde.data.length) * hptilde.deltaF
+        # )
+        # hptilde.data.data *= expshift
+        # hctilde.data.data *= expshift
 
         return hptilde, hctilde

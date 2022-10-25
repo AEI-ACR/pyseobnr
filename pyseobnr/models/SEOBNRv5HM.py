@@ -6,21 +6,13 @@ from typing import Any, Callable, Dict
 import lal
 import numpy as np
 from pygsl import spline
+from pyseobnr.eob.dynamics.integrate_ode import augment_dynamics, compute_dynamics_opt
 from pyseobnr.eob.dynamics.postadiabatic_C import Kerr_ISCO, compute_combined_dynamics
-from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
-from pyseobnr.eob.waveform.waveform import compute_hlms as compute_hlms_new
-from pyseobnr.eob.waveform.waveform import (
-    compute_newtonian_prefixes,
-    compute_special_coeffs,
-)
-from pyseobnr.eob.dynamics.integrate_ode import (
-    augment_dynamics,
-    compute_dynamics_opt,
-)
 from pyseobnr.eob.fits.fits_Hamiltonian import NR_deltaT, NR_deltaT_NS, a6_NS, dSO
 from pyseobnr.eob.fits.GSF_fits import GSF_amplitude_fits
 from pyseobnr.eob.fits.IV_fits import InputValueFits
 from pyseobnr.eob.hamiltonian import Hamiltonian
+from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
 from pyseobnr.eob.waveform.compute_hlms import (
     NQC_correction,
     apply_nqc_corrections,
@@ -28,10 +20,16 @@ from pyseobnr.eob.waveform.compute_hlms import (
     concatenate_modes,
     interpolate_modes_fast,
 )
+from pyseobnr.eob.waveform.waveform import compute_hlms as compute_hlms_new
+from pyseobnr.eob.waveform.waveform import (
+    compute_newtonian_prefixes,
+    compute_special_coeffs,
+)
 from pyseobnr.models.model import Model
 from rich.logging import RichHandler
 from rich.traceback import install
 from scipy.interpolate import CubicSpline
+from scipy.optimize import root
 
 # Setup the logger to work with rich
 logger = logging.getLogger(__name__)
@@ -87,8 +85,24 @@ class SEOBNRv5HM_opt(Model):
 
         # self.nu = self.m_1 * self.m_2 / (self.m_1 + self.m_2) ** 2
         self.nu = q / (1.0 + q) ** 2
+        # Deal with reference and starting frequencies
+        self.f_ref = self.settings.get(
+            "f_ref", omega0 / (self.M * lal.MTSUN_SI * np.pi)
+        )
+        self.f0 = omega0 / (self.M * lal.MTSUN_SI * np.pi)
         self.omega0 = omega0
-        self.f0 = self.omega0 / (self.M * lal.MTSUN_SI * np.pi)
+
+        if np.abs(self.f_ref - self.f0) > 1e-10:
+            # The reference frequency is not the same as the starting frequency
+            # If the starting frequency is smaller than the reference frequency,
+            # we don't need to adjust anything here, and will account for this
+            # with a phase shift of the dynamics.
+            # If the reference frequency is _less_ than the starting frequency
+            # then just change the starting frequency to the reference frequency
+            if self.f_ref < self.f0:
+                self.omega0 = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
+                self.f0 = self.omega0 / (self.M * lal.MTSUN_SI * np.pi)
+
         self.step_back = self.settings.get("step_back", 250.0)
         self.chi_S = (self.chi_1 + self.chi_2) / 2
         self.chi_A = (self.chi_1 - self.chi_2) / 2
@@ -126,6 +140,7 @@ class SEOBNRv5HM_opt(Model):
 
         # All the modes we will need to output
         self.return_modes = self.settings.get("return_modes", None)
+
         # Check that the modes are valid, i.e. something we
         # can return
         self._validate_modes()
@@ -298,7 +313,40 @@ class SEOBNRv5HM_opt(Model):
 
             # Combine the low and high dynamics
             dynamics = np.vstack((dynamics_low, dynamics_fine))
+
             self.dynamics = dynamics
+            if np.abs(self.f_ref - self.f0) > 1e-10:
+                # Reference frequency is not the same as starting frequency
+                # To account for the LAL conventions, shift things so that
+                # the orbital phase is 0 at f_ref
+                omega_orb = dynamics[:, -2]
+                t_d = dynamics[:, 0]
+                # Approximate
+                f_22 = omega_orb / (self.M * lal.MTSUN_SI * np.pi)
+                if self.f_ref > f_22[-1]:
+                    logger.error(
+                        "f_ref is larger than the highest frequency in the inspiral!"
+                    )
+                    raise ValueError
+                # Solve for time when f_22 = f_ref
+                intrp = CubicSpline(t_d, f_22)
+                guess = t_d[np.argmin(np.abs(f_22 - self.f_ref))]
+                rhs = lambda x: np.abs(intrp(x) - self.f_ref)
+                res = root(rhs, guess)
+
+                t_correct = res.x
+                if not res.success:
+                    logger.error(
+                        "Failed to find the time corresponding to requested f_ref."
+                    )
+                    raise ValueError
+                phase = dynamics[:, 2]
+                intrp_phase = CubicSpline(t_d, phase)
+                phase_shift = intrp_phase(t_correct)
+                # Shift the phase for all dynamics arrays
+                self.dynamics[:, 2] -= phase_shift
+                dynamics_low[:, 2] -= phase_shift
+                dynamics_fine[:, 2] -= phase_shift
 
             t_fine = dynamics_fine[:, 0]
 
