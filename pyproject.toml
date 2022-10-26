@@ -68,4 +68,5 @@ dynamic = [
 checks = ['bilby',
 'waveform_tools @  git+https://sergei_ossokine@bitbucket.org/sergei_ossokine/waveform_tools.git',
 'gwsurrogate',
-'pathos']
+'pathos',
+'scikit-optimize']
