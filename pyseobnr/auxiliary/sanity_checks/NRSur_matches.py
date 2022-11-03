@@ -114,7 +114,7 @@ if __name__ == "__main__":
         "--approximant-name",
         type=str,
         help="Name of the approximant",
-        default="SEOBNRv5",
+        default="SEOBNRv5HM",
     )
     p.add_argument(
         "--plots-only",

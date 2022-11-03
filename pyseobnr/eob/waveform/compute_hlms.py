@@ -283,7 +283,6 @@ def compute_IMR_modes(
 
         amp = jnp.abs(mode)
         phase = jnp.unwrap(jnp.angle(mode))
-        # Here
 
         idx_interp = np.argmin(np.abs(t_for_compute - t_a))
         left = np.max((0, idx_interp - N_interp))
@@ -299,6 +298,18 @@ def compute_IMR_modes(
         damp_max = intrp_amp.derivative()(t_a)
         phi_match = intrp_phase(t_a)
         omega_max = intrp_phase.derivative()(t_a)
+
+        # To improve the stability of the merger-ringdown for odd-m configurations
+        # with a minimum in the ampliutde close to the attachment point,
+        # we directly use the Input Value fits for the frequency, 
+        # instead of reading its value from the inspiral phase.
+        # If the NQCs were *not* applied this would lead to a
+        # discontinuity, and one would need to go back to the 
+        # previous prescription.
+
+        if m%2 == 1:
+            IVfits = InputValueFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
+            omega_max = IVfits.omega()[ell,m]
 
         attach_params = dict(
             amp=amp_max,
@@ -420,6 +431,20 @@ def compute_mixed_mode(
     hd_mm = intrp_amp.derivative()(t_match)
     phi_mm = intrp_phase(t_match)
     om_mm = intrp_phase.derivative()(t_match)
+
+    # To improve the stability of the merger-ringdown for configurations
+    # with a minimum in the ampliutde close to the attachment point,
+    # we directly use the Input Value fits for the frequency, 
+    # instead of reading its value from the inspiral phase.
+    # If the NQCs were *not* applied this would lead to a
+    # discontinuity, and one would need to go back to the 
+    # previous prescription.
+
+    if m%2 == 1:
+        IVfits = InputValueFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
+        om = IVfits.omega()[ell,m]
+        om_mm =  IVfits.omega()[m,m]    
+
     # Spherical mode we need in the ringdown
     attach_params = dict(
         amp=h_mm,
