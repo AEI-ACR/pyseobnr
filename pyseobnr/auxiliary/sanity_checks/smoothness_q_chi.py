@@ -29,17 +29,9 @@ def plots_smoothness_in_q(N: int, mode):
     ell, m = mode
     for chi in [
         -0.995,
-        -0.9,
-        -0.75,
         -0.5,
-        -0.3,
-        -0.1,
         0.0,
-        0.1,
-        0.3,
         0.5,
-        0.75,
-        0.9,
         0.995,
     ]:
 
@@ -113,7 +105,8 @@ def plots_smoothness_in_chi(N: int, mode):
     omega0 = 0.015
 
     ell, m = mode
-    for q in [1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0]:
+    #for q in [1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0]:
+    for q in [1.0, 2.0, 8.0, 20.0]:
 
         # amplitude plots
         for i, chi in enumerate(chi_arr):
@@ -197,9 +190,6 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser(
         description="Make plots to show smoothness varying physical parameters "
-    )
-    p.add_argument(
-        "--wrapper-path", type=str, help="The path to the wrapper, including name"
     )
     p.add_argument("--points", type=int, help="Number of points", default=41)
     p.add_argument("--n-cpu", type=int, help="Number of cpus to use", default=14)

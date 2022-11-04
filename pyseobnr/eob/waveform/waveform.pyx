@@ -2299,6 +2299,10 @@ cpdef compute_special_coeffs(double[:,:] dynamics, double t_attach, EOBParams eo
         amp =  amp_fits[(l, m)]
         amp22 = amp_fits[(2,2)]
 
+        # when the amplitude at merger is too small a positive sign is better 
+        if np.abs(amp)<1e-4:
+            amp = np.abs(amp)      
+
         min_amp = amp_thresholds[(l,m)]
         if np.abs(amp)<amp22/min_amp:
             amp = np.sign(amp)*amp22/min_amp

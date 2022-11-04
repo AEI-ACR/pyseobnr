@@ -1,8 +1,12 @@
 import argparse
+import importlib
+import os
+import sys
 
 import numpy as np
 from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 from pathos.multiprocessing import ProcessingPool as Pool
+
 from pyseobnr.auxiliary.external_models import *
 from pyseobnr.auxiliary.sanity_checks.metrics import *
 from pyseobnr.auxiliary.sanity_checks.parameters import parameters_random_fast
@@ -11,39 +15,44 @@ from pyseobnr.generate_waveform import generate_modes_opt
 modes_v5HM = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
 modes_v4HM = [(2, 2), (2, 1), (3, 3), (4, 4), (5, 5)]
 
+# Reproducible
+seed = 150914
 
 def mismatch_EOB(q, chi1, chi2, model_1_name, model_2_name):
 
     omega0 = 0.015
 
     if model_1_name == "SEOBNRv5HM":
-        _,_,model_1 = generate_modes_opt(q,chi1,chi2,omega0,debug=True)
-
+        _,_,model_1 = generate_modes_opt(q,chi1,chi2,0.8*omega0,debug=True)
 
     elif model_1_name == "SEOBNRv4HM":
-        model_1 = SEOBNRv4HM_LAL(q, chi1, chi2, omega0)
+        model_1 = SEOBNRv4HM_LAL(q, chi1, chi2, 0.8*omega0)
         model_1()
-        modes = modes_v4HM
-
-    if model_2_name == "SEOBNRv5HM":
-        _,_,model_2 = generate_modes_opt(q,chi1,chi2,omega0,debug=True)
 
 
-
-    elif model_2_name == "SEOBNRv4HM":
-        model_2 = SEOBNRv4HM_LAL(q, chi1, chi2, omega0)
-        model_2()
-        modes = modes_v4HM
+    model_2 = model_2_name
 
     masses = np.arange(10, 310, 10)
+
     unf_settings = {"debug": True, "masses": masses}
     unf = UnfaithfulnessModeByModeLAL(settings=unf_settings)
 
+    modes = [(2,2)]
     mms = []
+    params = dict(
+                q=q,
+                chi1=np.array([0.0, 0.0, chi1]),
+                chi2=np.array([0.0, 0.0, chi2]),
+                omega0= omega0,
+                dt=model_1.delta_T,
+                df=1 / (len(model_1.t) * model_1.delta_T),
+    )
+
     for mode in modes:
         ell, m = mode
-        mm = unf(model_1, model_2, ell=ell, m=m)
+        mm = unf(model_1, model_2, params=params, ell=ell, m=m)
         mms.append(mm)
+
     return (q, chi1, chi2, np.array(mms))
 
 
@@ -54,14 +63,11 @@ def process_one_case(input):
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(description="Compute mismatch between EOB models")
+    p = argparse.ArgumentParser(description="Compute mismatch between EOB and Phenom models")
     p.add_argument("--points", type=int, help="Number of points", default="5000")
     p.add_argument("--chi-max", type=float, help="Maximum spin", default="0.995")
     p.add_argument("--q-min", type=float, help="Minimum mass-ratio", default="1.0")
     p.add_argument("--q-max", type=float, help="Maximum mass-ratio", default="100.0")
-    p.add_argument(
-        "--wrapper-path", type=str, help="The path to the wrapper, including name"
-    )
     p.add_argument(
         "--name",
         type=str,
@@ -80,8 +86,8 @@ if __name__ == "__main__":
     p.add_argument(
         "--model-2-name",
         type=str,
-        help="Name of the second EOB model",
-        default="SEOBNRv4HM",
+        help="Name of the second Phenom model. Must be one of 'IMRPhenomT', 'IMRPhenomXAS'",
+        default="IMRPhenomXAS",
     )
     p.add_argument("--n-cpu", type=int, help="Number of cores to use", default=64)
     p.add_argument(
@@ -106,6 +112,7 @@ if __name__ == "__main__":
         args.chi_max,
         -args.chi_max,
         args.chi_max,
+        random_state=seed
     )
     lst = [
         (q, chi1, chi2, args.model_1_name, args.model_2_name)
@@ -115,13 +122,9 @@ if __name__ == "__main__":
     pool = Pool(args.n_cpu)
     all_means = list(pool.map(process_one_case, lst))
 
-    if args.model_1_name == "SEOBNRv4HM" or args.model_2_name == "SEOBNRv4HM":
-        mode_list = modes_v4HM
+    mode_list = [(2,2)]
 
-    else:
-        mode_list = modes_v5HM
-
-    all_means = np.array(all_means)
+    aall_means = np.array(all_means)
     # This is an array with shape n cases x p modes x m masses
     mismatches = {}
     for mode in mode_list:
@@ -184,7 +187,6 @@ if __name__ == "__main__":
                 q_pl = q
                 ap_pl = ap
 
-
             M = np.arange(10, 310, 10)
 
             # maximum of mm_M across total mass for histogram
@@ -208,65 +210,65 @@ if __name__ == "__main__":
             )
             plt.close()
 
-            # Histogram
-            plt.hist(
-                mm,
-                bins=np.logspace(start=np.log10(0.00001), stop=np.log10(1.0), num=50),
-                alpha=0.4,
-                label=args.model_1_name + " - " + args.model_2_name,
-            )
-            plt.axvline(np.median(mm), c="C0", ls="--")
-            plt.legend(loc="best")
-            plt.gca().set_xscale("log")
-            plt.xlabel("$\mathcal{M}_{\mathrm{Max}}$")
-            plt.title(
-                "$\mathcal{M}_{\mathrm{median}} = $" + f"{np.round(np.median(mm),6)}"
-            )
-            plt.savefig(
-                f"{plt_dir}/mm_hist_{args.model_1_name}_{args.model_2_name}_{args.name}{ell}{m}.png",
-                bbox_inches="tight",
-                dpi=300,
-            )
-            plt.close()
+        # Histogram
+        plt.hist(
+            mm,
+            bins=np.logspace(start=np.log10(0.00001), stop=np.log10(1.0), num=50),
+            alpha=0.4,
+            label=args.model_1_name + " - " + args.model_2_name,
+        )
+        plt.axvline(np.median(mm), c="C0", ls="--")
+        plt.legend(loc="best")
+        plt.gca().set_xscale("log")
+        plt.xlabel("$\mathcal{M}_{\mathrm{Max}}$")
+        plt.title(
+            "$\mathcal{M}_{\mathrm{median}} = $" + f"{np.round(np.median(mm),6)}"
+        )
+        plt.savefig(
+            f"{plt_dir}/mm_hist_{args.model_1_name}_{args.model_2_name}_{args.name}{ell}{m}.png",
+            bbox_inches="tight",
+            dpi=300,
+        )
+        plt.close()
 
-            # CDF
-            plt.hist(
-                mm,
-                bins=np.logspace(start=np.log10(0.00001), stop=np.log10(1.0), num=100),
-                alpha=0.4,
-                label=args.model_1_name + " - " + args.model_2_name,
-                cumulative=True,
-                density=True,
-                histtype="step",
-                lw=2,
-            )
-            plt.legend(loc="best")
-            plt.gca().set_xscale("log")
-            plt.xlabel("$\mathcal{M}_{\mathrm{Max}}$")
-            plt.title(
-                "$\mathcal{M}_{\mathrm{median}} = $" + f"{np.round(np.median(mm),6)}"
-            )
-            plt.grid(True, which="both", ls=":")
-            plt.savefig(
-                f"{plt_dir}/mm_cdf_{args.model_1_name}_{args.model_2_name}_{args.name}{ell}{m}.png",
-                bbox_inches="tight",
-                dpi=300,
-            )
+        # CDF
+        plt.hist(
+            mm,
+            bins=np.logspace(start=np.log10(0.00001), stop=np.log10(1.0), num=100),
+            alpha=0.4,
+            label=args.model_1_name + " - " + args.model_2_name,
+            cumulative=True,
+            density=True,
+            histtype="step",
+            lw=2,
+        )
+        plt.legend(loc="best")
+        plt.gca().set_xscale("log")
+        plt.xlabel("$\mathcal{M}_{\mathrm{Max}}$")
+        plt.title(
+            "$\mathcal{M}_{\mathrm{median}} = $" + f"{np.round(np.median(mm),6)}"
+        )
+        plt.grid(True, which="both", ls=":")
+        plt.savefig(
+            f"{plt_dir}/mm_cdf_{args.model_1_name}_{args.model_2_name}_{args.name}{ell}{m}.png",
+            bbox_inches="tight",
+            dpi=300,
+        )
 
-            plt.close()
+        plt.close()
 
-            # Mismatch across parameter space
-            mm_s, q_s, ap_s = map(list, zip(*sorted(zip(mm, q_pl, ap_pl))))
-            plt.scatter(
-                q_s, ap_s, c=mm_s, linewidths=1, norm=matplotlib.colors.LogNorm()
-            )
-            plt.ylabel("$\chi_{\mathrm{eff}}$")
-            plt.xlabel("$q$")
-            cbar = plt.colorbar()
-            cbar.set_label("$\mathcal{M}$")
-            plt.savefig(
-                f"{plt_dir}/mm_scatter_{args.model_1_name}_{args.model_2_name}_{args.name}{ell}{m}.png",
-                bbox_inches="tight",
-                dpi=300,
-            )
-            plt.close()
+        # Mismatch across parameter space
+        mm_s, q_s, ap_s = map(list, zip(*sorted(zip(mm, q_pl, ap_pl))))
+        plt.scatter(
+            q_s, ap_s, c=mm_s, linewidths=1, norm=matplotlib.colors.LogNorm()
+        )
+        plt.ylabel("$\chi_{\mathrm{eff}}$")
+        plt.xlabel("$q$")
+        cbar = plt.colorbar()
+        cbar.set_label("$\mathcal{M}$")
+        plt.savefig(
+            f"{plt_dir}/mm_scatter_{args.model_1_name}_{args.model_2_name}_{args.name}{ell}{m}.png",
+            bbox_inches="tight",
+            dpi=300,
+        )
+        plt.close()
