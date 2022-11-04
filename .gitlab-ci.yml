@@ -1,0 +1,55 @@
+include:
+  # https://computing.docs.ligo.org/gitlab-ci-templates/
+  - project: computing/gitlab-ci-templates
+    file:
+      # https://computing.docs.ligo.org/gitlab-ci-templates/conda/
+      - conda.yml
+      # https://computing.docs.ligo.org/gitlab-ci-templates/python/
+      - python.yml
+
+stages:
+  - build
+  - docs
+
+# -- EOB code itself
+
+python:build:
+  extends: .python:build
+  stage: build
+  needs: []
+  variables:
+    SRCDIR: "./"
+
+
+# -- documentation
+
+docs:
+  extends:
+    - .conda:base
+    - .python:sphinx
+  image: igwn/base:conda
+  stage: docs
+  needs: []
+  variables:
+    # install this project and its docs extra
+    REQUIREMENTS: ".[docs]"
+    # location of the conf.py
+    SOURCEDIR: "docs"
+  before_script:
+    # configure conda
+    - !reference [".conda:base", before_script]
+    # use pip2conda to parse the requirements and then populate the run
+    # environment, mainly so that we get a pre-built version of gwsurrogate
+    - mamba create -n docs
+          python=3.9
+          gcc
+          swig
+          gsl
+          make
+    - conda activate docs
+    - pip install .[docs]
+    - python setup.py build_ext --inplace # Ugly hack to make cython modules available
+    # use the python from the docs environment for the sphinx build
+    - PYTHON="$(which python)"
+    # configure sphinx
+    - !reference [".python:sphinx", before_script]

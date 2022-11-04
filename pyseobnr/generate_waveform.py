@@ -34,11 +34,11 @@ class GenerateWaveform:
 
     def __init__(self, parameters):
         """
-        Initialize class
+        Initialize class. The ``parameters`` dictionary can
+        contain the following:
 
         Parameters
         ----------
-            Parameter dictionary, it can cointain:
 
             mass1: Mass of companion 1, in solar masses - Required
             mass2: Mass of companion 2, in solar masses - Required

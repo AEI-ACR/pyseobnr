@@ -1,9 +1,6 @@
 from copy import deepcopy
 from typing import Any, Dict
 
-import numexpr
-
-numexpr.set_num_threads(1)
 import numpy as jnp
 from lalinference.imrtgr import nrutils
 from pygsl import spline
@@ -20,54 +17,46 @@ from ..waveform.waveform import *
 from .compute_MR import compute_MR_mode_free
 
 
-def get_omega_peak(dynamics):
-    """Find the peak of the orbital frequency.
-    If a local max is not found, the last point in
-    the dynamics is taken. Otherwise we find the
-    critical point
+def concatenate_modes(hlms_1: Dict[Any, Any], hlms_2: Dict[Any, Any]) -> Dict[Any, Any]:
+    """Concatenate 2 dictionaries of waveform modes
+
+    This is used to put together the low and fine sampling waveform modes.
+
+    Note:
+        Assumes that the 2 dictionaries have the same keys.
 
     Args:
-        dynamics (np.array): The dynamics, t,r,phi,pr,pphi
+        hlms_1 (Dict[Any,Any]): First dictionary of waveform modes to concatenate
+        hlms_2 (Dict[Any,Any]): Second dictionary of waveform modes to concatenate
 
     Returns:
-        float: The time corresponding to the peak of omega
+        Dict[Any,Any]: Concatenated modes
     """
-    t = dynamics[:, 0]
-    phi_mine = CubicSpline(t, dynamics[:, 2])
-    omega_orb_mine = phi_mine.derivative()(t)
-    idx_omega_peak = np.argmax(omega_orb_mine)
-    t_omega_peak = t[idx_omega_peak]
-    idx_maxs = argrelmax(omega_orb_mine)
-    intrp = CubicSpline(t, omega_orb_mine)
-    if idx_maxs[-1]:
-
-        intrp = CubicSpline(t, omega_orb_mine)
-        g = lambda x: intrp.derivative()(x)
-        root = root_scalar(g, bracket=(t[0], t[-1]))
-
-        t_omega_peak = root.root
-
-    return t_omega_peak
-
-
-def concatenate_modes(hlms_1, hlms_2):
     hlms = {}
     for key in hlms_1.keys():
         hlms[key] = np.concatenate((hlms_1[key], hlms_2[key]))
     return hlms
 
 
-def interpolate_modes_fast(t_old, t_new, modes_dict, phi_orb, m_max=5):
+def interpolate_modes_fast(
+    t_old: np.ndarray,
+    t_new: np.ndarray,
+    modes_dict: Dict[Any, Any],
+    phi_orb: np.ndarray,
+    m_max: int = 5,
+) -> Dict[str, Any]:
     """Construct intertial frame modes on a new regularly
     spaced time grid. Does this by employing a carrier
     signal. See the idea in https://arxiv.org/pdf/2003.12079.pdf
     Uses a custom version of CubicSpline that is faster, but
     cannot handle derivatives or integrals.
+
     Args:
         t_old (np.ndarray): Original unequally spaced time array
         t_new (np.ndarray): New equally spaced time array
         modes_dict (dict): Dictionary containing *complex* modes
         phi_orb (np.ndarray): Orbital phase
+        m_max (int): Max m appearing in the modes
 
     Returns:
         dict: Dictionary of modes interpolated onto t_new
@@ -98,78 +87,6 @@ def interpolate_modes_fast(t_old, t_new, modes_dict, phi_orb, m_max=5):
     return modes_intrp
 
 
-def iterative_refinement(f, interval, levels=3, dt_initial=0.1):
-    left = interval[0]
-    right = interval[1]
-    for n in range(1, levels + 1):
-        dt = dt_initial / (10**n)
-        t_fine = np.arange(interval[0], interval[1], dt)
-        deriv = np.abs(f(t_fine))
-
-        mins = argrelmin(deriv, order=3)[0]
-        if len(mins) > 0:
-            result = t_fine[mins[0]]
-
-            interval = max(result - 10 * dt, left), min(result + 10 * dt, right)
-
-        else:
-
-            return (interval[0] + interval[-1]) / 2
-    return result
-
-
-def get_attachment_reference_point(omega_orb, t, guess, step_back=100.0, dt=0.1):
-    intrp = CubicSpline(t, omega_orb)
-    omega_dot = intrp.derivative()
-
-    # Bracketing interval for minimum
-    left = guess - 0.95 * step_back
-    right = t[-1]
-
-    # If we are using only fine dynamics make sure
-    # we don't guess to deep into inspiral
-    if left < t[0]:
-        left = t[0]
-
-    t_fine = np.arange(left, right, dt)
-    deriv = np.abs(omega_dot(t_fine))
-
-    mins = argrelmin(deriv, order=2)[0]
-    if len(mins) > 0:
-        result = t_fine[mins[0]]
-    else:
-        return t[-1]
-
-    result = iterative_refinement(
-        omega_dot, [max(result - 10 * dt, left), min(result + 10 * dt, right)]
-    )
-    return result
-
-
-def get_attachment_reference_point_pr(pr, t, guess, step_back=100.0):
-    intrp = CubicSpline(t, pr)
-
-    # Bracketing interval for minimum
-    # print(f"guess={guess},step_back={step_back}")
-    left = guess - 0.95 * step_back
-    right = t[-1]
-
-    # If we are using only fine dynamics make sure
-    # we don't guess to deep into inspiral
-    if left < t[0]:
-        left = t[0]
-
-    t_fine = np.arange(left, right, 0.01)
-    pr_fine = intrp(t_fine)
-
-    mins = argrelmin(pr_fine, order=2)[0]
-    if len(mins) > 0:
-        result = t_fine[mins[-1]]
-        return result
-    else:
-        return t[-1]
-
-
 def compute_IMR_modes(
     t,
     hlms,
@@ -187,13 +104,18 @@ def compute_IMR_modes(
     attachment time.
 
     Args:
-        t (np.ndarray): The time array of the inspiral modes
+        t (np.ndarray): The interpolated time array of the inspiral modes
         hlms (np.ndarray): Dictionary containing the inspiral modes
-        chi_1 (float): z-component of the primary dimensionless spin
-        chi_2 (float): z-component of the secondary dimensionless spin
+        t_for_compute (np.ndarray): The fine dynamics time array
+        hlms_for_compute (np.ndarray): The waveform modes on the fine dynamics
         m_1 (float): Mass of primary
         m_2 (float): Mass of secondary
-
+        chi_1 (float): z-component of the primary dimensionless spin
+        chi_2 (float): z-component of the secondary dimensionless spin
+        t_attach (float): Attachment time
+        mixed_modes (List): List of mixed modes to consider. Defaults to [(3,2),(4,3)]
+        final_state (List): Final mass and spin of the remnant. Default to None. If None,
+                            compute internally.
     Returns:
         dict: Dictionary containing the waveform modes
     """
@@ -447,11 +369,7 @@ def compute_mixed_mode(
 
     # Spherical mode we need in the ringdown
     attach_params = dict(
-        amp=h_mm,
-        damp=hd_mm,
-        omega=om_mm,
-        final_mass=final_mass,
-        final_spin=final_spin,
+        amp=h_mm, damp=hd_mm, omega=om_mm, final_mass=final_mass, final_spin=final_spin,
     )
 
     hmm_spherical_ringdown, philm = compute_MR_mode_free(
@@ -482,31 +400,11 @@ def compute_mixed_mode(
 
     # Time derivative of amplitude at peak
     hd_ellm0 = hdot_ellm0_nu(
-        ell,
-        m,
-        final_spin,
-        h,
-        h_mm,
-        hd,
-        hd_mm,
-        om,
-        om_mm,
-        phi_lm,
-        phi_mm,
+        ell, m, final_spin, h, h_mm, hd, hd_mm, om, om_mm, phi_lm, phi_mm,
     )
     # Frequency at peak
     om_ellm0 = omega_ellm0(
-        ell,
-        m,
-        final_spin,
-        h,
-        h_mm,
-        hd,
-        hd_mm,
-        om,
-        om_mm,
-        phi_lm,
-        phi_mm,
+        ell, m, final_spin, h, h_mm, hd, hd_mm, om, om_mm, phi_lm, phi_mm,
     )
 
     attach_params.update(
@@ -600,16 +498,7 @@ def NQC_correction(
         ) or (m % 2 and np.abs(m_1 - m_2) < 1e-4 and np.abs(chi_1 - chi_2) < 1e-4):
             continue
 
-            NQC_coeffs["a1"] = 0
-            NQC_coeffs["a2"] = 0
-            NQC_coeffs["a3"] = 0
-            NQC_coeffs["b1"] = 0
-            NQC_coeffs["b2"] = 0
-            NQC_coeffs["a3S"] = 0
-            NQC_coeffs["a4"] = 0
-            NQC_coeffs["a5"] = 0
-            NQC_coeffs["b3"] = 0
-            NQC_coeffs["b4"] = 0
+
 
         else:
 

@@ -243,31 +243,13 @@ class SEOBNRv5HM_opt(Model):
 
     def _set_H_coeffs(self):
 
-        # Flags for different PN orders
-        flags = {
-            "flagNLOSO": 1.0,
-            "flagNLOSO2": 1.0,
-            "flagNLOSO3": 1.0,
-            "flagNLOSS": 1.0,
-            "flagNLOSS2": 1.0,
-            "flagS3": 1.0,
-        }
-
-        coeffs = list(flags.keys())
-        coeffs.extend(["dSS", "d5", "dSO", "a6"])
-        n = len(coeffs)
-
         dc = {}
-        for key, value in flags.items():
-            dc[key] = value
-
         # Actual coeffs inside the Hamiltonian
         a6_fit = a6_NS(self.nu)
         dSO_fit = dSO(self.nu, self.ap, self.am)
         dc["a6"] = a6_fit
         dc["dSO"] = dSO_fit
-        dc["d5"] = 0.0  # Canonical
-        dc["dSS"] = 0.0  # Canonical
+
         cfs = CalibCoeffs(dc)
         self.H.calibration_coeffs = cfs
 
@@ -353,12 +335,7 @@ class SEOBNRv5HM_opt(Model):
             # Step 2: compute the reference point based on Kerr r_ISCO of remnant
             # with final spin
 
-            r_ISCO, _ = Kerr_ISCO(
-                self.chi_1,
-                self.chi_2,
-                self.m_1,
-                self.m_2,
-            )
+            r_ISCO, _ = Kerr_ISCO(self.chi_1, self.chi_2, self.m_1, self.m_2,)
 
             self.r_ISCO = r_ISCO
 
@@ -461,10 +438,7 @@ class SEOBNRv5HM_opt(Model):
             t_original = dynamics[:, 0]
             phi_orb = dynamics[:, 2]
             hlms_interp = interpolate_modes_fast(
-                t_original,
-                t_new,
-                hlms_joined,
-                phi_orb,
+                t_original, t_new, hlms_joined, phi_orb,
             )
 
             # Step 9: construct the full IMR waveform
