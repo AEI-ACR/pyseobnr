@@ -1,72 +1,81 @@
 # -- build --------
 
 [build-system]
-requires = [
-    "setuptools>=61.0",
-    "setuptools_scm[toml]>=3.4.3",
-    "wheel",
-    "cython",
-    "numpy",
-    "scipy"
-]
-build-backend = "setuptools.build_meta"
+	requires = [
+		"setuptools>=61.0",
+		"setuptools_scm[toml]>=3.4.3",
+		"wheel",
+		"cython",
+		"numpy",
+		"scipy",
+	]
+	build-backend = "setuptools.build_meta"
 
-# -- metadata -----
+	# -- metadata -----
 
 [project]
-name = "pyseobnr"
-description = "Gravitational wave modelling within the effective-one-body framework"
-readme = "README.md"
-authors = [
-	{ name = "Serguei Ossokine", email = "serguei.ossokine@aei.mpg.de" },
-	{ name = "Lorenzo Pompili", email = "lorenzo.pompili@ligo.org"},
-	{ name = "Deyan Mihaylov", email = "deyan.mihaylov@ligo.org"},
-	{ name = "Antoni Ramos Buades", email = "antoni.ramos.buades@aei.mpg.de"},
-	{ name = "Michael Puerrer", email = "michael.puerrer@ligo.org"},
-	{ name = "Hector Estelles", email = "hector.estelles@ligo.org"}
+	name = "pyseobnr"
+	description = "Gravitational wave modelling within the effective-one-body framework"
+	readme = "README.md"
+	authors = [
+		{ name = "Serguei Ossokine", email = "serguei.ossokine@aei.mpg.de" },
+		{ name = "Lorenzo Pompili", email = "lorenzo.pompili@ligo.org" },
+		{ name = "Deyan Mihaylov", email = "deyan.mihaylov@ligo.org" },
+		{ name = "Antoni Ramos Buades", email = "antoni.ramos.buades@aei.mpg.de" },
+		{ name = "Michael Puerrer", email = "michael.puerrer@ligo.org" },
+		{ name = "Hector Estelles", email = "hector.estelles@ligo.org" },
 
-]
-license = { text = "GPL-3.0-or-later" }
-classifiers = [
-	"Development Status :: 4 - Beta",
-	"Intended Audience :: Scientists",
-	"License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-	"Natural Language :: English",
-	"Operating System :: OS Independent",
-	"Programming Language :: Python",
-	"Programming Language :: Python :: 3",
-	"Programming Language :: Python :: 3.8",
-	"Programming Language :: Python :: 3.9",
-	"Programming Language :: Python :: 3.10",
-]
+	]
+	license = { text = "GPL-3.0-or-later" }
+	classifiers = [
+		"Development Status :: 4 - Beta",
+		"Intended Audience :: Scientists",
+		"License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+		"Natural Language :: English",
+		"Operating System :: OS Independent",
+		"Programming Language :: Python",
+		"Programming Language :: Python :: 3",
+		"Programming Language :: Python :: 3.8",
+		"Programming Language :: Python :: 3.9",
+		"Programming Language :: Python :: 3.10",
+	]
 
-# requirements:
-requires-python = ">=3.8"
-dependencies = [
-	"numpy",
-	"scipy>=1.8.0",
-	"matplotlib",
-        "h5py",
-        "numexpr",
-        "numba",
-        "qnm",
-        "scri",
-        "setuptools",
-        "jax",
-        "jaxlib",
-        "rich",
-        "pygsl",
-		"lalsuite"
-]
+	# requirements:
+	requires-python = ">=3.8"
+	dependencies = [
+		"numpy",
+		"scipy>=1.8.0",
+		"matplotlib",
+		"h5py",
+		"numexpr",
+		"numba",
+		"qnm",
+		"scri",
+		"setuptools",
+		"jax",
+		"jaxlib",
+		"rich",
+		"pygsl @ git+https://github.com/pygsl/pygsl.git",
+		"lalsuite",
+	]
 
-# dynamic properties set by tools:
-dynamic = [
-	"version",
-]
+	# dynamic properties set by tools:
+	dynamic = ["version"]
 
 [project.optional-dependencies]
-checks = ['bilby',
-'waveform_tools @  git+https://sergei_ossokine@bitbucket.org/sergei_ossokine/waveform_tools.git',
-'gwsurrogate',
-'pathos',
-'scikit-optimize']
+	checks = [
+		'bilby',
+		'waveform_tools @  git+https://sergei_ossokine@bitbucket.org/sergei_ossokine/waveform_tools.git',
+		'gwsurrogate',
+		'pathos',
+		'scikit-optimize',
+	]
+
+	docs = [
+		'nbsphinx',
+		'numpydoc',
+		'sphinx',
+		'sphinx_rtd_theme',
+		'sphinx-tabs',
+		'cython',
+	]
