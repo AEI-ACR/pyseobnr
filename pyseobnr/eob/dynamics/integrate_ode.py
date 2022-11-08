@@ -100,7 +100,7 @@ def compute_dynamics_opt(
     e = evolve(4)
 
     t = 0
-    t1 = 1.0e9
+    t1 = 2.0e9
 
     if y_init is None:
 
