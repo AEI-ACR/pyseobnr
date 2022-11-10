@@ -20,6 +20,7 @@ def generate_modes_opt(
             q, chi1, chi2, omega0, Ham_aligned_opt, RR_f, settings=settings
         )
         model()
+
     if debug:
         return model.t, model.waveform_modes, model
     else:
@@ -94,6 +95,7 @@ class GenerateWaveform:
             "deltaF": 0.125,
             "mode_array": None,
             "approximant": "SEOBNRv5HM",
+            "conditioning": 2,
         }
 
         for param in default_params.keys():
@@ -205,6 +207,7 @@ class GenerateWaveform:
         """
         Generate time-domain polarizations, returned as LAL REAL8TimeSeries
         """
+
         incl = self.parameters["inclination"]
         phi = self.parameters["phi_ref"]
 
@@ -236,7 +239,8 @@ class GenerateWaveform:
 
         return hp_lal, hc_lal
 
-    def generate_td_polarizations_conditioned(self):
+    # Procedure as in v4PHM in SimInspiralFD
+    def generate_td_polarizations_conditioned_1(self):
         """
         Generate time-domain polarizations, with tappering at the beginning of the waveform,
         returned as LAL REAL8TimeSeries
@@ -244,6 +248,68 @@ class GenerateWaveform:
         hp_lal, hc_lal = self.generate_td_polarizations()
         lalsim.SimInspiralREAL8WaveTaper(hp_lal.data, 1)
         lalsim.SimInspiralREAL8WaveTaper(hc_lal.data, 1)
+
+        return hp_lal, hc_lal
+
+    # General SimInspiralFD procedure, with extra time at the beginning
+    def generate_td_polarizations_conditioned_2(self):
+        """
+        Generate conditioned time-domain polarizations as in SimInspiralTDfromTD routine
+        """
+
+        extra_time_fraction = (
+            0.1  # fraction of waveform duration to add as extra time for tapering
+        )
+        extra_cycles = (
+            3.0  # more extra time measured in cycles at the starting frequency
+        )
+
+        f_min = self.parameters["f22_start"]
+        m1 = self.parameters["mass1"]
+        m2 = self.parameters["mass2"]
+        S1z = self.parameters["spin1z"]
+        S2z = self.parameters["spin2z"]
+        original_f_min = f_min
+
+        fisco = 1.0 / (pow(9.0, 1.5) * np.pi * (m1 + m2) * lal.MTSUN_SI)
+        if f_min > fisco:
+            f_min = fisco
+
+        # upper bound on the chirp time starting at f_min
+        tchirp = lalsim.SimInspiralChirpTimeBound(
+            f_min, m1 * lal.MSUN_SI, m2 * lal.MSUN_SI, S1z, S2z
+        )
+        # upper bound on the final black hole spin */
+        spinkerr = lalsim.SimInspiralFinalBlackHoleSpinBound(S1z, S2z)
+        # upper bound on the final plunge, merger, and ringdown time */
+        tmerge = lalsim.SimInspiralMergeTimeBound(
+            m1, m2
+        ) + lalsim.SimInspiralRingdownTimeBound(m1 + m2, spinkerr)
+
+        # extra time to include for all waveforms to take care of situations where the frequency is close to merger (and is sweeping rapidly): this is a few cycles at the low frequency
+        textra = extra_cycles / f_min
+        # compute a new lower frequency
+        fstart = lalsim.SimInspiralChirpStartFrequencyBound(
+            (1.0 + extra_time_fraction) * tchirp + tmerge + textra,
+            m1 * lal.MSUN_SI,
+            m2 * lal.MSUN_SI,
+        )
+
+        self.parameters["f22_start"] = fstart
+        hp_lal, hc_lal = self.generate_td_polarizations()
+        self.parameters["f22_start"] = original_f_min
+
+        # condition the time domain waveform by tapering in the extra time at the beginning and high-pass filtering above original f_min
+        lalsim.SimInspiralTDConditionStage1(
+            hp_lal, hc_lal, extra_time_fraction * tchirp + textra, original_f_min
+        )
+
+        # final tapering at the beginning and at the end to remove filter transients
+        # waveform should terminate at a frequency >= Schwarzschild ISCO
+        # so taper one cycle at this frequency at the end; should not make
+        # any difference to IMR waveforms */
+        fisco = 1.0 / (pow(6.0, 1.5) * np.pi * (m1 + m2) * lal.MTSUN_SI)
+        lalsim.SimInspiralTDConditionStage2(hp_lal, hc_lal, f_min, fisco)
 
         return hp_lal, hc_lal
 
@@ -271,7 +337,10 @@ class GenerateWaveform:
         self.parameters["deltaT"] = deltaT
 
         # Generate conditioned TD polarizations
-        hp, hc = self.generate_td_polarizations_conditioned()
+        if self.parameters["conditioning"] == 2:
+            hp, hc = self.generate_td_polarizations_conditioned_2()
+        else:
+            hp, hc = self.generate_td_polarizations_conditioned_1()
 
         # Adjust signal duration
         if deltaF == 0:
