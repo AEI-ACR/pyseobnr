@@ -2,11 +2,10 @@
 cimport cython
 from typing import Dict
 import numpy as np
-#import findiff
-from scipy.integrate import solve_ivp, ode
+from libc.math cimport log, sqrt, exp, abs,fabs, tgamma,sin,cos, tanh, sinh, asinh
+
 from .initial_conditions_aligned_opt import computeIC_opt as computeIC
-from jax.config import config
-from numba import jit
+
 
 from pygsl import  roots, errno
 from scipy import optimize
@@ -20,9 +19,6 @@ from .integrate_ode import augment_dynamics
 from pyseobnr.eob.utils.containers cimport EOBParams
 from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
 from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
-
-config.update("jax_enable_x64", True)
-
 
 fin_diff_coeffs_order_9 = np.array([
     [-761./280., 8., -14., 56./3., -35./2., 56./5., -14./3., 8./7., -1./8.],
@@ -51,47 +47,60 @@ interpolated_integral_order_5 = [
 ]
 
 interpolated_integral_order_7 = [
-    [5257/17280, 139849/120960, -(4511/4480), 123133/120960, -(88547/120960), 1537/4480, -(11351/120960), 275/24192],
-    [-(275/24192), 5311/13440, 11261/13440, -(44797/120960), 2987/13440, -(1283/13440), 2999/120960, -(13/4480)],
-    [13/4480, -(4183/120960), 6403/13440, 9077/13440, -(20227/120960), 803/13440, -(191/13440), 191/120960],
-    [-(191/120960), 1879/120960, -(353/4480), 68323/120960, 68323/120960, -(353/4480), 1879/120960, -(191/120960)],
-    [191/120960, -(191/13440), 803/13440, -(20227/120960), 9077/13440, 6403/13440, -(4183/120960), 13/4480],
-    [-(13/4480), 2999/120960, -(1283/13440), 2987/13440, -(44797/120960), 11261/13440, 5311/13440, -(275/24192)],
-    [275/24192, -(11351/120960), 1537/4480, -(88547/120960), 123133/120960, -(4511/4480), 139849/120960, 5257/17280],
+    [5257./17280, 139849./120960, -(4511./4480), 123133./120960, -(88547./120960), 1537./4480, -(11351./120960), 275./24192],
+    [-(275./24192), 5311./13440, 11261./13440, -(44797./120960), 2987./13440, -(1283./13440), 2999./120960, -(13./4480)],
+    [13./4480, -(4183./120960), 6403./13440, 9077./13440, -(20227./120960), 803./13440, -(191./13440), 191./120960],
+    [-(191./120960), 1879./120960, -(353./4480), 68323./120960, 68323./120960, -(353./4480), 1879./120960, -(191./120960)],
+    [191./120960, -(191./13440), 803./13440, -(20227./120960), 9077./13440, 6403./13440, -(4183./120960), 13./4480],
+    [-(13./4480), 2999./120960, -(1283./13440), 2987./13440, -(44797./120960), 11261./13440, 5311./13440, -(275./24192)],
+    [275./24192, -(11351./120960), 1537./4480, -(88547./120960), 123133./120960, -(4511./4480), 139849./120960, 5257./17280],
 ]
+
 
 @cython.profile(True)
 @cython.linetrace(True)
-def fin_diff_derivative(
-    x: np.array,
-    y: np.array,
-    n: int = 8,
-) -> np.array:
-    dy_dx = np.zeros(x.size)
-    h = np.abs(x[1] - x[0])
-    size = x.size
+@cython.cdivision(True)
+@cython.boundscheck(False)
+cdef double single_deriv(double[:] y,double h,double[:] coeffs):
+    cdef int i
+    cdef double total = 0.0
+    for i in range(9):
+        total+=coeffs[i]*y[i]
+    total/=h
+    return total
 
+@cython.profile(True)
+@cython.linetrace(True)
+@cython.cdivision(True)
+cpdef fin_diff_derivative(
+    x,
+    y,
+    n: int = 8,
+):
+    dy_dx = np.zeros(x.size)
+    cdef double h = fabs(x[1] - x[0])
+    cdef int size = x.shape[0]
+    cdef int i
     for i in range(size):
         if i == 0:
-            dy_dx[i] = np.sum(fin_diff_coeffs_order_9[0] * y[0:9])
+            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[0])
         elif i == 1:
-            dy_dx[i] = np.sum(fin_diff_coeffs_order_9[1] * y[0:9])
+            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[1])
         elif i == 2:
-            dy_dx[i] = np.sum(fin_diff_coeffs_order_9[2] * y[0:9])
+            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[2])
         elif i == 3:
-            dy_dx[i] = np.sum(fin_diff_coeffs_order_9[3] * y[0:9])
+            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[3])
         elif i == size - 4:
-            dy_dx[i] = np.sum(fin_diff_coeffs_order_9[5] * y[-9:])
+            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[5])
         elif i == size - 3:
-            dy_dx[i] = np.sum(fin_diff_coeffs_order_9[6] * y[-9:])
+            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[6])
         elif i == size - 2:
-            dy_dx[i] = np.sum(fin_diff_coeffs_order_9[7] * y[-9:])
+            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[7])
         elif i == size - 1:
-            dy_dx[i] = np.sum(fin_diff_coeffs_order_9[8] * y[-9:])
+            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[8])
         else:
-            dy_dx[i] = np.sum(fin_diff_coeffs_order_9[4] * y[i-4:i+5])
+            dy_dx[i] = single_deriv(y[i-4:i+5],h,fin_diff_coeffs_order_9[4])
 
-    dy_dx = dy_dx / h
     return dy_dx
 
 @cython.profile(True)
@@ -102,17 +111,6 @@ cpdef Kerr_ISCO(
     double m1,
     double m2,
 ):
-    #a = m1**2 * chi1 + m2**2 * chi2
-
-    # print(m_1, m_2)
-
-    # z_1 = 1 + (1 - a**2)**(1/3) * ((1 + a)**(1/3) + (1 - a)**(1/3))
-    # z_2 = np.sqrt(3 * a**2 + z_1**2)
-
-    # r_ISCO = 3 + z_2 - np.sign(a) * np.sqrt((3 - z_1) * (3 + z_1 + 2*z_2))
-    # pphi_ISCO = 2 / (3 * np.sqrt(3)) * (1 + 2 * np.sqrt(3 * r_ISCO) - 2)
-    # return r_ISCO, pphi_ISCO
-
 
     a = nrutils.bbh_final_spin_non_precessing_HBR2016(
             m1, m2, chi1, chi2, version="M3J4"
@@ -121,7 +119,7 @@ cpdef Kerr_ISCO(
     Z_1 = 1+(1-a**2)**(1./3)*((1+a)**(1./3)+(1-a)**(1./3))
     Z_2 = np.sqrt(3*a**2+Z_1**2)
     r_ISCO = 3+Z_2-np.sign(a)*np.sqrt((3-Z_1)*(3+Z_1+2*Z_2))
-    #print(f"a={a},r_ISCO={r_ISCO}")
+
     # Compute the ISCO L for this spin
     L_ISCO = 2/(3*np.sqrt(3))*(1+2*np.sqrt(3*r_ISCO)-2)
     return np.array([r_ISCO,L_ISCO])
@@ -142,7 +140,7 @@ cpdef double j0_eqn(double j0_sol, double r, Hamiltonian_C H, double chi_1, doub
     cdef double dH_dr = dH_dq[0]
     return dH_dr
 
-def compute_adiabatic_solution(
+cpdef compute_adiabatic_solution(
     double[:] r,
     Hamiltonian_C H,
     double chi_1,
@@ -157,16 +155,13 @@ def compute_adiabatic_solution(
     cdef double[:] j0 = Newtonian_j0(r)
 
     for i in range(r.shape[0]):
-        j0_solution = optimize.root_scalar(
+        j0_solution = optimize.root(
             j0_eqn,
-            x0=j0[i],
-            x1=j0[i]*0.98,
+            j0[i],
             args=(r[i], H, chi_1, chi_2, m_1, m_2,q,p),
-            rtol=tol,
-            xtol=tol,
-            method = "secant"
+            tol=tol,
         )
-        j0[i] = j0_solution.root
+        j0[i] = j0_solution.x
 
     return j0
 
@@ -526,6 +521,7 @@ cpdef compute_postadiabatic_dynamics(
     double m_2,
     double tol=1e-12,
     EOBParams params=None,
+    order=8
 ):
     """Compute the dynamics starting from omega0
 
@@ -552,20 +548,24 @@ cpdef compute_postadiabatic_dynamics(
         m_2,
         params=params,
     )
-
-    cdef double r_final_prefactor = 3.2
+    cdef double chi_eff = m_1*chi_1+m_2*chi_2
+    cdef double nu = m_1*m_2/(m_1+m_2)**2
+    cdef double r_final_prefactor = 2.7+chi_eff*(1-4.*nu)
     r_ISCO, _ = Kerr_ISCO(chi_1, chi_2, m_1, m_2)
-    cdef double r_final = r_final_prefactor * r_ISCO
+    cdef double r_final = max(10.0,r_final_prefactor * r_ISCO)
     cdef double r_switch_prefactor = 1.6
     cdef double r_switch = r_switch_prefactor * r_ISCO
-    #print("Here1")
-    # if m_1 / m_2 < 60:
-    #     dr0 = 0.3
-    # else:
-    #     dr0= 0.2
+
     cdef double dr0 = 0.3
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
-    if r_size <= 4:
+
+    '''
+    print(f"r0={r0}")
+    print(f"r_ISCO={r_ISCO}")
+    print(f"r_final={r_final}")
+    print(f"r_size={r_size}")
+    '''
+    if r_size <= 4 or r0<=11.5:
         raise ValueError
     elif r_size < 10:
         r_size = 10
@@ -587,7 +587,7 @@ cpdef compute_postadiabatic_dynamics(
         q,
         p,
         tol=tol,
-        order=8,
+        order=order,
         params=params,
     )
     #print("Here4")
@@ -656,6 +656,7 @@ cpdef compute_combined_dynamics(
     EOBParams params=None,
     double step_back=50,
     str backend="ode",
+    int PA_order=8
 ):
     try:
         postadiabatic_dynamics = compute_postadiabatic_dynamics(
@@ -668,17 +669,18 @@ cpdef compute_combined_dynamics(
             m_2,
             tol=tol,
             params=params,
+            order=PA_order
         )
         PA_success = True
         ode_y_init = postadiabatic_dynamics[-1, 1:]
     except ValueError as e:
-        print(str(e))
+        #print(str(e))
         PA_success = False
         ode_y_init = None
 
 
-    print("PA_success: ", PA_success)
-    print("ode_y_init: ", ode_y_init)
+    #print("PA_success: ", PA_success)
+    #print("ode_y_init: ", ode_y_init)
     ode_dynamics_low, ode_dynamics_high = compute_dynamics(
         omega0,
         H,
@@ -754,12 +756,12 @@ cpdef compute_combined_dynamics(
 
 @cython.profile(True)
 @cython.linetrace(True)
-def cumulative_integral(
+cpdef cumulative_integral(
     x: np.array,
     y: np.array,
     order: int = 7,
-) -> np.array:
-    h = x[1] - x[0]
+):
+    cdef double h = x[1] - x[0]
 
     integral = np.zeros(x.size)
 

@@ -120,10 +120,10 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
     def __cinit__(self,EOBParams params):
         self.EOBpars = params
 
-    def __call__(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
-        return self._call(q,p,chi_1,chi_2,m_1,m_2)
+    def __call__(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2,bint verbose=False):
+        return self._call(q,p,chi_1,chi_2,m_1,m_2,verbose=verbose)
 
-    cpdef _call(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+    cpdef _call(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2,bint verbose=False):
 
         """
         Toy aligned-spin Hamiltonian
@@ -229,9 +229,10 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         # Evaluate H_real/nu
         cdef double H = M * sqrt(1+2*nu*(Heff-1)) / nu
-
-        return H,xi
-
+        if not verbose:
+            return H,xi
+        else:
+            return H,xi,A,Bnp,Bnpa,Qq,Heven,Hodd
 
     cpdef grad(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
@@ -1632,3 +1633,191 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double omega = M * M * dHeffdpphi / (nu*H)
 
         return omega
+
+    cpdef auxderivs(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+
+        """
+        Toy aligned-spin Hamiltonian
+
+        """
+
+        # Coordinate definitions
+
+        cdef double r = q[0]
+        cdef double phi = q[1]
+
+        cdef double prst = p[0]
+        cdef double L = p[1]
+
+        cdef double pphi = L
+        cdef double Chi1 = chi_1
+        cdef double Chi2 = chi_2
+        cdef double Nu = m_1*m_2
+        cdef double M = m_1+m_2
+        cdef double X1 = m_1/M
+        cdef double X2 = m_2/M
+        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
+        cdef double a6 = c_coeffs['a6']
+        cdef double dSO = c_coeffs['dSO']
+
+        cdef double x0 =r**2
+        cdef double  x1=x0**(-1)
+        cdef double  x2=Chi1*X1
+        cdef double  x3=Chi2*X2
+        cdef double  x4=x2 + x3
+        cdef double  x5=x4**2
+        cdef double  x6=x1*x5
+        cdef double x7 =Nu**2
+        cdef double x8 =log(r)
+        cdef double x9 =756.0*Nu
+        cdef double x10 =336.0*r + x9 + 407.0
+        cdef double x11 =2048.0*Nu*x10*x8 + 28.0*Nu*(1920.0*a6 + 733955.307463037) - 7.0*r*(938918.400156317*Nu - 185763.092693281*x7 - 245760.0) - 5416406.59541186*x7 - 3440640.0
+        cdef double x12 =r**4
+        cdef double x13 =Nu**4
+        cdef double x14 =r**5
+        cdef double x15 =x8**2
+        cdef double x16 =x15*x7
+        cdef double x17 =Nu**3
+        cdef double x18 =x17*(-163683964.822551*r - 17833256.898555*x0 - 1188987459.03162)
+        cdef double x19 =r**3
+        cdef double x20 =x7*(-39321600.0*a6*(3.0*r + 59.0) + 745857848.115604*a6 + 122635399361.987*r + 2064783811.32587*x0 - 3089250703.76879*x12 + 1426660551.8844*x14 - 6178501407.53758*x19 + 276057889687.011)
+        cdef double x21 =588.0*Nu + 1079.0
+        cdef double x22 =x9 + 1079.0
+        cdef double x23 =x19*x22
+        cdef double x24 =-38842241.4769507*Nu + 240.0*r*(-7466.27061066206*Nu - 3024.0*x7 + 17264.0) + 1920.0*x0*x21 + 480.0*x12*x22 + 161280.0*x14 + 960.0*x23 - 1882456.23663972*x7 + 13447680.0
+        cdef double x25 =Nu*x8
+        cdef double x26 =x24*x25
+        cdef double x27 =8.0*r
+        cdef double x28 =2.0*x19
+        cdef double x29 =4.0*x0 + x27 + x28 + 16.0
+        cdef double x30 =7680.0*a6
+        cdef double x31 =128.0*r
+        cdef double x32 =7704.0*r
+        cdef double x33 =148.04406601634*r
+        cdef double x34 =113485.217444961*r
+        cdef double x35 =Nu*(x30*(x12 + x29) + x31*(13218.7851094412*r + 8529.39255472061*x0 - 6852.34813868015*x12 + 4264.6962773603*x19 - 33722.4297811176) + x33*(3852.0*x0 + 349.0*x12 + 1926.0*x19 + x32 + 36400.0) + x34*(-x12 + x29))
+        cdef double x36 =(241555486248.807*x13 + 13212057600.0*x14 + 67645734912.0*x16 + 1120.0*x18 + 7.0*x20 + 32768.0*x26 + 53760.0*x35)**(-1)
+        cdef double x37 =x11*x12*x36
+        cdef double x38 =7680.0*x37 + x6
+        cdef double x39 =2.0*r
+        cdef double x40 =Nu*r
+        cdef double x41 =Nu*x0
+        cdef double x42 =1822680546449.21*x7
+        cdef double x43 =5787938193408.0*x15
+        cdef double x44 =14700.0*Nu + 42911.0
+        cdef double x45 =r*x44
+        cdef double x46 =x0*x7
+        cdef double x47 =283115520.0*x44
+        cdef double x48 =5041721180160.0*x7 - 104186110149937.0
+        cdef double x49 =-25392914995744.3*Nu - r*x47 - 879923036160.0*x0 - x48
+        cdef double x50 =-12049908701745.2*Nu + r*x42 - 39476764256925.6*r + 5107745331375.71*x0 + 6730497718123.02*x17 + 10611661054566.2*x40 + 2589101062873.81*x41 + x43 - 326837426.241486*x45 + 133772083200.0*x46 - x49*x8 + 80059249540278.2*x7 + 275059053208689.0
+        cdef double x51 =-630116198.873299*Nu - 197773496.793534*x7 + 5805304367.87913
+        cdef double x52 =x0*x51
+        cdef double x53 =-2675575.66847905*Nu - 138240.0*x7 - 5278341.3229329
+        cdef double x54 =x19*x53
+        cdef double x55 =Nu*(-2510664218.28128*Nu + 14515200.0*x17 - 42636451.6032331*x7 + 1002013764.01019)
+        cdef double x56 =43393301259014.8*Nu + 5927865218923.02*x17 + 43133561885859.3*x7 + 86618264430493.3*(1.0 - 0.496948781616935*Nu)**2 + 188440788778196.0
+        cdef double x57 =r*x56
+        cdef double x58 =Nu*(11592.0*Nu + 69847.0)
+        cdef double x59 =r*(409207698.136075*Nu + 102574080.0*x7 - 2119671837.36038)
+        cdef double x60 =x0*x47 + 879923036160.0*x19 - 1698693120.0*x58 + 49152.0*x59
+        cdef double x61 =r*x43 - 9216.0*x52 - 967680.0*x54 + 55296.0*x55 + x57 + x60*x8
+        cdef double x62 =x61**(-1)
+        cdef double x63 =x50*x62
+        cdef double x64 = sqrt(r*x63)
+        cdef double x65 =x0 + x5
+        cdef double x66 =x64/x65
+        cdef double x67 =2.0*x5
+        cdef double x68 =2.0*x0 + x67
+        cdef double x69 =r*x7
+        cdef double x70 =r**(-1)
+        cdef double x71 =11575876386816.0*x8
+        cdef double x72 =5807150888816.34*Nu + 10215490662751.4*r + 5178202125747.62*x40 + x42 - x49*x70 + 267544166400.0*x69 + x70*x71 + x8*(4161798144000.0*Nu + 1759846072320.0*r + 12148770078720.0) - 53501685054374.1
+        cdef double x73 =(r*x15 - 1.59227685093395e-9*x52 - 1.67189069348064e-7*x54 + 9.55366110560367e-9*x55 + 1.72773095804465e-13*x57 + x8*(4.89147448606909e-5*x0*x44 + 0.152027027027027*x19 - 0.000293488469164146*x58 + 8.49214320498106e-9*x59))**2
+        cdef double x74 =-18432.0*r*x51 - 2903040.0*x0*x53 + x43 + x56 + x60*x70 + x71 + x8*(20113376778784.3*Nu + 2639769108480.0*x0 + 566231040.0*x45 + x48)
+        cdef double x75 =x50*x74/x73
+        cdef double x76 =x19**(-1)
+        cdef double x77 =x67*x76
+        cdef double x78 =Nu*x70
+        cdef double x79 =-6572428.80109422*Nu + 2048.0*x10*x78 + 688128.0*x25 + 1300341.64885296*x7 + 1720320.0
+        cdef double x80 =x7*x70
+        cdef double x81 =4.0*x19
+        cdef double x82 =6.0*x0 + x27 + 8.0
+        cdef double x83 =1.31621673590926e-19*x11*(53760.0*Nu*(3740417.71815805*r + 2115968.85907902*x0 - 938918.400156317*x12 + 1057984.42953951*x19 + x30*(x81 + x82) + x31*(17058.7851094412*r + 12794.0888320809*x0 - 27409.3925547206*x19 + 13218.7851094412) + x33*(5778.0*x0 + 1396.0*x19 + x32 + 7704.0) + x34*(-x81 + x82) + 2888096.47013111) + 66060288000.0*x12 + 7.0*x17*(-5706642207.53758*r - 26189434371.6082) + 32768.0*x24*x78 + 32768.0*x25*(-1791904.9465589*Nu + 3840.0*r*x21 + 2880.0*x0*x22 + 806400.0*x12 + 1920.0*x23 - 725760.0*x7 + 4143360.0) + 7.0*x7*(-117964800.0*a6 + 4129567622.65173*r - 18535504222.6128*x0 + 7133302759.42198*x12 - 12357002815.0752*x19 + 122635399361.987) + 135291469824.0*x8*x80)/(x13 + 0.0546957463279941*x14 + 0.28004222119933*x16 + 4.63661586574928e-9*x18 + 2.8978849160933e-11*x20 + 1.35654132757922e-7*x26 + 2.22557561555966e-7*x35)**2
+        cdef double x84 =-30720.0*x11*x19*x36 - 7680.0*x12*x36*x79 + x12*x83 + x77
+        cdef double x85 =-x84
+        cdef double x86 =r*(-x39 + x65)
+        cdef double x87 =x12**(-1)
+        cdef double x88 =3.0*x87
+        cdef double x89 =L*x4
+        cdef double x90 =Nu*dSO*x89
+        cdef double x91 =x5*x76
+        cdef double x92 =x2 - x3
+        cdef double x93 =X1 - X2
+        cdef double x94 =L*x92*x93
+        cdef double x95 =0.25*x5
+        cdef double x96 =x4*x92
+        cdef double x97 =x89*(-x95 + x96*(0.208333333333333*X1 - 0.208333333333333*X2))
+        cdef double x98 =2.0*x76
+        cdef double x99 =0.71875*Nu - 0.09375
+        cdef double x100 =-1.40625*Nu - 0.46875
+        cdef double x101 =L**2
+        cdef double x102 =x101*x76
+        cdef double x103 =2.0*x102
+        cdef double x104 =-2.0859375*Nu - 2.07161458333333*x7 + 0.23046875
+        cdef double x105 =x101*x88
+        cdef double x106 =0.5859375*Nu + 1.34765625*x7 + 0.41015625
+        cdef double x107 =L**4
+        cdef double x108 =x14**(-1)
+        cdef double x109 =4.0*x108
+        cdef double x110 =x107*x109
+        cdef double x111 =0.34375*Nu + 0.09375
+        cdef double x112 =0.46875 - 0.28125*Nu
+        cdef double x113 =0.0625*Nu
+        cdef double x114 =-0.2734375*Nu - 0.798177083333333*x7 - 0.23046875
+        cdef double x115 =-0.3515625*Nu + 0.29296875*x7 - 0.41015625
+        cdef double x116 =x1*x101
+        cdef double x117 =x107*x87
+        cdef double x118 =prst**3
+        cdef double x119 =r**(-4.5)
+        cdef double x120 =prst**5
+        cdef double x121 =Nu*r**(-3.5)
+        cdef double x122 =prst**7
+        cdef double x123 =8.0*Nu - 6.0*x7
+        cdef double x124 =4.0*x118
+        cdef double x125 =92.7110442849544*Nu + 10.0*x17 - 131.0*x7
+        cdef double x126 =-2.78300763695006*Nu + 6.0*x17 - 5.4*x7
+        cdef double x127 =6.0*x120
+        cdef double x128 =-33.9782122170436*Nu - 14.0*x13 + 188.0*x17 - 89.5298327361234*x7
+        cdef double x129 =1.38977750996128*Nu - 6.0*x13 + 3.42857142857143*x17 + 3.33842023648322*x7
+        cdef double x130 =Nu*(452.542166996693 - 51.6952380952381*x8) + 602.318540416564*x17 + x7*(118.4*x8 - 1796.13660498019)
+        cdef double x131 =r**(-13)
+        cdef double x132 =x65**4
+        cdef double x133 =x37 + 0.000130208333333333*x6
+        cdef double x134 =x133**(-4)
+        cdef double x135 =-0.0438084424460039*Nu - 0.143521050466841*r + 0.0185696317637669*x0 + 0.0210425293255724*x15 + 0.0244692826489756*x17 + 0.0385795738434214*x40 + 0.00941289164152486*x41 - 1.18824456940711e-6*x45 + 0.000486339502879429*x46 + 0.00662650629087394*x69 + 0.291062041428379*x7 - x8*(-0.092318048431871*Nu - 0.0031990331744958*x0 - 1.02928995318398e-6*x45 - 0.0183295954863003*x7 + 0.378777244139245) + 1.0
+        cdef double x136 =x135**(-2)
+        cdef double x137 =4.0*x7
+        cdef double x138 =x92**2
+        cdef double x139 =5.0*X1 - 5.0*X2
+        cdef double x140 =-0.46875*x138*(-5.0*Nu + x137 + 1.0) + x139*x4*x92*(1.125*Nu - 0.0625) - 0.15625*x5*(-33.0*Nu + 32.0*x7 - 5.0)
+        cdef double x141 =x132*x134*x136*x140*x73
+        cdef double x142 =prst**4
+        cdef double x143 =prst**6
+        cdef double x144 =prst**8
+        cdef double x145 =r + 2.0
+        cdef double x146 =r*x5
+        cdef double x147 =x12 + x145*x146
+        cdef double x148 =x147**(-1)
+        cdef double x149 =x6*(2.0*x70 + 1.0) + 1.0
+        cdef double x150 =x138*(-27.0*Nu + 28.0*x7 - 3.0)
+        cdef double x151 =x96*(-39.0*X1 + 39.0*X2)
+        cdef double dxidr=x0*x38*(r*x62*x72 - 2.98505426338587e-26*r*x75 + x63)/(x64*x68) + x0*x66*x85 - x28*x38*x64/x65**2 + x38*x39*x66
+        cdef double dHodddr=(L*x4*(-x1*x99 - x100*x103 - x104*x105 - x106*x110 - x76*(-11.0625*Nu + 1.13541666666667*x7 - 0.15625)) + L*x92*x93*(-x1*x111 - x103*x112 - x105*x114 - x110*x115 - x76*(-x113 + 1.07291666666667*x7 + 0.15625)) - x88*x90 - 0.0833333333333333*x91*x94 - x97*x98)/(x68 + x86) - (0.25*r*(x39 - 2.0) + 0.5*r + 0.25*x0 + x95)*(x1*x97 + 0.0416666666666667*x6*x94 + x76*x90 + x89*(x1*(-5.53125*Nu + 0.567708333333333*x7 - 0.078125) + x100*x116 + x102*x104 + x106*x117 + x70*x99 + 1.75) + x94*(x1*(-0.03125*Nu + 0.536458333333333*x7 + 0.078125) + x102*x114 + x111*x70 + x112*x116 + x115*x117 + 0.25))/(x65 + 0.5*x86)**2
+        cdef double dQdprst=11.8620273619492*Nu*r**(-2.5)*x122 + 589.775011960583*Nu*x118*x119 + 8.0*x1*x122*x129 + x1*x123*x124 + x1*x126*x127 + 5.09109256556341e-19*x118*x131*x141 - 67.9050514751178*x120*x121 + 0.975638950243592*x122*x78 + x124*x125*x76 + x124*x130*x87 + x127*x128*x76
+        cdef double dQdr=-663.496888455656*Nu*r**(-5.5)*x142 - 0.121954868780449*Nu*x1*x144 + 39.6112800271521*Nu*x119*x143 - x109*x130*x142 - 3.70688355060912*x121*x144 - x123*x142*x98 - 3.0*x125*x142*x87 - x126*x143*x98 - x128*x143*x88 - x129*x144*x98 + 7.59859378406358e-45*x131*x132*x134*x136*x140*x142*x61*x74 - 9.25454462627843e-34*x131*x132*x134*x140*x142*x72*x73/x135**3 - 6.62902677807736e-23*x131*x132*x136*x140*x142*x73*x85/x133**5 + x142*x87*(-51.6952380952381*x78 + 118.4*x80) + 1.01821851311268e-18*x134*x136*x140*x142*x65**3*x73/r**12 - 1.65460508380811e-18*x141*x142/r**14
+        cdef double dBnpadr=r*x145*(x145*x5 + x146 + x81)/x147**2 - r*x148 - x145*x148
+        cdef double dBnpdr=-x108*(0.0625*x138*(115.0*Nu + x137 - 37.0) + x5*(-73.1875*Nu - 53.8125) + x93*x96*(3.25*Nu + 56.125)) + 38400.0*x11*x12*x36*x50*x62 + 7680.0*x11*x14*x36*x62*x72 - 2.29252167428035e-22*x11*x14*x36*x75 + 7680.0*x14*x36*x50*x62*x79 - x14*x63*x83 - x77 - x87*(x138*(2.25*Nu - 0.5625) + x5*(9.0*Nu + 8.4375) + x96*(-7.875*X1 + 7.875*X2))
+        cdef double dAdr=(-x108*(x138*(2.0*Nu + 0.5) - x139*x96 + 4.5*x5) - x84 - (0.234375*x150 + x151*(0.3125*Nu - 0.46875) - x5*(13.671875*Nu + 17.578125))/r**6)/x149 - (-x67*x87 + x91*(-4.0*x70 - 2.0))*(x108*(0.046875*x150 + x151*(x113 - 0.09375) - x5*(2.734375*Nu + 3.515625)) + x38 + x87*(x138*(0.5*Nu + 0.125) + 1.125*x5 + x96*(-1.25*X1 + 1.25*X2)))/x149**2
+
+        return dAdr,dBnpdr,dBnpadr,dxidr,dQdr,dQdprst,dHodddr
