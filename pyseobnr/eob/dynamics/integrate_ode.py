@@ -124,6 +124,7 @@ def compute_dynamics_opt(
 
     p_circ = np.zeros(2)
     peak_omega = False
+    peak_pr = False
     while t < t1:
 
         # Take a step
@@ -161,7 +162,10 @@ def compute_dynamics_opt(
             if omega < omega_previous:
                 peak_omega = True
                 break
-            if drdt > 0 or dprdt > 0:
+            if drdt > 0:
+                break
+            if dprdt > 0:
+                peak_pr = True
                 break
             if r <= 1.4:
                 break
@@ -211,6 +215,12 @@ def compute_dynamics_opt(
         right = dyn_fine[-1, 0]
         t_peak = iterative_refinement(intrp.derivative(), [left, right])
 
+    if peak_pr:
+        intrp = CubicSpline(dyn_fine[:, 0], dyn_fine[:, 3])
+        left = dyn_fine[-1, 0] - 10
+        right = dyn_fine[-1, 0]
+        t_peak = iterative_refinement(intrp.derivative(), [left, right], pr = True)
+
     dyn_fine = interpolate_dynamics(
         dyn_fine[:, :-3], peak_omega=t_peak, step_back=step_back
     )
@@ -219,7 +229,7 @@ def compute_dynamics_opt(
     return dyn_coarse, dyn_fine
 
 
-def iterative_refinement(f, interval, levels=2, dt_initial=0.1):
+def iterative_refinement(f, interval, levels=2, dt_initial=0.1, pr = False):
     left = interval[0]
     right = interval[1]
     for n in range(1, levels + 1):
@@ -234,8 +244,10 @@ def iterative_refinement(f, interval, levels=2, dt_initial=0.1):
             interval = max(result - 10 * dt, left), min(result + 10 * dt, right)
 
         else:
-
-            return (interval[0] + interval[-1]) / 2
+            if pr:
+                return interval[-1]
+            else:
+                return (interval[0] + interval[-1]) / 2
     return result
 
 
