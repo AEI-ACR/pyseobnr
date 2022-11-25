@@ -158,7 +158,7 @@ class UnfaithfulnessModeByModeLAL(Metric):
         elif isinstance(h1, FrequencySeries) and isinstance(h2, TimeSeries):
             h2 = condition_pycbc_series(h2)
 
-        matches = fast_unfaithfulness_mode_by_mode(h1, h2, flow, Ms=self.masses)
+        matches = fast_unfaithfulness_mode_by_mode(h1, h2, flow, Ms=self.masses, psd_t = 'aLIGO')
         # Get the highest unfaithulness
         mm = 1 - np.min(matches)
         if self.debug:

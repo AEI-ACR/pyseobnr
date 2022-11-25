@@ -6,7 +6,7 @@ import numpy as np
 from pycbc.filter import make_frequency_series
 from pycbc.filter.matchedfilter import match
 from pycbc.types import FrequencySeries, TimeSeries
-from pycbc.psd.analytical import aLIGOZeroDetHighPowerGWINC
+from pycbc.psd.analytical import aLIGOZeroDetHighPowerGWINC, EinsteinTelescopeP1600143, CosmicExplorerP1600143
 
 from scipy.signal import argrelmax
 from waveform_tools.mismatch.unfaithfulness import generate_waveform
@@ -123,6 +123,10 @@ def generate_psd(
     """
     if psd_type == "aLIGO":
         return aLIGOZeroDetHighPowerGWINC(length, delta_f, flow)
+    elif psd_type == "ET":
+        return EinsteinTelescopeP1600143(length, delta_f, flow)
+    elif psd_type == "CE":
+        return CosmicExplorerP1600143(length, delta_f, flow)
     elif psd_type == "flat":
         return FrequencySeries(np.ones(length), delta_f=delta_f)
     else:
