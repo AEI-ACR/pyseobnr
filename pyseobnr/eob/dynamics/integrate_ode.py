@@ -114,7 +114,7 @@ def compute_dynamics_opt(
     if y_init is None:
         h = 2 * np.pi / omega0 / 5
     else:
-        h = 0.1
+        h = 0.5
     omega_previous = omega0
     res_gsl = []
     ts = []
@@ -180,12 +180,28 @@ def compute_dynamics_opt(
         t_desired = ts[-1] - step_back - 50
     else:
         t_desired = ts[-1] - step_back
+
     idx_close = np.argmin(np.abs(ts - t_desired))
     if ts[idx_close] > t_desired:
         idx_close -= 1
 
+    # Gaurd against the case where when using PA dynamics,
+    # there is less than step_back time between the start
+    # of the ODE integration and the end of the dynamics
+    # In that case make the fine dynamics be _all_ dynamics
+    # except the 1st element
+    if t_desired < ts[1]:
+        idx_close = 1
+        step_back = ts[-1]-ts[idx_close]
     dyn_coarse = np.c_[ts[:idx_close], dyn[:idx_close]]
     dyn_fine = np.c_[ts[idx_close:], dyn[idx_close:]]
+    '''
+    print(f"t_desired={t_desired}")
+    print(f"len(dyn_coarse)={len(dyn_coarse)}")
+    print(f"len(dyn_fine)={len(dyn_fine)}")
+    print(f"End time: {ts[-1]}")
+    print(f"idx_close:{idx_close}, t[idx_close]={ts[idx_close]}")
+    '''
     dyn_coarse = augment_dynamics(dyn_coarse, chi_1, chi_2, m_1, m_2, H)
     dyn_fine = augment_dynamics(dyn_fine, chi_1, chi_2, m_1, m_2, H)
     t_peak = None
@@ -207,7 +223,7 @@ def iterative_refinement(f, interval, levels=2, dt_initial=0.1):
     left = interval[0]
     right = interval[1]
     for n in range(1, levels + 1):
-        dt = dt_initial / (10**n)
+        dt = dt_initial / (10 ** n)
         t_fine = np.arange(interval[0], interval[1], dt)
         deriv = np.abs(f(t_fine))
 
@@ -229,7 +245,8 @@ def interpolate_dynamics(dyn_fine, dt=0.1, peak_omega=None, step_back=250.0):
     n = len(dyn_fine)
 
     if peak_omega:
-        t_new = np.arange(peak_omega - step_back, peak_omega, dt)
+        start = max(peak_omega - step_back,dyn_fine[0,0])
+        t_new = np.arange(start, peak_omega, dt)
 
     else:
         t_new = np.arange(dyn_fine[0, 0], dyn_fine[-1, 0], dt)

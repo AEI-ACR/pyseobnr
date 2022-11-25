@@ -8,6 +8,7 @@ import numpy as np
 from pygsl import spline
 from pyseobnr.eob.dynamics.integrate_ode import augment_dynamics, compute_dynamics_opt
 from pyseobnr.eob.dynamics.postadiabatic_C import Kerr_ISCO, compute_combined_dynamics
+from pyseobnr.eob.dynamics.postadiabatic_C_fast import compute_combined_dynamics as compute_combined_dynamics_fast
 from pyseobnr.eob.fits.fits_Hamiltonian import NR_deltaT, NR_deltaT_NS, a6_NS, dSO
 from pyseobnr.eob.fits.GSF_fits import GSF_amplitude_fits
 from pyseobnr.eob.fits.IV_fits import InputValueFits
@@ -89,6 +90,11 @@ class SEOBNRv5HM_opt(Model):
         self.f_ref = self.settings.get(
             "f_ref", omega0 / (self.M * lal.MTSUN_SI * np.pi)
         )
+        r_min = 10.0
+        omega_min = 1/r_min**(3./2)
+        if omega0> omega_min:
+            logger.warning("Short waveform, changing omega0")
+            omega0 = omega_min
         self.f0 = omega0 / (self.M * lal.MTSUN_SI * np.pi)
         self.omega0 = omega0
 
@@ -110,7 +116,7 @@ class SEOBNRv5HM_opt(Model):
         self.am = self.m_1 * self.chi_1 - self.m_2 * self.chi_2
         self.dt = self.settings["dt"]
         self.delta_T = self.dt / (self.M * lal.MTSUN_SI)
-
+        #print(f"In SI units, dt = {self.dt}. In geometric units, with M={self.M}, delta_T={self.delta_T}")
         self.prefixes = compute_newtonian_prefixes(self.m_1, self.m_2)
 
         self.tplspin = (1 - 2 * self.nu) * self.chi_S + (self.m_1 - self.m_2) / (
@@ -159,6 +165,9 @@ class SEOBNRv5HM_opt(Model):
         self._initialize_params(self.phys_pars)
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
+        if self.settings.get("postadiabatic",False):
+            self.PA_style = self.settings.get("PA_style","analytic")
+            self.PA_order = self.settings.get("PA_order",8)
 
     def _default_settings(self):
         settings = dict(
@@ -273,21 +282,39 @@ class SEOBNRv5HM_opt(Model):
                     params=self.eob_pars,
                     backend="ode",
                     step_back=self.step_back,
+
                 )
             else:
-                dynamics_low, dynamics_fine = compute_combined_dynamics(
-                    self.omega0,
-                    self.H,
-                    self.RR,
-                    self.chi_1,
-                    self.chi_2,
-                    self.m_1,
-                    self.m_2,
-                    tol=1e-11,
-                    params=self.eob_pars,
-                    backend="ode",
-                    step_back=self.step_back,
-                )
+                if self.PA_style=="root":
+                    dynamics_low, dynamics_fine = compute_combined_dynamics(
+                        self.omega0,
+                        self.H,
+                        self.RR,
+                        self.chi_1,
+                        self.chi_2,
+                        self.m_1,
+                        self.m_2,
+                        tol=1e-11,
+                        params=self.eob_pars,
+                        backend="ode",
+                        step_back=self.step_back,
+                        PA_order=self.PA_order
+                    )
+                elif self.PA_style =="analytic":
+                    dynamics_low, dynamics_fine = compute_combined_dynamics_fast(
+                        self.omega0,
+                        self.H,
+                        self.RR,
+                        self.chi_1,
+                        self.chi_2,
+                        self.m_1,
+                        self.m_2,
+                        tol=1e-11,
+                        params=self.eob_pars,
+                        backend="ode",
+                        step_back=self.step_back,
+                        PA_order=self.PA_order
+                    )
 
             len_fine = dynamics_fine[-1, 0] - dynamics_fine[0, 0]
             if len_fine < self.step_back:
@@ -440,7 +467,7 @@ class SEOBNRv5HM_opt(Model):
             hlms_interp = interpolate_modes_fast(
                 t_original, t_new, hlms_joined, phi_orb,
             )
-
+            del hlms_joined
             # Step 9: construct the full IMR waveform
             t_full, hlms_full = compute_IMR_modes(
                 t_new,

@@ -8,3 +8,4 @@ cdef class Hamiltonian_C:
     cpdef double csi(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2)
     cpdef dynamics(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2)
     cpdef double omega(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2)
+    cpdef auxderivs(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2)
