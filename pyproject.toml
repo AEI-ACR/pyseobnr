@@ -2,7 +2,7 @@
 
 [build-system]
 	requires = [
-		"setuptools>=61.0",
+		"setuptools",
 		"setuptools_scm[toml]>=3.4.3",
 		"wheel",
 		"cython",
@@ -43,7 +43,7 @@
 	# requirements:
 	requires-python = ">=3.8"
 	dependencies = [
-		"numpy",
+		"numpy==1.23.0",
 		"scipy>=1.8.0",
 		"matplotlib",
 		"h5py",
@@ -55,7 +55,8 @@
 		"jax",
 		"jaxlib",
 		"rich",
-		"pygsl @ git+https://github.com/pygsl/pygsl.git",
+		#"pygsl @ git+https://github.com/pygsl/pygsl.git",
+		"pygsl @ git+https://github.com/SergeiOssokine/pygsl.git",
 		"lalsuite",
 	]
 
