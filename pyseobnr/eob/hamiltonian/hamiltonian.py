@@ -22,3 +22,23 @@ class Hamiltonian:
     def hessian(self):
         """Return the Hessian of the Hamiltonian with resepct to dynamical vars. Needed for IC"""
         pass
+
+
+class Hamiltonian_v5PHM:
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def __call__(self, q,p,chi1_v,chi2_v,m_1,m_2,chi_1, chi_2, chiL_1, chiL_2, **kwargs):
+        """Evaluate the Hamiltonian"""
+        pass
+
+    @abstractmethod
+    def grad(self):
+        """Return the gradient of the Hamiltonian with resepct to dynamical vars"""
+        pass
+
+    @abstractmethod
+    def hessian(self):
+        """Return the Hessian of the Hamiltonian with resepct to dynamical vars. Needed for IC"""
+        pass

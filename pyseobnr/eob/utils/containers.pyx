@@ -14,6 +14,8 @@ cdef class PhysicalParams:
         self.X_1 = self.m_1/self.M
         self.X_2 = self.m_2/self.M
         self.delta = self.m_1 - self.m_2
+        self.a1 =  dc["a1"]
+        self.a2 =  dc["a2"]
         self.chi_1 = dc["chi_1"]
         self.chi_2 = dc["chi_2"]
         self.chi_1x = dc["chi_1x"]
@@ -22,6 +24,8 @@ cdef class PhysicalParams:
         self.chi_2x = dc["chi_2x"]
         self.chi_2y = dc["chi_2y"]
         self.chi_2z = dc["chi_2z"]
+        self.chi1_v = np.array([self.chi_1x,self.chi_1y,self.chi_1z])
+        self.chi2_v = np.array([self.chi_2x,self.chi_2y,self.chi_2z])
         self.omega = dc["omega"]
         self.omega_circ = dc["omega"]
         #self.omega_start = dc["omega_start"]

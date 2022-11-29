@@ -1,50 +1,18 @@
 import argparse
-import importlib
-import os
-import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-from bilby.core.utils import check_directory_exists_and_if_not_mkdir
+from pathlib import Path
+import importlib
+import os,sys
+
 from pathos.multiprocessing import ProcessingPool as Pool
-from scipy.interpolate import CubicSpline
 
-sys.path.append(
-    os.path.join(os.path.abspath(os.path.dirname(__file__)), "../../calibration")
-)
-from metrics import *
-from models import SEOBNRv5PHM
+from pyseobnr.generate_waveform import generate_modes_opt
+from pyseobnr.auxiliary.sanity_checks.parameters import parameters_random_fast
+from pyseobnr.auxiliary.sanity_checks.single_waveform_tests import amplitude_hierarchy_test
 
 
-sys.path.append(os.environ['EOB_DEVEL_PATH']+'/calibration/calibration_parameter_fits/model_0509/')
-sys.path.append(os.environ['EOB_DEVEL_PATH']+'/auxiliary/sanity_checks/')
-
-from parameters import parameters_random_fast_prec
-from single_waveform_tests import amplitude_hierarchy_test
-
-from SEOBNRv5PHM_wrapper_0509 import  SEOBNRv5PHMWrapper
-import lal
-from dataclasses import dataclass
-
-v5wrap = SEOBNRv5PHMWrapper()
-
-
-@dataclass
-class WaveformParams:
-    m1: float
-    m2: float
-    s1x: float
-    s1y: float
-    s1z: float
-    s2x: float
-    s2y: float
-    s2z: float
-    f_min: float
-    f_ref: float
-    delta_t: float
-    approx: str = "SEOBNRv5PHM"
-    augm_option: int = 4
-    alpha: float = 0.
 
 def amplitude_hierarchy(q: float, chi1x: float,  chi1y: float,  chi1z: float,  chi2x: float,  chi2y: float,  chi2z: float,  plots: bool = True):
 
@@ -59,27 +27,18 @@ def amplitude_hierarchy(q: float, chi1x: float,  chi1y: float,  chi1z: float,  c
     omega0 = 0.015
     omega_start = omega0
     mt = 60.
+    delta_t = 1./8192.
 
-    f_ref = omega0/(np.pi * mt * lal.MTSUN_SI)
-    f_min = omega_start/(np.pi * mt * lal.MTSUN_SI)
-
-    m1 = q/(1.+q)*mt
-    m2 = 1./(1.+q)*mt
-
-    s1x, s1y, s1z = chi1x, chi1y, chi1z
-    s2x, s2y, s2z = chi2x, chi2y, chi2z
-
-
-    p = WaveformParams(m1 = m1, m2 = m2, s1x = s1x, s1y = s1y, s1z = s1z,
-                       s2x = s2x, s2y = s2y, s2z = s2z, f_min = f_min, f_ref = f_ref, delta_t = 1./16384. )
+    chi_1 = [chi1x, chi1y, chi1z]
+    chi_2 = [chi2x, chi2y, chi2z]
 
 
     try:
 
         ell_max = 5
-
-        time, modes, model = v5wrap.get_EOB_modes(p,
-                                                        ell_max=ell_max)
+        settings = {'ell_max':ell_max,'beta_approx':None,'M':mt,"dt":delta_t,"return_coprec":True}
+        _, _, model = generate_modes_opt(q,chi_1,chi_2,omega0,approximant='SEOBNRv5PHM',
+                                   debug=True,settings=settings)
 
         t_h = model.t
         hlms_cop = model.coprecessing_modes
@@ -103,7 +62,7 @@ def amplitude_hierarchy(q: float, chi1x: float,  chi1y: float,  chi1z: float,  c
             if plots:
                 label = f"q{np.round(q,2)}__s{np.round(chi1x,3)}_{np.round(chi1y,3)}_{np.round(chi1z,3)}__s{np.round(chi2x,3)}_{np.round(chi2y,3)}_{np.round(chi2z,3)}"
                 plt_dir = "./plots_hierarchy"
-                check_directory_exists_and_if_not_mkdir(plt_dir)
+                Path(plt_dir).mkdir(parents=True, exist_ok=True)
 
                 for key in model.modes_list:
                     plt.plot(
@@ -140,6 +99,69 @@ def process_one_case_prec(input):
     ) = amplitude_hierarchy(q, chi1x, chi1y, chi1z, chi2x, chi2y, chi2z, plots)
     return np.array([q_bad, chi1x_bad, chi1y_bad, chi1z_bad, chi2x_bad, chi2y_bad, chi2z_bad])
 
+def parameters_random_fast_prec(
+    seed: int,
+    N: int,
+    qmin: float,
+    qmax: float,
+    a1min: float,
+    a1max: float,
+    a2min: float,
+    a2max: float,
+):
+    """
+    Generate random parameters for q, chi1x, chi1y, chi1z, chi2x, chi2y, chi2z
+
+    Parameters
+    ----------
+    N:
+        Number of parameters to generate
+    qmin, qmax:
+        Bounds on the q parameter
+    a1min, a1max, a2min, a2max:
+        Bounds on the a parameter
+
+    Return parameters of the waveforms
+    """
+
+
+    np.random.seed(seed)
+    q = np.random.uniform(qmin, qmax, N)
+
+    np.random.seed(seed+1)
+    a1 = np.random.uniform(a1min, a1max, N)
+    np.random.seed(seed+2)
+    a2 = np.random.uniform(a2min, a2max, N)
+
+
+    np.random.seed(seed+3)
+    theta1 = np.random.uniform(0,np.pi,N)
+    np.random.seed(seed+4)
+    theta2 = np.random.uniform(0,np.pi,N)
+
+    np.random.seed(seed+5)
+    phi1 = np.random.uniform(0,2*np.pi,N)
+    np.random.seed(seed+6)
+    phi2 = np.random.uniform(0,2*np.pi,N)
+
+    chi1x = a1*np.sin(theta1)*np.cos(phi1)
+    chi1y = a1*np.sin(theta1)*np.sin(phi1)
+    chi1z = a1*np.cos(theta1)
+
+    chi2x = a2*np.sin(theta2)*np.cos(phi2)
+    chi2y = a2*np.sin(theta2)*np.sin(phi2)
+    chi2z = a2*np.cos(theta2)
+
+    return (
+        np.array(q),
+        np.array(chi1x),
+        np.array(chi1y),
+        np.array(chi1z),
+        np.array(chi2x),
+        np.array(chi2y),
+        np.array(chi2z),
+    )
+
 
 if __name__ == "__main__":
 
@@ -164,10 +186,11 @@ if __name__ == "__main__":
         "--wrapper-path", type=str, help="The path to the wrapper, including name"
     )
     p.add_argument("--n-cpu", type=int, help="Number of cores to use", default=64)
+    p.add_argument("--seed", type=int, help="Seed for random generation use", default=150914)
     args = p.parse_args()
 
-
     qarr, chi1x_arr, chi1y_arr, chi1z_arr, chi2x_arr, chi2y_arr, chi2z_arr = parameters_random_fast_prec(
+        args.seed,
         args.points,
         1.0,
         args.q_max,
@@ -203,7 +226,7 @@ if __name__ == "__main__":
     if args.plots:
 
         plt_dir = "./plots_hierarchy"
-        check_directory_exists_and_if_not_mkdir(plt_dir)
+        Path(plt_dir).mkdir(parents=True, exist_ok=True)
 
         res_path = args.name
         res = np.loadtxt(res_path)

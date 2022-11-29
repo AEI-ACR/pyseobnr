@@ -1,7 +1,7 @@
 import argparse
 import os
+from pathlib import Path
 
-from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 from jinja2 import Environment, FileSystemLoader
 
 this_folder = os.path.abspath(os.path.dirname(__file__))
@@ -32,20 +32,22 @@ if __name__ == "__main__":
         help="Name of directory where tests will be created",
         default="./",
     )
+    p.add_argument("--points", type=int, help="Number of points", default=100000)
     p.add_argument(
         "--wrapper-path", type=str, help="The path to the wrapper, including name"
     )
+    p.add_argument("--seed", type=int, help="Seed for random generation use", default=150914)
     args = p.parse_args()
     # Create submit files for the different tests
     file_loader = FileSystemLoader(f"{this_folder}/templates/")
     env = Environment(loader=file_loader)
     template = env.get_template("slurm.jinja")
 
-    check_directory_exists_and_if_not_mkdir(args.test_dir)
+    Path(args.test_dir).mkdir(parents=True, exist_ok=True)
     os.chdir(args.test_dir)
 
     # Amplitude hierarchy
-    cmd = f"""python {script_home}auxiliary/sanity_checks/amplitude_hierarchy_test_precessing.py --points 100000 --q-max 100 --a-max 0.998 --wrapper-path {args.wrapper_path} """
+    cmd = f"""python {script_home}auxiliary/sanity_checks/amplitude_hierarchy_test_precessing.py --points {args.points} --q-max 100 --a-max 0.998 --seed {args.seed} --wrapper-path {args.wrapper_path} """
     prog = template.render(
         job_name="amplitude_hierarchy_test_prec",
         label="sanity_check",
