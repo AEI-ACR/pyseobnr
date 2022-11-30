@@ -335,7 +335,7 @@ def SEOBEulerJ2PFromDynamics(t, Lhat, e1J, e2J, e3J):
     #e1PiniJbasis[2] = np.dot(e1PiniIbasis, e3J)
     #e2PiniJbasis[2] = np.dot(e2PiniIbasis, e3J)
     #initialGamma = np.arctan2(e2PiniJbasis[2], -e1PiniJbasis[2])
-    initialGamma = -alphaJ2P[0]
+    initialGamma = np.pi - alphaJ2P[0]
 
     gamma0J2P = np.full(len(alphaJ2P), initialGamma)
 
