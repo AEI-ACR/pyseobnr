@@ -129,7 +129,10 @@ LOOKUP_TABLE[:] = [
 @cython.profile(True)
 @cython.linetrace(True)
 cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int m):
-
+    """
+    Calculates the Newtonian multipole prefactors, see Eq. 25-27 in v5HM doc.
+    See also Sec. 2A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
+    """
     cdef double complex n = 0.0
     cdef double complex prefix
 
@@ -157,7 +160,7 @@ cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int
     # Therefore, for this case, we give numerical values of c0 for relevant modes, and c0 is calculated as
     # c / dM in the limit of dM -> 0. Consistently, for this case, we implement chiA instead of chiA/dM
     # below.
-    # Note that for equal masses and odd m modes we currently only have non-zero c up to l=5. If new spining terms
+    # Note that for equal masses and odd m modes we currently only have non-zero c up to l=5. If new spinning terms
     # are added to modes above l=5 this will need to be revisited.
     cdef double c,mult1,mult2
     if m1 != m2 or sign == 1:
@@ -209,6 +212,9 @@ cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cpdef compute_newtonian_prefixes(double m1, double m2):
+    """
+    Loop to set the Newtonian multipole prefactors, see Eq. 25-27 in v5HM doc.
+    """
     cdef double complex prefixes[9][9]
     for l in range(2, ell_max + 1):
         for m in range(1, l + 1):
@@ -219,6 +225,9 @@ cpdef compute_newtonian_prefixes(double m1, double m2):
 @cython.wraparound(False)
 @cython.cdivision(True)
 cpdef double evaluate_nqc_correction_flux(double r, double pr,  double omega, double[:] coeffs):
+    """
+    Calculate the NQC amplitude correction, see Eq. 35 in v5HM doc.
+    """
     cdef double sqrtR = sqrt(r)
     cdef double rOmega = r * omega
     cdef double rOmegaSq = rOmega * rOmega
@@ -234,7 +243,11 @@ cpdef double evaluate_nqc_correction_flux(double r, double pr,  double omega, do
 @cython.wraparound(False)
 @cython.cdivision(True)
 cpdef compute_tail(double omega, double H, double[:,:] Tlm):
-
+    """
+    Calculate the resummed Tail effects, see Eq. 32 in v5HM doc.
+    See also Sec. 2B of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
+    and Eq. (42) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.87.084035
+    """
     cdef int m,j
     cdef double k, hathatk,hathatksq4,hathatk4pi,z2
     cdef double tlmprod_fac = 1.0
@@ -266,6 +279,18 @@ cdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double ch
     double[:,:,:] rho_coeffs,double[:,:,:] rho_coeffs_log, double[:,:,:] f_coeffs,
     double complex[:,:,:] f_coeffs_vh, bint extra_PN_terms):
 
+    """
+    Compute the amplitude residual coefficients. 
+    See Sec. 2C and 2D of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
+    See Eq. 59-63 of v5HM theory doc for new terms, rest copied from SEOBNRv4HM LAL code.
+    Coefficients can be found in:
+    - v5HM theory doc / v5HM doc
+    - Appendix A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.98.084028
+    - Eqs. (2.4) to (2.6) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.95.044028
+    - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.83.064003
+
+    # TODO: update after all expressions for the modes have been written in the v5HM paper
+    """
 
     cdef double nu2 = nu*nu
     cdef double nu3 = nu*nu2
@@ -334,6 +359,8 @@ cdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double ch
     rho_coeffs_log[2,2][10] = 439877.0 / 55566.0
     # (2,2) mode ends
 
+    # We set test-spin terms to 0 (as in SEOBNRv4HM) 
+    # as no major improvement was found when trying to include them
     a = 0.0
     a2 = 0.0
     a3 = 0.0
@@ -1000,6 +1027,20 @@ cdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double ch
 cpdef public void compute_delta_coeffs(double nu,double dm, double a,double chiS,double chiA,
     double complex[:,:,:] delta_coeffs, double complex[:,:,:] delta_coeffs_vh):
 
+    """
+    Compute the phase residual coefficients. 
+    See Sec. 2B of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
+    See Eq. 59-63 of v5HM theory doc for new terms, rest copied from SEOBNRv4HM LAL code)
+
+    Coefficients can be found in:
+    - v5HM theory doc / v5HM doc
+    - Appendix A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.98.084028
+    - Eqs. (2.4) to (2.6) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.95.044028
+    - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.83.064003
+
+    # TODO: update after all expressions for the modes have been written in the v5HM paper
+    """
+
     cdef double nu2 = nu*nu
     cdef double nu3 = nu*nu2
 
@@ -1142,6 +1183,9 @@ cpdef public void compute_delta_coeffs(double nu,double dm, double a,double chiS
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
 cdef double complex compute_deltalm_single(double[] vs, double[] vhs,int l, int m, FluxParams fl):
+    """
+    Compute the  full \delta_{\ell m} contribution for a given mode
+    """
     cdef int j
     cdef double complex delta = 0.0
     for j in range(PN_limit):
@@ -1156,6 +1200,9 @@ cdef double complex compute_deltalm_single(double[] vs, double[] vhs,int l, int 
 @cython.profile(True)
 @cython.linetrace(True)
 cdef void compute_delta(double v,double vh,double nu, EOBParams eob_pars):
+    """
+    Compute the  full \delta_{\ell m} contribution for all modes
+    """
     cdef int i,j,l,m
     cdef double vs[PN_limit]
     cdef double vhs[PN_limit]
@@ -1177,6 +1224,9 @@ cdef void compute_delta(double v,double vh,double nu, EOBParams eob_pars):
 @cython.initializedcheck(False)
 
 cdef double complex compute_extra_flm_terms(int l,int m,double vh,EOBParams eob_pars):
+    """
+    Compute the complex term in f_{33}. See last term in Eq(A10) of https://arxiv.org/pdf/1803.10701.pdf
+    """
     cdef double vh3 = vh**3
     cdef double complex extra_term = 0.0
     if l==3 and m==3:
@@ -1189,6 +1239,9 @@ cdef double complex compute_extra_flm_terms(int l,int m,double vh,EOBParams eob_
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
 cdef double complex compute_rholm_single(double[] vs,double vh, int l, int m, EOBParams eob_pars):
+    """
+    Compute the full \rho_{\ell m}​ contribution for a given mode
+    """
     cdef int j
     cdef double v = vs[1]
     cdef double nu = eob_pars.p_params.nu
@@ -1236,6 +1289,9 @@ cdef double complex compute_rholm_single(double[] vs,double vh, int l, int m, EO
 @cython.profile(True)
 @cython.linetrace(True)
 cdef void compute_rholm(double v,double vh,double nu, EOBParams eob_pars):
+    """
+    Compute the full \rho_{\ell m}​ contribution for all modes.
+    """
     cdef int i,l,m
     cdef double vs[PN_limit]
     for i in range(PN_limit):
@@ -1274,6 +1330,9 @@ cdef void compute_rholm(double v,double vh,double nu, EOBParams eob_pars):
 cdef double  EOBFluxCalculateNewtonianMultipoleAbs(
     double x, double phi, int l, int m, double [:,:] params
 ):
+    """
+    Compute the Newtonian multipole (optimised for the flux calculation).
+    """
     cdef double param = params[l,m]
     cdef int epsilon = (l + m) % 2
 
@@ -1309,7 +1368,9 @@ cdef void update_rho_coeffs(double[:,:,:] rho_coeffs, double[:,:,:] extra_coeffs
 @cython.profile(True)
 @cython.linetrace(True)
 cdef double compute_flux(double r,double phi,double pr,double pphi,double omega,double omega_circ,double H,EOBParams eob_pars):
-
+    """
+    Compute the full flux. See Eq(43) in the v5HM docs.
+    """
     cdef int l,m
     cdef double[:,:] Tlm = eob_pars.flux_params.Tlm
     # Note the "abs" in the prefixes.
@@ -2002,6 +2063,9 @@ cpdef double compute_refactorized_flux(
 @cython.profile(True)
 @cython.linetrace(True)
 cpdef  (double,double) RR_force(double[::1] q,double[::1] p,double omega,double omega_circ,double H,EOBParams eob_par):
+    """
+    Compute the RR force in polar coordinates, from the flux
+    """
     cdef double r = q[0]
     cdef double phi = q[1]
     cdef double pr = p[0]
@@ -2018,6 +2082,9 @@ cpdef  (double,double) RR_force(double[::1] q,double[::1] p,double omega,double 
 
 
 cdef class RadiationReactionForce:
+    """
+    Convenience wrappers around the RR_force function to enable typed calls
+    """
     def __cinit__(self):
         pass
     cpdef (double,double) RR(self, double[::1] q,double[::1] p,double omega,double omega_circ,double H,EOBParams eob_par):
@@ -2025,6 +2092,9 @@ cdef class RadiationReactionForce:
 
 
 cdef class SEOBNRv5RRForce(RadiationReactionForce):
+    """
+    Convenience wrappers around the RR_force function to enable typed calls
+    """
     def __cinit__(self):
         pass
     cpdef (double,double) RR(self, double[::1] q,double[::1] p,double omega,double omega_circ,double H,EOBParams eob_par):
@@ -2042,6 +2112,9 @@ cdef class SEOBNRv5RRForce(RadiationReactionForce):
 cdef double complex EOBFluxCalculateNewtonianMultipole(
     double x, double phi, int l, int m, double complex[:,:] params
 ):
+    """
+    Compute the Newtonian multipole
+    """
     cdef double complex param = params[l,m]
     cdef int epsilon = (l + m) % 2
 
@@ -2065,7 +2138,7 @@ cdef double complex EOBFluxCalculateNewtonianMultipole(
 @cython.linetrace(True)
 cdef double complex compute_mode(double v_phi2,double phi, double Slm, double[] vs,double[] vhs,int l, int m, EOBParams eob_pars):
     """
-    Compute the given (l,m) mode at one instant in time
+    Compute the given (l,m) mode at one instant in time. See Eq(24) in v5HM docs.
     """
 
     cdef double complex Tlm,hNewton,rholm,deltalm
@@ -2226,6 +2299,9 @@ cdef double min_threshold(int l,int m):
 @cython.linetrace(True)
 cpdef compute_special_coeffs(double[:,:] dynamics, double t_attach, EOBParams eob_pars,
     dict amp_fits, dict amp_thresholds, dict modes={(2,1):7,(4,3):7,(5,5):5}):
+    """
+    Compute the "special" amplitude coefficients. See discussion after Eq. (33) in v5HM doc.
+    """
     # Step 0: spline the dynamics to the attachment point
 
 
@@ -2324,6 +2400,9 @@ cpdef compute_special_coeffs(double[:,:] dynamics, double t_attach, EOBParams eo
 @cython.wraparound(False)
 @cython.cdivision(True)
 cpdef compute_factors(double[::1] phi_orb,int m_max, double complex[:,:]result):
+    """
+    Trivial helper function that computes iterative e^{im\phi} which is used in interpolation, see `interpolate_modes_fast` in `compute_hlms.py` 
+    """
     cdef int N = phi_orb.shape[0]
     cdef int i,m
     cdef double complex factor
@@ -2342,6 +2421,9 @@ cpdef compute_factors(double[::1] phi_orb,int m_max, double complex[:,:]result):
 @cython.profile(True)
 @cython.linetrace(True)
 cpdef unrotate_leading_pn(double[::1]re_part,double[::1]im_part, double complex[:] factor,double complex[:] result):
+    """
+    Helper function used to multiply the interpolated re and im parts by the leading order PN scaling
+    """
     cdef int N = re_part.shape[0]
     cdef int i
     #print(re_part.shape[0],im_part.shape[0],phi.shape[0],result.shape[0])
