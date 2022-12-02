@@ -22,6 +22,8 @@ def mu_fit(j: float, p1: float, p2: float, p3: float, p4: float) -> float:
 def mu(m: int, l: int, lp: int, j: float) -> float:
     """
     Equation 11 from https://arxiv.org/abs/1408.1860 applied to the (2,2), (3,2), (3,3) and (4,3) modes using the appropriate fitting parameters
+    Data files containing the fits https://git.ligo.org/waveforms/reviews/seobnrv5/-/blob/main/aligned/docs/swsh_fits.dat
+    (copied from https://pages.jh.edu/eberti2/ringdown/ on 02/12/2022)
 
     Parameters
     ----------
@@ -87,8 +89,8 @@ def rho(ell, m, j, h_ellm, h_mm):
     return abs(mu(m, ell, m, j)) * (h_mm) / (h_ellm * abs(mu(m, m, m, j)))
 
 
-# functions to obtain the spheroidal mode input values from the spherical mode ones (from Ajit's notes)
-
+# Auxiliary functions to obtain the spheroidal mode input values 
+# See Eq. 73 to Eq. 80 of https://git.ligo.org/waveforms/reviews/seobnrv5/-/blob/main/aligned/docs/SEOBNRv5HM.pdf
 
 def dphi(ell, m, j, phi_ellm, phi_mm):
     return phi_mm - phi_ellm - np.angle(mu(m, ell, m, j)) + np.angle(mu(m, m, m, j))
@@ -142,7 +144,8 @@ def alpha_dot(
     ) / (F(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm) ** 2)
 
 
-# spheroidal mode input values (from Ajit's notes)
+# Spheroidal mode input values 
+# See Eq. 81 to Eq. 84 of https://git.ligo.org/waveforms/reviews/seobnrv5/-/blob/main/aligned/docs/SEOBNRv5HM.pdf
 
 def h_ellm0_nu(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
     return (
