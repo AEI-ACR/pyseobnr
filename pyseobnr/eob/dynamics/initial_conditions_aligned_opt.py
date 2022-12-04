@@ -108,7 +108,7 @@ def computeIC_opt(omega, H, RR, chi_1, chi_2, m_1, m_2, **kwargs):
     z = [r_guess, np.sqrt(r_guess)]
     # print(f"Initial guess is {z}")
     # The conservative bit: solve for r and pphi
-    res_cons = root(IC_cons, z, args=(omega, H, chi_1, chi_2, m_1, m_2), tol=3e-12)
+    res_cons = root(IC_cons, z, args=(omega, H, chi_1, chi_2, m_1, m_2), tol=6e-12)
     if not res_cons.success:
         logger.error(
             "The solution fo the conservative part of intial conditions failed for"
