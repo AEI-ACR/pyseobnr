@@ -126,8 +126,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
     cpdef _call(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2,bint verbose=False):
 
         """
-        Toy aligned-spin Hamiltonian
-
+        Aligned-spin SEOBNRv5HM Hamiltonian. 
+        See Sec. 1B and 1C of v5HM theory doc
         """
 
         # Coordinate definitions
@@ -237,8 +237,7 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
     cpdef grad(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
-        Toy aligned-spin Hamiltonian
-
+        Computes the first derivatives aligned-spin SEOBNRv5HM Hamiltonian
         """
 
         # Coordinate definitions
@@ -482,8 +481,7 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
     cpdef hessian(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
-        Toy aligned-spin Hamiltonian
-
+        Computes the second derivatives aligned-spin SEOBNRv5HM Hamiltonian
         """
 
 
@@ -1171,8 +1169,7 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
     cdef double xi(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
-        Toy aligned-spin Hamiltonian
-
+        Computes the tortoise factor \csi to convert between pr and prst
         """
 
         # Coordinate definitions
@@ -1209,72 +1206,11 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         cdef double xi = Dbpm**0.5*r**2*(Apm + ap2/r**2)/(ap2 + r**2)
 
-        cdef double pr = prst/xi
-
-        cdef double flagNLOSS2 = 1.00000000000000
-
-        cdef double delta = X_1 - X_2
-
-        cdef double am = chi_1*X_1 - chi_2*X_2
-
-        cdef double apam = am*ap
-
-        cdef double am2 = am**2
-
-        cdef double QSalign2 = flagNLOSS2*pr**4*(-0.46875*am2*(4.0*nu**2 - 5.0*nu + 1.0) - 0.15625*ap2*(32.0*nu**2 - 33.0*nu - 5.0) + 0.3125*apam*delta*(18.0*nu - 1.0))/r**3
-
-        cdef double flagQPN55 = 1.00000000000000
-
-        cdef double flagQPN5 = 1.00000000000000
-
-        cdef double flagQPN4 = 1.00000000000000
-
-        cdef double Qpm = flagQPN4*(0.121954868780449*nu*prst**8/r + prst**6*(6.0*nu**3 - 5.4*nu**2 - 2.78300763695006*nu)/r**2 + prst**4*(10.0*nu**3 - 131.0*nu**2 + 92.7110442849544*nu)/r**3) + flagQPN5*(prst**8*(-6.0*nu**4 + 3.42857142857143*nu**3 + 3.33842023648322*nu**2 + 1.38977750996128*nu)/r**2 + prst**6*(-14.0*nu**4 + 188.0*nu**3 - 89.5298327361234*nu**2 - 33.9782122170436*nu)/r**3 + prst**4*(602.318540416564*nu**3 + nu**2*(118.4*log(r) - 1796.13660498019) + nu*(452.542166996693 - 51.6952380952381*log(r)))/r**4) + flagQPN55*(1.48275342024365*nu*prst**8/r**2.5 - 11.3175085791863*nu*prst**6/r**3.5 + 147.443752990146*nu*prst**4/r**4.5) + prst**4*(-6.0*nu**2 + 8.0*nu)/r**2
-
-        cdef double Qq = QSalign2 + Qpm
-
-        cdef double Bnpa = -r*(r + 2.0)/(ap2*r*(r + 2.0) + r**4)
-
-        cdef double flagNLOSS = 1.00000000000000
-
-        cdef double BnpSalign2 = flagNLOSS*(0.1875*am2*(4.0*nu - 1.0) + ap2*(3.0*nu + 2.8125) - 2.625*apam*delta)/r**3 + flagNLOSS2*(0.015625*am2*(4.0*nu**2 + 115.0*nu - 37.0) + 0.015625*ap2*(-1171.0*nu - 861.0) + 0.03125*apam*delta*(26.0*nu + 449.0))/r**4
-
-        cdef double Bnp = Apm*Dbpm + BnpSalign2 + ap2/r**2 - 1.0
-
-        cdef double dSS = 0
-
-        cdef double ASalignCal2 = ap2*dSS*nu/r**6
-
-        cdef double ASalign2 = flagNLOSS*(0.125*am2*(4.0*nu + 1.0) + 1.125*ap2 - 1.25*apam*delta)/r**4 + flagNLOSS2*(0.046875*am2*(28.0*nu**2 - 27.0*nu - 3.0) - 0.390625*ap2*(7.0*nu + 9.0) - 1.21875*apam*delta*(2.0*nu - 3.0))/r**5
-
-        cdef double A = (ASalign2 + ASalignCal2 + Apm + ap2/r**2)/(ap2*(1.0 + 2.0/r)/r**2 + 1.0)
-
-        cdef double lap = ap
-
-        cdef double Heven = (A*(Bnpa*L**2*lap**2/r**2 + L**2/r**2 + Qq + prst**2*(Bnp + 1.0)/xi**2 + 1.0))**0.5
-
-        cdef double lam = am
-
-        cdef double Ga3 = 0.0416666666666667*L*ap2*delta*lam/r**2 + L*lap*(-0.25*ap2 + 0.208333333333333*apam*delta)/r**2
-
-        cdef double SOcalib = L*nu*dSO*lap/r**3
-
-        cdef double flagNLOSO2 = 1.00000000000000
-
-        cdef double flagNLOSO = 1.00000000000000
-
-        cdef double gam = flagNLOSO*(L**2*(0.46875 - 0.28125*nu)/r**2 + (0.34375*nu + 0.09375)/r) + flagNLOSO2*(L**4*(0.29296875*nu**2 - 0.3515625*nu - 0.41015625)/r**4 + L**2*(-0.798177083333333*nu**2 - 0.2734375*nu - 0.23046875)/r**3 + (0.536458333333333*nu**2 - 0.03125*nu + 0.078125)/r**2) + 0.25
-
-        cdef double gap = flagNLOSO*(L**2*(-1.40625*nu - 0.46875)/r**2 + (0.71875*nu - 0.09375)/r) + flagNLOSO2*(L**4*(1.34765625*nu**2 + 0.5859375*nu + 0.41015625)/r**4 + L**2*(-2.07161458333333*nu**2 - 2.0859375*nu + 0.23046875)/r**3 + (0.567708333333333*nu**2 - 5.53125*nu - 0.078125)/r**2) + 1.75
-
-        cdef double Hodd = (Ga3 + L*delta*gam*lam + L*gap*lap + SOcalib)/(2.0*ap2 + 2.0*r**2 + r*(ap2 + r**2 - 2.0*r))
-
-
         return xi
     cpdef dynamics(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
-        Toy aligned-spin Hamiltonian
+        Aligned-spin SEOBNRv5HM Hamiltonian. 
 
         Returns gradient of H, H and xi, to be used in RHS of equations of motion
         """
@@ -1522,7 +1458,9 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
     cpdef double omega(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
-        Toy aligned-spin Hamiltonian
+        Aligned-spin SEOBNRv5HM Hamiltonian. 
+
+        Computes \Omega=dH/dpphi. Separate function for efficiently computing Omega_{circ} (See Eq(30) in v5HM doc).
 
         """
 
@@ -1637,7 +1575,9 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
     cpdef auxderivs(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
-        Toy aligned-spin Hamiltonian
+        Aligned-spin SEOBNRv5HM Hamiltonian. 
+
+        Returns auxiliary derivatives needed for the analytic post-adiabatic routine.
 
         """
 

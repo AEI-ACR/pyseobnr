@@ -309,7 +309,10 @@ def compute_mixed_mode(
     idx,
     fits_dict,
 ):
-
+    """
+    Computes the (3,2) and (4,3) modes, including mode-mixing in the ringdown. 
+    See Sec. II C of the v5HM doc, especially Eqs.(71, 72)
+    """
     # Get spheroidal input values
     # These are constructed from spherical input values
 
@@ -535,6 +538,9 @@ def NQC_correction(
 def apply_nqc_corrections(
     hlms: Dict[Any, Any], nqc_coeffs: Dict[Any, Any], polar_dynamics: np.ndarray
 ):
+    """
+    Loop over modes and multiply them by NQC correction
+    """
     r, pr, omega_orb = polar_dynamics
     for key in hlms.keys():
         ell, m = key

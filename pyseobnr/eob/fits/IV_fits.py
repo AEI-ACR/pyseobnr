@@ -2,6 +2,14 @@ import numpy as np
 
 
 class InputValueFits:
+    """
+    Fits for the so-called waveform input values. 
+    These are the amplitude and its derivatives as well as frequency and its derivative.  
+    These are used in several places in the model, including NQC construction, 
+    merger-ringdown attachment and special calibration coefficients in some odd-m modes.
+    This class wraps all necessary fits as methods. Each method returns a dict with keys being the desired mode. 
+    See also Appendix A of the v5HM doc.
+    """
     def __init__(self, m1, m2, chi1, chi2):
         self.m1 = m1
         self.m2 = m2
@@ -27,6 +35,11 @@ class InputValueFits:
         self.chi44Aabs = np.abs(self.chi44A)
 
     def hsign(self):
+        """
+        Fits for the unsigned waveform amplitude at the attachment point. See Appendix A1 of the v5HM doc.
+        This enters in the special calibration coefficients for the (2,1), (5,5) and (4,3) modes and is 
+        needed to ensure the correct behaviour for cases with a minium in the amplitude close to the attachment point.
+        """
         h_modes = {}
         h_modes[2, 2] = (
             71.97969776036882194603 * self.nu ** 4
@@ -179,6 +192,10 @@ class InputValueFits:
         return h_modes
 
     def habs(self):
+        """
+        Fits for the waveform amplitude at the attachment point.
+        See Appendix A1 of the v5HM doc.
+        """
         h_modes = {}
         h_modes[2, 2] = np.abs(
             71.97969776036882194603 * self.nu ** 4
@@ -337,7 +354,10 @@ class InputValueFits:
         return h_modes
 
     def hdot(self):
-
+        """
+        Fits for the waveform amplitude first derivative at the attachment point.
+        See Appendix A2 of the v5HM doc.
+        """
         hdot_modes = {}
         hdot_modes[2, 2] = 0.0
         h33dot_opt = (
@@ -469,6 +489,10 @@ class InputValueFits:
         return hdot_modes
 
     def hdotdot(self):
+        """
+        Fits for the waveform amplitude second derivative at the attachment point.
+        See Appendix A3 of the v5HM doc.
+        """
         hdotdot_modes = {}
         hdotdot_modes[2, 2] = (
             -0.00335300225882774906 * self.nu ** 2
@@ -606,6 +630,10 @@ class InputValueFits:
         return hdotdot_modes
 
     def omega(self):
+        """
+        Fits for the waveform frequency at the attachment point.
+        See Appendix A4 of the v5HM doc.
+        """
         omega_modes = {}
         omega_modes[2, 2] = (
             5.89352329617707670906 * self.nu ** 4
@@ -695,6 +723,10 @@ class InputValueFits:
         return omega_modes
 
     def omegadot(self):
+        """
+        Fits for the waveform frequency first derivative at the attachment point.
+        See Appendix A4 of the v5HM doc.
+        """
         omegadot_modes = {}
         omegadot_modes[2, 2] = (
             -0.23712612963269574795 * self.nu ** 3

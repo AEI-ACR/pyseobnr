@@ -5,6 +5,9 @@ from ..fits.EOB_fits import *
 def compute_MR_mode_free(
     t, m1, m2, chi1, chi2, attach_params, ell, m, fits_dict,t_match=0, phi_match=0, debug=True
 ):
+    """
+    Evaluate the MR ansatze. See Eqs.(56, 57, 58) in v5HM doc.
+    """
     # Step 1 - use the NR fits for amplitude and frequency at attachment time
     chiA = (chi1 - chi2) / 2
     chiS = (chi1 + chi2) / 2

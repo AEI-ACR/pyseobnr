@@ -39,6 +39,20 @@ def compute_QNM(ell: int, m: int, n: int, af: float, Mf: float):
 def EOBCalculateRDAmplitudeConstraintedCoefficient1(
     c1f: float, c2f: float, sigmaR: float, amp: float, damp: float, eta: float
 ):
+    """
+    Computes c1c coefficient in MR ansatze (Eq 59 in v5HM doc).
+
+    Args:
+        c1f (float): value of c1f
+        c2f (float): value of c1f
+        sigmaR (float): real part of the QNM frequency
+        amp (float): waveform amplitude at attachment time
+        damp (float): waveform amplitude's first derivative at attachment time
+        eta (float): reduced mass ratio
+
+    Returns:
+        float: The value of c1c
+    """
     c1c = 1 / (c1f * eta) * (damp - sigmaR * amp) * np.cosh(c2f) ** 2
     return c1c
 
@@ -46,6 +60,20 @@ def EOBCalculateRDAmplitudeConstraintedCoefficient1(
 def EOBCalculateRDAmplitudeConstraintedCoefficient2(
     c1f: float, c2f: float, sigmaR: float, amp: float, damp: float, eta: float
 ):
+    """
+    Computes c2c coefficient in MR ansatze (Eq 60 in v5HM doc).
+
+    Args:
+        c1f (float): value of c1f
+        c2f (float): value of c1f
+        sigmaR (float): real part of the QNM frequency
+        amp (float): waveform amplitude at attachment time
+        damp (float): waveform amplitude's first derivative at attachment time
+        eta (float): reduced mass ratio
+
+    Returns:
+        float: The value of c2c
+    """
     c2c = amp / eta - 1 / (c1f * eta) * (damp - sigmaR * amp) * np.cosh(c2f) * np.sinh(
         c2f
     )
@@ -55,6 +83,18 @@ def EOBCalculateRDAmplitudeConstraintedCoefficient2(
 def EOBCalculateRDPhaseConstraintedCoefficient1(
     d1f: float, d2f: float, sigmaI: float, omega: float
 ):
+    """
+    Computes d1c coefficient in MR ansatze (Eq 61 in v5HM doc).
+
+    Args:
+        d1f (float): value of d1f
+        d2f (float): value of d1f
+        sigmaI (float): imaginary part of the QNM frequency
+        omega (float): waveform frequency at attachment time
+
+    Returns:
+        float: The value of c2c
+    """
     d1c = (omega - sigmaI) * (1 + d2f) / (d1f * d2f)
     return d1c
 
@@ -77,8 +117,15 @@ def EOBCalculateNQCCoefficients_freeattach(
     fits_dict: Dict[str, Any],
 ):
     """
+    Computes the NQC coefficients (see discussion in Sec. II A, around Eq(35), in v5HM doc)
     This is just like the SEOBNRv4HM function but allows nrDeltaT to be passed in, instead of
     internally calculated.
+
+    Args:
+        ...
+
+    Returns:
+        Dict: dictionary containing the NQC coefficients
     """
 
     coeffs = {}
@@ -176,7 +223,16 @@ def EOBCalculateNQCCoefficients_freeattach(
 
 
 def EOBNonQCCorrection(r, phi, pr, pphi, omega, coeffs):
-    """Evaluate the NQC correction, given the coefficients"""
+    """
+    Evaluate the NQC correction, given the coefficients.
+
+    Args:
+        ...
+        
+    Returns:
+        ...
+        
+    """
     sqrtR = np.sqrt(r)
     rOmega = r * omega
     rOmegaSq = rOmega * rOmega

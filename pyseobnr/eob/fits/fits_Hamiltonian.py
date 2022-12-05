@@ -49,6 +49,18 @@ from numba import jit
 
 @jit(nopython=True)
 def dSO(nu, ap, am):
+    """
+    Fit for the spin-orbit calibration coefficient dSO at 4.5 PN (Eq 91 in v5HM doc).
+
+    Args:
+        nu (float): reduced mass ratio.
+        ap (float): symmetric spin combination ap = m1*chi1 + m2*chi2.
+        am (float): antisymmetric spin combination ap = m1*chi1 - m2*chi2.
+
+    Returns:
+        float: The value of dSO.
+
+    """
     return (
         -7.71251231383957 * am ** 3
         - 17.2294679794015 * am ** 2 * ap
@@ -75,6 +87,19 @@ def dSO(nu, ap, am):
 
 @jit(nopython=True)
 def NR_deltaT(nu, ap, am):
+    """
+    Fit for the time difference from reference point to the attachment time, spinning part (Eq 90 in v5HM doc).
+    The NR_deltaT is done hierarchically, and one needs to add the non-spinning and spinning contributions:
+    NR_deltaT = NR_deltaT_NS(nu) +  NR_deltaT(nu, ap, am)
+
+    Args:
+        nu (float): reduced mass ratio.
+        ap (float): symmetric spin combination ap = m1*chi1 + m2*chi2.
+        am (float): antisymmetric spin combination ap = m1*chi1 - m2*chi2.
+
+    Returns:
+        float: The value of NR_deltaT.
+    """
     return nu ** (-1.0 / 5 + 0 * nu) * (
         8.39238879807543 * am ** 2 * ap
         - 16.9056858928167 * am ** 2 * nu
@@ -97,14 +122,20 @@ def NR_deltaT(nu, ap, am):
 
 """
 Non-spinning functions obtained by a least-square fit of the maxL of the calibraton posteriors
-
-The NR_deltaT is done hierarchically, and one needs to add the non-spinning and spinning contributions
-NR_deltaT = NR_deltaT_NS(nu) +  NR_deltaT(nu, ap, am)
 """
 
 
 @jit(nopython=True)
 def a6_NS(nu):
+    """
+    Fit for the non-spinning calibration coefficient a6 at 5PN in A potential. (Eq 88 in v5HM doc)
+
+    Args:
+        nu (float): reduced mass ratio.
+
+    Returns:
+        float: The value of a6.
+    """
     par = np.array(
         [4.17877875e01, -3.02193382e03, 3.34144394e04, -1.69019140e05, 3.29523262e05]
     )
@@ -113,6 +144,17 @@ def a6_NS(nu):
 
 @jit(nopython=True)
 def NR_deltaT_NS(nu):
+    """
+    Fit for the time difference from reference point to the attachment time, no spin part. (Eq. 89 in v5HM doc)
+    The NR_deltaT is done hierarchically, and one needs to add the non-spinning and spinning contributions:
+    NR_deltaT = NR_deltaT_NS(nu) +  NR_deltaT(nu, ap, am)
+
+    Args:
+        nu (float): reduced mass ratio.
+
+    Returns:
+        float: The non-spinning value of NR_deltaT.
+    """
     par = np.array(
         [1.00513217e01, -5.96231800e01, -1.05687385e03, -9.79317619e03, 5.55652392e04]
     )

@@ -1,7 +1,11 @@
 import numpy as np
 
 class MergerRingdownFits:
-    
+    """
+    Contains fits for coefficients in the merger-ringdown ansatze for all modes.
+    Class that wraps all necessary fits as methods. Each method returns a dict with keys being the desired mode. 
+    See Eq(57,58) and Appendix B of v5HM doc.
+    """
     def __init__(self, m1, m2, chi1, chi2):
         self.m1=m1
         self.m2=m2
@@ -17,6 +21,10 @@ class MergerRingdownFits:
         self.chi = self.chiS + self.chiAS * self.dm / (1 - 2 * self.nu)
     
     def c1f(self):
+        """
+        Fits for the c1f coefficient entering the merger-ringdown amplitude ansatz.
+        See Eq(57) and Appendix B of v5HM doc.
+        """
         c1f_modes = {}
 
         c1f_modes[2,2] = -4.23824640099272276217*self.nu**4 + 1.86797765630645606905*self.nu**3*self.chi + 2.04371156181773017124*self.nu**3 + 0.01316051994812337048*self.nu**2*self.chi**2 - 0.70248812998796750229*self.nu**2*self.chi - 0.40699224653253718298*self.nu**2 + 0.06284152952186422558*self.nu*self.chi**3 + 0.04938791239730106614*self.nu*self.chi**2 + 0.03388527758147390212*self.nu*self.chi + 0.05358902726316702725*self.nu - 0.00177674004113037185*self.chi**4 - 0.01890815113487190682*self.chi**3 - 0.01931426101231131093*self.chi**2 - 0.01161150126773277842*self.chi + 0.08625435880606084627
@@ -30,6 +38,10 @@ class MergerRingdownFits:
         return c1f_modes
         
     def c2f(self):
+        """
+        Fits for the c2f coefficient entering the merger-ringdown amplitude ansatz.
+        See Eq(57) and Appendix B of v5HM doc.
+        """
         c2f_modes = {}
         c2f_modes[2,2] = -63.28645899089733006804*self.nu**4 + 2.00294725303467924249*self.nu**3*self.chi + 44.33138899436394098075*self.nu**3 - 3.55617293922388588712*self.nu**2*self.chi**2 - 5.58585057654383287939*self.nu**2*self.chi - 9.5295732728313318205*self.nu**2 + 1.02187518454288950309*self.nu*self.chi**3 + 1.97008188121834493245*self.nu*self.chi**2 + 1.83772448389004638969*self.nu*self.chi + 1.15569522525235401922*self.nu - 0.20348032514327910047*self.chi**3 - 0.2642970192733161694*self.chi**2 - 0.27076037187561419195*self.chi - 0.52876279548305116229
         c2f_modes[3,3] = 14.80191571837246300447*self.nu**3 - 4.2506085799341262188*self.nu**2*self.chi - 7.06058144862581293921*self.nu**2 + 0.23710749614144122077*self.nu*self.chi**2 + 1.7631048513797487054*self.nu*self.chi + 1.1586271594235801885*self.nu - 0.05734634823328856046*self.chi**3 - 0.09428487098033955238*self.chi**2 - 0.31582567372407910344*self.chi - 0.64688786077920956696
@@ -43,6 +55,10 @@ class MergerRingdownFits:
 
         
     def d1f(self):
+        """
+        Fits for the d1f coefficient entering the merger-ringdown phase ansatz.
+        See Eq(58) and Appendix B of v5HM doc.
+        """
         d1f_modes = {}
         d1f_modes[2,2] = -28.42370101139921700906*self.nu**4 + 4.11346289839689127632*self.nu**3*self.chi + 20.71987362022024470321*self.nu**3 + 1.03335215030655280799*self.nu**2*self.chi**2 - 1.65292430358775521704*self.nu**2*self.chi - 6.07567868511363951001*self.nu**2 + 0.04730524488221983515*self.nu*self.chi**3 - 0.254350860993373451*self.nu*self.chi**2 + 0.09083410987717309426*self.nu*self.chi + 0.78009259453928059269*self.nu - 0.01332056979451640664*self.chi**4 - 0.0242033556149483034*self.chi**3 - 0.00784682245346276369*self.chi**2 + 0.1357578010277912528
         d1f_modes[3,3] = 2.31643418192078076601*self.nu**3 + 0.67844229400588917933*self.nu**2*self.chi - 2.19222695489746532971*self.nu**2 + 0.22146624271406206708*self.nu*self.chi**2 - 0.26126441061361949103*self.nu*self.chi + 0.42458214052259168891*self.nu - 0.01652448770503477798*self.chi**3 - 0.066322821567381951*self.chi**2 + 0.0066644906887992272*self.chi + 0.16157693147048388105
@@ -55,6 +71,10 @@ class MergerRingdownFits:
         return d1f_modes
         
     def d2f(self):
+        """
+        Fits for the d2f coefficient entering the merger-ringdown phase ansatz.
+        See Eq(58) and Appendix B of v5HM doc.
+        """
         d2f_modes = {}
         d2f_modes[2,2] = np.exp(-352.24938296898454836992*self.nu**4 + 9.05730635731021394008*self.nu**3*self.chi + 275.84349920209979245556*self.nu**3 + 23.975132253988164166*self.nu**2*self.chi**2 - 5.26829618908132601973*self.nu**2*self.chi - 81.48331396357356481985*self.nu**2 - 3.39885766491276442025*self.nu*self.chi**3 - 10.06495407151063048445*self.nu*self.chi**2 + 0.46455322692280037744*self.nu*self.chi + 11.18457585889310479388*self.nu - 0.1631129108825159213*self.chi**4 + 0.728816370357556087*self.chi**3 + 1.2114999080794128794*self.chi**2 + 0.56269034372727599891*self.chi + 0.03570970180918431325)
         d2f_modes[3,3] = np.exp(324.31022294062370292522*self.nu**3 + 29.07251486043331212272*self.nu**2*self.chi - 124.68188129288633092528*self.nu**2 - 1.83069476195595881585*self.nu*self.chi**2 - 10.58131925489262670226*self.nu*self.chi + 13.20042565939421663757*self.nu + 0.27599881348329013964*self.chi**3 + 0.51273402705147774761*self.chi**2 + 1.31064330152030117382*self.chi + 0.41085534754131985968)
