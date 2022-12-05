@@ -794,7 +794,7 @@ def quat_ringdown_approx_opt(
     return t_dyn, quatJ2P_dyn, quat_postMerger, alphaI2J, betaI2J, gammaI2J
 
 @jit(nopython=True,cache=True)
-def custom_swsh(beta, gamma):
+def custom_swsh(beta, gamma, lmax):
 
     cBH = np.cos(beta/2.)
     sBH = np.sin(beta/2.)
@@ -802,42 +802,47 @@ def custom_swsh(beta, gamma):
     cBH2 = cBH*cBH
     cBH3 = cBH2*cBH
     cBH4 = cBH3*cBH
-    cBH5 = cBH4*cBH
-    cBH6 = cBH5*cBH
-    cBH7 = cBH6*cBH
 
     sBH2 = sBH*sBH
     sBH3 = sBH2*sBH
     sBH4 = sBH3*sBH
-    sBH5 = sBH4*sBH
-    sBH6 = sBH5*sBH
-    sBH7 = sBH6*sBH
 
     expGamma = np.exp(1j*gamma)
     expGamma2 =expGamma*expGamma
-    expGamma3 = expGamma2*expGamma
-    expGamma4 = expGamma3*expGamma
-    expGamma5 = expGamma4*expGamma
 
     swsh = {}
 
     swsh[2,2] = 0.5*np.sqrt(5./np.pi)*cBH4*expGamma2
     swsh[2,1] = np.sqrt(5./np.pi)*cBH3*sBH*expGamma
-    swsh[3,3] = -np.sqrt(10.5/np.pi)*cBH5*sBH*expGamma3
-    swsh[3,2] = 0.25*np.sqrt(7./np.pi)*cBH4*(6.*(cBH2 - sBH2)-4.)*expGamma2
-    swsh[4,4] = 3.*np.sqrt(7./np.pi)*cBH6*sBH2*expGamma4
-    swsh[4,3] = -0.75*np.sqrt(3.5/np.pi)*cBH5*sBH*(8.*(cBH2 - sBH2)-4.)*expGamma3
-    swsh[5,5] = -np.sqrt(330./np.pi)*cBH7*sBH3*expGamma5
-
     swsh[2,-2] = 0.5*np.sqrt(5./np.pi)*sBH4/expGamma2
     swsh[2,-1] = np.sqrt(5./np.pi)*sBH3*cBH/expGamma
-    swsh[3,-3] = np.sqrt(10.5/np.pi)*sBH5*cBH/expGamma3
-    swsh[3,-2] = 0.25*np.sqrt(7./np.pi)*sBH4*(6.*(cBH2 - sBH2)+4.)/expGamma2
-    swsh[4,-4] = 3.*np.sqrt(7./np.pi)*sBH6*cBH2/expGamma4
-    swsh[4,-3] = 0.75*np.sqrt(3.5/np.pi)*sBH5*cBH*(8.*(cBH2 - sBH2)+4.)/expGamma3
-    swsh[5,-5] = np.sqrt(330./np.pi)*sBH7*cBH3/expGamma5
-    return swsh
 
+    if lmax >= 3:
+        cBH5 = cBH4*cBH
+        sBH5 = sBH4*sBH
+        expGamma3 = expGamma2*expGamma
+        swsh[3,3] = -np.sqrt(10.5/np.pi)*cBH5*sBH*expGamma3
+        swsh[3,2] = 0.25*np.sqrt(7./np.pi)*cBH4*(6.*(cBH2 - sBH2)-4.)*expGamma2
+        swsh[3,-3] = np.sqrt(10.5/np.pi)*sBH5*cBH/expGamma3
+        swsh[3,-2] = 0.25*np.sqrt(7./np.pi)*sBH4*(6.*(cBH2 - sBH2)+4.)/expGamma2
+
+    if lmax >= 4:
+        cBH6 = cBH5*cBH
+        sBH6 = sBH5*sBH
+        expGamma4 = expGamma3*expGamma
+        swsh[4,4] = 3.*np.sqrt(7./np.pi)*cBH6*sBH2*expGamma4
+        swsh[4,3] = -0.75*np.sqrt(3.5/np.pi)*cBH5*sBH*(8.*(cBH2 - sBH2)-4.)*expGamma3
+        swsh[4,-4] = 3.*np.sqrt(7./np.pi)*sBH6*cBH2/expGamma4
+        swsh[4,-3] = 0.75*np.sqrt(3.5/np.pi)*sBH5*cBH*(8.*(cBH2 - sBH2)+4.)/expGamma3
+
+    if lmax ==5:
+        cBH7 = cBH6*cBH
+        sBH7 = sBH6*sBH
+        expGamma5 = expGamma4*expGamma
+        swsh[5,5] = -np.sqrt(330./np.pi)*cBH7*sBH3*expGamma5
+        swsh[5,-5] = np.sqrt(330./np.pi)*sBH7*cBH3/expGamma5
+
+    return swsh
 
 def interpolate_quats(quat,t_intrp,t_full):
     angles = quaternion.as_euler_angles(quat)
