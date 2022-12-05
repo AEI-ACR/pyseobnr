@@ -8,36 +8,41 @@ import numpy as np
 import quaternion
 import scri
 from pygsl import spline
-from pyseobnr.eob.dynamics.integrate_ode import (augment_dynamics,
-                                                 compute_dynamics_opt)
-from pyseobnr.eob.dynamics.integrate_ode_prec import \
-    compute_dynamics_quasiprecessing
+from pyseobnr.eob.dynamics.integrate_ode import augment_dynamics, compute_dynamics_opt
+from pyseobnr.eob.dynamics.integrate_ode_prec import compute_dynamics_quasiprecessing
 from pyseobnr.eob.dynamics.pn_evolution_opt import ODE_system_RHS_omega_opt
-from pyseobnr.eob.dynamics.postadiabatic_C import (Kerr_ISCO,
-                                                   compute_combined_dynamics)
-from pyseobnr.eob.dynamics.postadiabatic_C_fast import \
-    compute_combined_dynamics as compute_combined_dynamics_fast
-from pyseobnr.eob.dynamics.postadiabatic_C_prec import \
-    compute_combined_dynamics as compute_combined_dynamics_qp
-from pyseobnr.eob.fits.fits_Hamiltonian import (NR_deltaT, NR_deltaT_NS, a6_NS,
-                                                dSO)
+from pyseobnr.eob.dynamics.postadiabatic_C import Kerr_ISCO, compute_combined_dynamics
+from pyseobnr.eob.dynamics.postadiabatic_C_fast import (
+    compute_combined_dynamics as compute_combined_dynamics_fast,
+)
+from pyseobnr.eob.dynamics.postadiabatic_C_prec import (
+    compute_combined_dynamics as compute_combined_dynamics_qp,
+)
+from pyseobnr.eob.fits.fits_Hamiltonian import NR_deltaT, NR_deltaT_NS, a6_NS, dSO
 from pyseobnr.eob.fits.GSF_fits import GSF_amplitude_fits
 from pyseobnr.eob.fits.IV_fits import InputValueFits
 from pyseobnr.eob.hamiltonian import Hamiltonian
 from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
 from pyseobnr.eob.utils.math_ops_opt import my_dot, my_norm
 from pyseobnr.eob.utils.utils_precession_opt import (
-    SEOBRotatehIlmFromhJlm_opt, custom_swsh, interpolate_quats,
-    quat_ringdown_approx_opt)
+    SEOBRotatehIlmFromhJlm_opt,
+    custom_swsh,
+    interpolate_quats,
+    quat_ringdown_approx_opt,
+)
 from pyseobnr.eob.utils.waveform_ops import frame_inv_amp
-from pyseobnr.eob.waveform.compute_hlms import (NQC_correction,
-                                                apply_nqc_corrections,
-                                                compute_IMR_modes,
-                                                concatenate_modes,
-                                                interpolate_modes_fast)
+from pyseobnr.eob.waveform.compute_hlms import (
+    NQC_correction,
+    apply_nqc_corrections,
+    compute_IMR_modes,
+    concatenate_modes,
+    interpolate_modes_fast,
+)
 from pyseobnr.eob.waveform.waveform import compute_hlms as compute_hlms_new
-from pyseobnr.eob.waveform.waveform import (compute_newtonian_prefixes,
-                                            compute_special_coeffs)
+from pyseobnr.eob.waveform.waveform import (
+    compute_newtonian_prefixes,
+    compute_special_coeffs,
+)
 from pyseobnr.models.model import Model
 from rich.logging import RichHandler
 from rich.traceback import install
@@ -107,8 +112,8 @@ class SEOBNRv5HM_opt(Model):
             "f_ref", omega0 / (self.M * lal.MTSUN_SI * np.pi)
         )
         r_min = 10.0
-        omega_min = 1/r_min**(3./2)
-        if omega0> omega_min:
+        omega_min = 1 / r_min ** (3.0 / 2)
+        if omega0 > omega_min:
             logger.warning("Short waveform, changing omega0")
             omega0 = omega_min
         self.f0 = omega0 / (self.M * lal.MTSUN_SI * np.pi)
@@ -132,7 +137,7 @@ class SEOBNRv5HM_opt(Model):
         self.am = self.m_1 * self.chi_1 - self.m_2 * self.chi_2
         self.dt = self.settings["dt"]
         self.delta_T = self.dt / (self.M * lal.MTSUN_SI)
-        #print(f"In SI units, dt = {self.dt}. In geometric units, with M={self.M}, delta_T={self.delta_T}")
+        # print(f"In SI units, dt = {self.dt}. In geometric units, with M={self.M}, delta_T={self.delta_T}")
         self.prefixes = compute_newtonian_prefixes(self.m_1, self.m_2)
 
         self.tplspin = (1 - 2 * self.nu) * self.chi_S + (self.m_1 - self.m_2) / (
@@ -146,8 +151,8 @@ class SEOBNRv5HM_opt(Model):
             chi_2=self.chi_2,
             chi_1x=0.0,
             chi_1y=0.0,
-            a1 = self.chi_1,
-            a2 = self.chi_2,
+            a1=self.chi_1,
+            a2=self.chi_2,
             chi_1z=self.chi_1,
             chi_2x=0.0,
             chi_2y=0.0,
@@ -183,9 +188,9 @@ class SEOBNRv5HM_opt(Model):
         self._initialize_params(self.phys_pars)
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
-        if self.settings.get("postadiabatic",False):
-            self.PA_style = self.settings.get("PA_style","analytic")
-            self.PA_order = self.settings.get("PA_order",8)
+        if self.settings.get("postadiabatic", False):
+            self.PA_style = self.settings.get("PA_style", "analytic")
+            self.PA_order = self.settings.get("PA_order", 8)
 
     def _default_settings(self):
         settings = dict(
@@ -300,10 +305,9 @@ class SEOBNRv5HM_opt(Model):
                     params=self.eob_pars,
                     backend="ode",
                     step_back=self.step_back,
-
                 )
             else:
-                if self.PA_style=="root":
+                if self.PA_style == "root":
                     dynamics_low, dynamics_fine = compute_combined_dynamics(
                         self.omega0,
                         self.H,
@@ -316,9 +320,9 @@ class SEOBNRv5HM_opt(Model):
                         params=self.eob_pars,
                         backend="ode",
                         step_back=self.step_back,
-                        PA_order=self.PA_order
+                        PA_order=self.PA_order,
                     )
-                elif self.PA_style =="analytic":
+                elif self.PA_style == "analytic":
                     dynamics_low, dynamics_fine = compute_combined_dynamics_fast(
                         self.omega0,
                         self.H,
@@ -331,7 +335,7 @@ class SEOBNRv5HM_opt(Model):
                         params=self.eob_pars,
                         backend="ode",
                         step_back=self.step_back,
-                        PA_order=self.PA_order
+                        PA_order=self.PA_order,
                     )
 
             len_fine = dynamics_fine[-1, 0] - dynamics_fine[0, 0]
@@ -380,12 +384,7 @@ class SEOBNRv5HM_opt(Model):
             # Step 2: compute the reference point based on Kerr r_ISCO of remnant
             # with final spin
 
-            r_ISCO, _ = Kerr_ISCO(
-                self.chi_1,
-                self.chi_2,
-                self.m_1,
-                self.m_2,
-            )
+            r_ISCO, _ = Kerr_ISCO(self.chi_1, self.chi_2, self.m_1, self.m_2,)
 
             self.r_ISCO = r_ISCO
 
@@ -487,10 +486,7 @@ class SEOBNRv5HM_opt(Model):
             t_original = dynamics[:, 0]
             phi_orb = dynamics[:, 2]
             hlms_interp = interpolate_modes_fast(
-                t_original,
-                t_new,
-                hlms_joined,
-                phi_orb,
+                t_original, t_new, hlms_joined, phi_orb,
             )
             del hlms_joined
             # Step 9: construct the full IMR waveform
@@ -597,8 +593,7 @@ class SEOBNRv5PHM_opt(Model):
                 self.f0 = self.omega0 / (self.M * lal.MTSUN_SI * np.pi)
 
         self.step_back = self.settings.get("step_back", 250.0)
-        # print(f"f0={self.f0},f_ref={self.f_ref}")
-        self.beta_approx = self.settings["beta_approx"]
+        self.beta_approx = self.settings.get("beta_approx", 0.0)
         self.backend = self.settings.get("backend", "dopri5")
         # z-component because LN_0 = [0,0,1]
         self.chi_S = (chi1_z + chi2_z) / 2.0
@@ -624,12 +619,35 @@ class SEOBNRv5PHM_opt(Model):
             chi_2x=chi2_x,
             chi_2y=chi2_y,
             chi_2z=chi2_z,
-            a1 = self.a1,
-            a2 = self.a2,
+            a1=self.a1,
+            a2=self.a2,
             omega=self.omega0,
             omega_circ=self.omega0,
         )
+        # Figure out which modes need to be
+        # i) computed
+        # ii) returned
+        # The situation where those match can be e.g. when the user
+        # asks for mixed modes so we must compute all the modes
+        # that are needed even if we will not return them
 
+        # All the modes we will need to output
+        self.return_modes = self.settings.get("return_modes", None)
+
+        # Check that the modes are valid, i.e. something we
+        # can return
+        self._validate_modes()
+        # Now deal with which mixed modes the user wants, if any
+
+        self.mixed_modes = [(3, 2), (4, 3)]
+        self.mixed_modes = [x for x in self.mixed_modes if x in self.return_modes]
+
+        # All the modes we need to compute. This can be a larger list
+        # than the returned modes, e.g. when we need certain modes to
+        # do mode mixing
+        self.computed_modes = deepcopy(self.return_modes)
+        # Make sure the array contains what we need
+        self._ensure_consistency()
         self._initialize_params(self.phys_pars)
 
         # Initialize the Hamiltonian
@@ -637,8 +655,8 @@ class SEOBNRv5PHM_opt(Model):
         # Uncomment and comment the line above to make the python Hamiltonian work
         # self.H = H()
 
-        self.modes_list = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
-        self.mixed_modes = [(3, 2), (4, 3)]
+        #self.modes_list = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
+
 
     def _default_settings(self):
         settings = dict(
@@ -648,14 +666,48 @@ class SEOBNRv5PHM_opt(Model):
             postadiabatic=False,  # Use postadiabatic?
             return_modes=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)],
             polarizations_from_coprec=False,  # True for computing directly polarizations
+            beta_approx=0,
         )
         return settings
+
+    def _validate_modes(self):
+        """
+        Check that the mode array is sensible, i.e.
+        has something and the modes being asked for are valid.
+        """
+
+        if not self.return_modes:
+            logger.error("The mode list specified is empty!")
+            raise ValueError
+        ell_mx = 2
+        for mode in self.return_modes:
+            ell, m = mode
+
+            if mode not in VALID_MODES:
+                logger.error(f"The specified mode, {mode} is not available!")
+                logger.error(f"The allowed modes are: {VALID_MODES}")
+                raise ValueError
+            if ell > ell_mx:
+                ell_mx = ell
+
+        self.max_ell_returned = ell_mx
+
+    def _ensure_consistency(self):
+        """Make sure that the modes contains everything needed to compute mixed modes
+
+        Args:
+            modes (list): Current list of modes to compute
+        """
+        for mode in self.mixed_modes:
+            ell, m = mode
+            if (m, m) not in self.computed_modes:
+                self.computed_modes.append((m, m))
 
     def _initialize_params(self, phys_pars):
         """
         Re-initialize all parameters to make sure everthing is reset
         """
-        self.eob_pars = EOBParams(phys_pars, {})
+        self.eob_pars = EOBParams(phys_pars, {}, mode_array=self.computed_modes)
         self.eob_pars.flux_params.rho_initialized = False
         self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
         self.eob_pars.flux_params.prefixes_abs = np.abs(
@@ -750,7 +802,8 @@ class SEOBNRv5PHM_opt(Model):
     def _package_modes(self, waveform_modes, ell_min=2, ell_max=5):
         keys = waveform_modes.keys()
         shape = waveform_modes[(2, 2)].shape
-        result = np.zeros((shape[0], 32), dtype=np.complex128)
+        n_elem = (ell_max+3)*(ell_max-1)
+        result = np.zeros((shape[0], n_elem), dtype=np.complex128)
         i = 0
         for ell in range(ell_min, ell_max + 1):
             for m in range(-ell, ell + 1):
@@ -797,7 +850,6 @@ class SEOBNRv5PHM_opt(Model):
                 self.ODE_system_RHS = ODE_system_RHS_omega_opt
 
                 (
-
                     dynamics_low,
                     dynamics_fine,
                     t_PN,
@@ -823,7 +875,6 @@ class SEOBNRv5PHM_opt(Model):
                     params=self.eob_pars,
                     step_back=self.step_back,
                 )
-
 
             tmp_LN = dyn_PN[:, :3]
             self.LNhat = tmp_LN
@@ -906,12 +957,7 @@ class SEOBNRv5PHM_opt(Model):
             # Step 2, ii): compute the reference point based on Kerr r_ISCO of remnant
             # with final spin
 
-            r_ISCO, _ = Kerr_ISCO(
-                chi1L_om_r10M,
-                chi2L_om_r10M,
-                self.m_1,
-                self.m_2,
-            )
+            r_ISCO, _ = Kerr_ISCO(chi1L_om_r10M, chi2L_om_r10M, self.m_1, self.m_2,)
 
             self.r_ISCO = r_ISCO
 
@@ -1134,10 +1180,7 @@ class SEOBNRv5PHM_opt(Model):
             t_new = np.arange(dynamics[0, 0], dynamics[-1, 0], self.delta_T)
             # Step 8: interpolate the modes onto the desired spacing
             hlms_interp = interpolate_modes_fast(
-                dynamics[:, 0],
-                t_new,
-                hlms_joined,
-                dynamics[:, 2],
+                dynamics[:, 0], t_new, hlms_joined, dynamics[:, 2],
             )
 
             # Step 9: construct the full IMR waveform
@@ -1225,14 +1268,14 @@ class SEOBNRv5PHM_opt(Model):
 
                 imr_full = self._add_negative_m_modes(imr_full)
                 # We only need to package modes here
-                imr_full = self._package_modes(imr_full)
+                imr_full = self._package_modes(imr_full, ell_max=self.max_ell_returned)
                 # iii) Create a co-precessing frame scri waveform
                 w = scri.WaveformModes(
                     dataType=scri.h,
                     t=t_full,
                     data=imr_full,
                     ell_min=2,
-                    ell_max=5,
+                    ell_max=self.max_ell_returned,
                     frameType=scri.Coprecessing,
                     r_is_scaled_out=True,
                     m_is_scaled_out=True,
@@ -1285,7 +1328,7 @@ class SEOBNRv5PHM_opt(Model):
 
                 alphaTot, betaTot, gammaTot = quaternion.as_euler_angles(qTot).T
 
-                sYlm = custom_swsh(betaTot, alphaTot)
+                sYlm = custom_swsh(betaTot, alphaTot, self.max_ell_returned)
                 # Construct polarizations
                 hpc = np.zeros(imr_full[(2, 2)].size, dtype=np.complex)
                 for ell, emm in imr_full.keys():
