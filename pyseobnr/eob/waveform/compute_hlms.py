@@ -241,7 +241,7 @@ def compute_IMR_modes(
             final_spin=final_spin,
         )
 
-        hring, philm = compute_MR_mode_free(
+        hring = compute_MR_mode_free(
             t_ring,
             m1,
             m2,
@@ -253,7 +253,6 @@ def compute_IMR_modes(
             fits_dict,
             t_match=0,
             phi_match=phi_match,
-            debug=False,
         )
 
         # Construct the full IMR waveform
@@ -279,7 +278,6 @@ def compute_IMR_modes(
             final_spin,
             t_attach,
             t_ringdown,
-            idx,
             fits_dict,
         )
         # Construct the full IMR waveform
@@ -306,7 +304,6 @@ def compute_mixed_mode(
     final_spin,
     t_match,
     t_ringdown,
-    idx,
     fits_dict,
 ):
     """
@@ -394,7 +391,7 @@ def compute_mixed_mode(
         amp=h_mm, damp=hd_mm, omega=om_mm, final_mass=final_mass, final_spin=final_spin,
     )
 
-    hmm_spherical_ringdown, philm = compute_MR_mode_free(
+    hmm_spherical_ringdown = compute_MR_mode_free(
         t_ringdown,
         m1,
         m2,
@@ -406,7 +403,6 @@ def compute_mixed_mode(
         fits_dict,
         t_match=0 * t_match,
         phi_match=phi_mm,
-        debug=False,
     )
 
     # Approximation to spheroidal
@@ -437,7 +433,7 @@ def compute_mixed_mode(
         final_spin=final_spin,
     )
     # Compute the coefficients+ansatze for spheroidal mode
-    hlm_spheroidal_ringdown, philm = compute_MR_mode_free(
+    hlm_spheroidal_ringdown = compute_MR_mode_free(
         t_ringdown,
         m1,
         m2,
@@ -449,7 +445,6 @@ def compute_mixed_mode(
         fits_dict,
         t_match=0 * t_match,
         phi_match=ph_ellm0,
-        debug=False,
     )
     # Reconstruct the spherical mode
     hring = hmm_spheroidal * np.conj(

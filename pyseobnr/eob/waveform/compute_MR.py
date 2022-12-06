@@ -3,7 +3,7 @@ from ..fits.EOB_fits import *
 
 
 def compute_MR_mode_free(
-    t, m1, m2, chi1, chi2, attach_params, ell, m, fits_dict,t_match=0, phi_match=0, debug=True
+    t, m1, m2, chi1, chi2, attach_params, ell, m, fits_dict,t_match=0, phi_match=0
 ):
     """
     Evaluate the MR ansatze. See Eqs.(56, 57, 58) in v5HM doc.
@@ -76,4 +76,4 @@ def compute_MR_mode_free(
     test_omega = -np.real(omega_complex) + 1j * np.imag(omega_complex)
     # hlm = eta*Alm*np.exp(1j*philm)*np.exp(1j*omega_complex*(t-t_match))
     hlm = eta * Alm * np.exp(1j * philm) * np.exp(1j * test_omega * (t - t_match))
-    return hlm, philm
+    return hlm
