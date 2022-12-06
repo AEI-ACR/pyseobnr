@@ -9,6 +9,13 @@ class InputValueFits:
     merger-ringdown attachment and special calibration coefficients in some odd-m modes.
     This class wraps all necessary fits as methods. Each method returns a dict with keys being the desired mode. 
     See also Appendix A of the v5HM doc.
+
+    Args:
+        m1 (float): mass of the primary
+        m2 (float): mass of the secondary
+        chi1 (list): dimensionless spin components of the primary
+        chi2 (list): dimensionless spin components of the secondary
+
     """
     def __init__(self, m1, m2, chi1, chi2):
         self.m1 = m1
@@ -39,6 +46,9 @@ class InputValueFits:
         Fits for the unsigned waveform amplitude at the attachment point. See Appendix A1 of the v5HM doc.
         This enters in the special calibration coefficients for the (2,1), (5,5) and (4,3) modes and is 
         needed to ensure the correct behaviour for cases with a minium in the amplitude close to the attachment point.
+
+        Returns:
+            dict: dictionary of hsign values with keys being the desired mode
         """
         h_modes = {}
         h_modes[2, 2] = (
@@ -195,6 +205,9 @@ class InputValueFits:
         """
         Fits for the waveform amplitude at the attachment point.
         See Appendix A1 of the v5HM doc.
+
+        Returns:
+            dict: dictionary of habs values with keys being the desired mode
         """
         h_modes = {}
         h_modes[2, 2] = np.abs(
@@ -357,6 +370,9 @@ class InputValueFits:
         """
         Fits for the waveform amplitude first derivative at the attachment point.
         See Appendix A2 of the v5HM doc.
+
+        Returns:
+            dict: dictionary of hdot values with keys being the desired mode
         """
         hdot_modes = {}
         hdot_modes[2, 2] = 0.0
@@ -492,6 +508,9 @@ class InputValueFits:
         """
         Fits for the waveform amplitude second derivative at the attachment point.
         See Appendix A3 of the v5HM doc.
+
+        Returns:
+            dict: dictionary of hdotdot values with keys being the desired mode
         """
         hdotdot_modes = {}
         hdotdot_modes[2, 2] = (
@@ -633,6 +652,9 @@ class InputValueFits:
         """
         Fits for the waveform frequency at the attachment point.
         See Appendix A4 of the v5HM doc.
+
+        Returns:
+            dict: dictionary of omega values with keys being the desired mode
         """
         omega_modes = {}
         omega_modes[2, 2] = (
@@ -726,6 +748,9 @@ class InputValueFits:
         """
         Fits for the waveform frequency first derivative at the attachment point.
         See Appendix A4 of the v5HM doc.
+
+        Returns:
+            dict: dictionary of omegadot values with keys being the desired mode
         """
         omegadot_modes = {}
         omegadot_modes[2, 2] = (

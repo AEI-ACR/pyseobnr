@@ -4,7 +4,13 @@ class MergerRingdownFits:
     """
     Contains fits for coefficients in the merger-ringdown ansatze for all modes.
     Class that wraps all necessary fits as methods. Each method returns a dict with keys being the desired mode. 
-    See Eq(57,58) and Appendix B of v5HM doc.
+
+    Args:
+        m1 (float): mass of the primary
+        m2 (float): mass of the secondary
+        chi1 (list): dimensionless spin components of the primary
+        chi2 (list): dimensionless spin components of the secondary
+
     """
     def __init__(self, m1, m2, chi1, chi2):
         self.m1=m1
@@ -24,6 +30,9 @@ class MergerRingdownFits:
         """
         Fits for the c1f coefficient entering the merger-ringdown amplitude ansatz.
         See Eq(57) and Appendix B of v5HM doc.
+
+        Returns:
+            dict: dictionary of c1f values with keys being the desired mode
         """
         c1f_modes = {}
 
@@ -41,6 +50,9 @@ class MergerRingdownFits:
         """
         Fits for the c2f coefficient entering the merger-ringdown amplitude ansatz.
         See Eq(57) and Appendix B of v5HM doc.
+
+        Returns:
+            dict: dictionary of c2f values with keys being the desired mode
         """
         c2f_modes = {}
         c2f_modes[2,2] = -63.28645899089733006804*self.nu**4 + 2.00294725303467924249*self.nu**3*self.chi + 44.33138899436394098075*self.nu**3 - 3.55617293922388588712*self.nu**2*self.chi**2 - 5.58585057654383287939*self.nu**2*self.chi - 9.5295732728313318205*self.nu**2 + 1.02187518454288950309*self.nu*self.chi**3 + 1.97008188121834493245*self.nu*self.chi**2 + 1.83772448389004638969*self.nu*self.chi + 1.15569522525235401922*self.nu - 0.20348032514327910047*self.chi**3 - 0.2642970192733161694*self.chi**2 - 0.27076037187561419195*self.chi - 0.52876279548305116229
@@ -58,6 +70,9 @@ class MergerRingdownFits:
         """
         Fits for the d1f coefficient entering the merger-ringdown phase ansatz.
         See Eq(58) and Appendix B of v5HM doc.
+
+        Returns:
+            dict: dictionary of c2f values with keys being the desired mode
         """
         d1f_modes = {}
         d1f_modes[2,2] = -28.42370101139921700906*self.nu**4 + 4.11346289839689127632*self.nu**3*self.chi + 20.71987362022024470321*self.nu**3 + 1.03335215030655280799*self.nu**2*self.chi**2 - 1.65292430358775521704*self.nu**2*self.chi - 6.07567868511363951001*self.nu**2 + 0.04730524488221983515*self.nu*self.chi**3 - 0.254350860993373451*self.nu*self.chi**2 + 0.09083410987717309426*self.nu*self.chi + 0.78009259453928059269*self.nu - 0.01332056979451640664*self.chi**4 - 0.0242033556149483034*self.chi**3 - 0.00784682245346276369*self.chi**2 + 0.1357578010277912528
@@ -74,6 +89,9 @@ class MergerRingdownFits:
         """
         Fits for the d2f coefficient entering the merger-ringdown phase ansatz.
         See Eq(58) and Appendix B of v5HM doc.
+
+        Returns:
+            dict: dictionary of c2f values with keys being the desired mode
         """
         d2f_modes = {}
         d2f_modes[2,2] = np.exp(-352.24938296898454836992*self.nu**4 + 9.05730635731021394008*self.nu**3*self.chi + 275.84349920209979245556*self.nu**3 + 23.975132253988164166*self.nu**2*self.chi**2 - 5.26829618908132601973*self.nu**2*self.chi - 81.48331396357356481985*self.nu**2 - 3.39885766491276442025*self.nu*self.chi**3 - 10.06495407151063048445*self.nu*self.chi**2 + 0.46455322692280037744*self.nu*self.chi + 11.18457585889310479388*self.nu - 0.1631129108825159213*self.chi**4 + 0.728816370357556087*self.chi**3 + 1.2114999080794128794*self.chi**2 + 0.56269034372727599891*self.chi + 0.03570970180918431325)

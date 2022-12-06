@@ -122,7 +122,22 @@ def EOBCalculateNQCCoefficients_freeattach(
     internally calculated.
 
     Args:
-        ...
+        amplitude (np.ndarray): amplitude of the relevant mode
+        phase (np.ndarray): phase of the relevant mode
+        r (np.ndarray): r along the dynamics
+        pr (np.ndarray): pr along the dynamics
+        omega_orb (np.ndarray): omega_orb along the dynamics
+        ell (int): ell index of the relevant mode
+        m (int): m index of the relevant mode
+        time_peak (float): "reference" time with respect to which the attachment 
+            is defined, corresponding to t_ISCO for SEOBRNRv5HM (see Eq. 41 of v5HM doc)
+        time (np.ndarray): time array
+        m1 (float): primary mass
+        m2 (float): secondary mass
+        chi1 (float): primary mass
+        chi2 (float): primary mass
+        nrDeltaT (float): time difference between the peak of the (2,2) mode and the reference time
+        fits_dict (dict): dictionary containing the input-value fits
 
     Returns:
         Dict: dictionary containing the NQC coefficients
@@ -227,10 +242,14 @@ def EOBNonQCCorrection(r, phi, pr, pphi, omega, coeffs):
     Evaluate the NQC correction, given the coefficients.
 
     Args:
-        ...
-        
+        r (numpy.ndarray): r along the dynamics
+        phi (numpy.ndarray): phase along the dynamics
+        pr (numpy.ndarray): pr along the dynamics
+        omega (numpy.ndarray): omega along the dynamics
+        coeffs (dict): dictionary containing the NQC coefficients
+
     Returns:
-        ...
+        numpy.ndarray: the NQC corrections along the dynamics
         
     """
     sqrtR = np.sqrt(r)
