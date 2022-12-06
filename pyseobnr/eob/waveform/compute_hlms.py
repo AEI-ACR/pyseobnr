@@ -306,12 +306,31 @@ def compute_mixed_mode(
     final_spin,
     t_match,
     t_ringdown,
-    idx,
+    #idx,
     fits_dict,
 ):
     """
     Computes the (3,2) and (4,3) modes, including mode-mixing in the ringdown. 
     See Sec. II C of the v5HM doc, especially Eqs.(71, 72)
+
+    Args:
+        m1 (float): mass of the primary
+        m2 (float): mass of the secondary
+        chi1 (float): dimensionless spin of the primary
+        chi2 (float): dimensionless spin of the secondary
+        ell (int): ell index of the desired mode
+        m (int): m index of the desired mode
+        t (np.ndarray): inspiral time array
+        modes (dict): dictionary containing the waveform modes
+        final_mass (float): mass of the remnant
+        final_spin (float): dimensionless spin of the remnant
+        t_match (float): inspiral time at which the merger-ringdown waveform is attached
+        t_ringdown (np.ndarray): rindgown time array
+        fits_dict (dict): dictionary of fit coefficients in the ringdown anzatz
+
+    Returns:
+        np.ndarray: the merger-ringdown waveform for the mixed modes
+
     """
     # Get spheroidal input values
     # These are constructed from spherical input values
@@ -540,6 +559,12 @@ def apply_nqc_corrections(
 ):
     """
     Loop over modes and multiply them by NQC correction
+
+    Args:
+        hlms (Dict): Dictionary of inspiral modes
+        nqc_coeffs (Dict): Dictionary of NQC coefficients
+        polar_dynamics (np.ndarray): Dynamics array
+
     """
     r, pr, omega_orb = polar_dynamics
     for key in hlms.keys():

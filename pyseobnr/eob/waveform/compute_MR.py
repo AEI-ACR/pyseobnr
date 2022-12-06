@@ -7,6 +7,26 @@ def compute_MR_mode_free(
 ):
     """
     Evaluate the MR ansatze. See Eqs.(56, 57, 58) in v5HM doc.
+
+    Args:
+        t (np.ndarray): ringdown time array
+        m1 (float): mass of the primary
+        m2 (float): mass of the secondary
+        chi1 (float): dimensionless spin of the primary
+        chi2 (float): dimensionless spin of the secondary
+        attach_params (dict): dictionary containing quantities needed to compute the 
+            MR ansatz (input value fits, final mass and spin)
+        ell (int): ell index of the desired mode
+        m (int): m index of the desired mode
+        t (np.ndarray): inspiral time array
+        fits_dict (dict): dictionary of fit coefficients in the ringdown anzatz
+        t_match (float): ringdown time at which the merger-ringdown waveform is started
+        phi_match (float): value of the phase at t_match
+        
+    Returns:
+        np.ndarray: the merger-ringdown waveform
+        np.ndarray: the phase the merger-ringdown ansatz (see Eq.58 of v5HM doc)
+
     """
     # Step 1 - use the NR fits for amplitude and frequency at attachment time
     chiA = (chi1 - chi2) / 2
