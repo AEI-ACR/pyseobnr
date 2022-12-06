@@ -306,7 +306,7 @@ def compute_mixed_mode(
     final_spin,
     t_match,
     t_ringdown,
-    #idx,
+    idx,
     fits_dict,
 ):
     """
