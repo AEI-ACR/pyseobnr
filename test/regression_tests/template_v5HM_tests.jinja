@@ -1,0 +1,114 @@
+"""
+Perform several regression tests of the SEOBNRv5HM model.
+
+This file was automatically generated on {{now}}.
+"""
+
+import pytest
+import numpy as np
+from pyseobnr.generate_waveform import generate_modes_opt, GenerateWaveform
+import lal
+
+# Indices to use for tests of waveforms
+indices_waveform = {{indices_waveform}}
+indices = {{indices}}
+
+@pytest.fixture
+def model_expert():
+    q = 5.0
+    chi1 = 0.76
+    chi2 = 0.33
+    omega0 = 0.0157
+    Mt = 60.0
+    dt = 1 / 8192.0
+    settings = {"M": Mt, "dt": dt}
+    t, modes, model = generate_modes_opt(
+        q, chi1, chi2, omega0, settings=settings, debug=True
+    )
+    return model
+
+
+@pytest.fixture
+def modes_SI():
+    m1 = 50.0
+    m2 = 10.0
+    Mt = m1 + m2
+    dt = 1 / 8192.0
+    distance = 1000.0
+    inclination = np.pi / 3.0
+    phiRef = 0.0
+    approximant = "SEOBNRv5HM"
+    s1x = s1y = s2x = s2y = 0.0
+    s1z = 0.76
+    s2z = 0.33
+    f_max = 4096.0
+    f_min = 0.0157 / (Mt * np.pi * lal.MTSUN_SI)
+    params_dict = {
+        "mass1": m1,
+        "mass2": m2,
+        "spin1x": s1x,
+        "spin1y": s1y,
+        "spin1z": s1z,
+        "spin2x": s2x,
+        "spin2y": s2y,
+        "spin2z": s2z,
+        "deltaT": dt,
+        "f22_start": f_min,
+        "phi_ref": phiRef,
+        "distance": distance,
+        "inclination": inclination,
+        "f_max": f_max,
+        "approximant": approximant,
+    }
+    wfm_gen = GenerateWaveform(params_dict)  # We call the generator with the parameters
+    times, hlm = wfm_gen.generate_td_modes()
+    return times, hlm
+
+
+def test_dynamics(model_expert):
+    """
+    Check that the dynamics values at certain points in the inspiral
+    have not changed.
+    """
+    rs = np.array({{rs}})
+    prs = np.array({{prs}})
+
+    dynamics = model_expert.dynamics
+    r = dynamics[:, 1]
+    pr = dynamics[:, 3]
+    np.testing.assert_allclose(rs, r[indices], atol=0, rtol=1e-12)
+    np.testing.assert_allclose(prs, pr[indices], atol=0, rtol=1e-12)
+
+def test_modes(model_expert):
+    """
+    Check that the waveform modes at certain points have not changed.
+    """
+
+    values = {}
+    {% for key,value in modes.items() %}
+    values['{{key}}'] = np.array({{value}})
+    {% endfor %}
+
+    for mode in values.keys():
+        np.testing.assert_allclose(
+            values[mode],
+            model_expert.waveform_modes[mode][indices_waveform],
+            atol=0,
+            rtol=1e-14,
+        )
+
+def test_SI_modes(modes_SI):
+    """
+    Check that the SI modes have the right values at certain points in time
+    """
+
+    values = {}
+    {% for key,value in modes_SI.items() %}
+    values[{{key}}] = np.array({{value}})
+    {% endfor %}
+
+    t, hlm = modes_SI
+    for mode in values.keys():
+        np.testing.assert_allclose(
+            values[mode], hlm[mode][indices_waveform], atol=0, rtol=1e-14
+        )
