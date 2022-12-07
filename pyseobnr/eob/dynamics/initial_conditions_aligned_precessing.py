@@ -1,9 +1,21 @@
 #!/usr/bin/env python3
-
+from typing import Callable
+from ..hamiltonian import Hamiltonian
 import numpy as np
 from scipy.optimize import root, root_scalar
 
-def IC_cons_augm(u, omega, H, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, chi2_L, m_1, m_2):
+def IC_cons_augm(u:np.ndarray,
+                 omega:float,
+                 H: Hamiltonian,
+                 chi1_v:np.ndarray,
+                 chi2_v:np.ndarray,
+                 chi1_LN:float,
+                 chi2_LN:float,
+                 chi1_L:float,
+                 chi2_L:float,
+                 m_1:float,
+                 m_2:float
+                 ):
     """ The equations defining the 'conservative'
     part of the QC initial conditions, namely
     for r and pphi.
@@ -14,8 +26,12 @@ def IC_cons_augm(u, omega, H, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, chi2_L, 
         u ([np.ndarray]): The unknowns, r,pphi
         omega ([float): Desired starting orbital frequency, in gemoetric units
         H (function): The Hamiltonian to use (an instance of Hamiltonian class)
-        chi_1 (float): z-component of the primary spin
-        chi_2 (float): z-component of the secondary spin
+        chi1_v (np.ndarray): Dimensionless spin vector of the primary
+        chi2_v (np.ndarray): Dimensionless spin vector of the secondary
+        chi1_LN (float): Projection of the dimensionless spin vector of the primary onto LN
+        chi2_LN (float): Projection of the dimensionless spin vector of the secondary onto LN
+        chi1_L (float): Projection of the dimensionless spin vector of the primary onto L
+        chi2_L (float): Projection of the dimensionless spin vector of the secondary onto L
         m_1 (float): mass of the primary
         m_2 (float): mass of the secondary
 
@@ -27,7 +43,6 @@ def IC_cons_augm(u, omega, H, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, chi2_L, 
     q = np.array([r, 0.0])
     p = np.array([0.0, pphi])
 
-    #print(q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
     grad = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
     dHdr = grad[0]
     dHdpphi = grad[3]
@@ -35,7 +50,20 @@ def IC_cons_augm(u, omega, H, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, chi2_L, 
     return diff
 
 
-def IC_diss_augm(u, r, pphi, H, RR, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, chi2_L, m_1, m_2, params):
+def IC_diss_augm(u: np.ndarray,
+                 r: float,
+                 pphi: float,
+                 H: Hamiltonian,
+                 RR: Callable,
+                 chi1_v: np.ndarray,
+                 chi2_v: np.ndarray,
+                 chi1_LN: float,
+                 chi2_LN: float,
+                 chi1_L: float,
+                 chi2_L: float,
+                 m_1: float,
+                 m_2: float,
+                 params):
     """Initial conditions for the "dissipative" part,
     namely pr
 
@@ -45,11 +73,16 @@ def IC_diss_augm(u, r, pphi, H, RR, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, ch
         r (floart): Starting separation
         pphi (float): Starting angular momentum
         H (Hamiltonian): The Hamiltonian object to use
-        RR (function): Function that returns the RR force. Must have same signature as the Hamiltonian
-        chi_1 (float): z-component of the dimensionless spin of primary
-        chi_2 (float): z-component of the dimensionless spin of secondary
-        m_1 (float): Mass of primary
-        m_2 (float): Mass of secondary
+        RR (Callable): Function that returns the RR force. Must have same signature as the Hamiltonian
+        chi1_v (np.ndarray): Dimensionless spin vector of the primary
+        chi2_v (np.ndarray): Dimensionless spin vector of the secondary
+        chi1_LN (float): Projection of the dimensionless spin vector of the primary onto LN
+        chi2_LN (float): Projection of the dimensionless spin vector of the secondary onto LN
+        chi1_L (float): Projection of the dimensionless spin vector of the primary onto L
+        chi2_L (float): Projection of the dimensionless spin vector of the secondary onto L
+        m_1 (float): mass of the primary
+        m_2 (float): mass of the secondary
+        params (EOBParams): container with additional useful quantities
 
     Returns:
         float: The equation for pr
@@ -73,36 +106,41 @@ def IC_diss_augm(u, r, pphi, H, RR, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, ch
     dHdpr = dynamics[2]
     return rdot - dHdpr
 
-def computeIC_augm(omega, H, RR, chi1_v, chi2_v, chi_1, chi_2, m_1, m_2, **kwargs):
+def computeIC_augm(omega: float,
+                   H: Hamiltonian,
+                   RR: Callable,
+                   chi1_v: np.ndarray,
+                   chi2_v: np.ndarray,
+                   m_1: float,
+                   m_2: float,
+                   **kwargs):
     """Compute the initial conditions for an aligned-spin BBH binary
 
     Args:
         omega (float): Initial *orbital* frequency in geometric units
         H (Hamiltonian): The Hamiltonian object to use
         RR (function): The RR force to use
-        chi_1 (float): z-component of the dimensionless spin of primary
-        chi_2 (float): z-component of the dimensionless spin of secondary
+        chi1_v (np.ndarray): Dimensionless spin vector of the primary
+        chi2_v (np.ndarray): Dimensionless spin vector of the secondary
         m_1 (float): Mass of primary
         m_2 (float): Mass of secondary
 
     Returns:
         tuple: The initial conditions: (r,pphi,pr)
     """
-    # Initial guess from Newtonian gravity
 
     params = kwargs["params"]
-
 
     chi1_LN, chi2_LN = params.p_params.chi_1, params.p_params.chi_2
     chi1_L, chi2_L = params.p_params.chi1_L, params.p_params.chi2_L
 
+    # Initial guess from Newtonian gravity
     r_guess = omega ** (-2.0 / 3)
     z = [r_guess, np.sqrt(r_guess)]
-    # print(f"Initial guess is {z}")
+
     # The conservative bit: solve for r and pphi
     res_cons = root(IC_cons_augm, z, args=(omega, H, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, chi2_L, m_1, m_2), tol=1e-12)
     r0, pphi0 = res_cons.x
-    # print(f"Computed conservative stuff, {r0},{pphi0}")
 
     res_diss = root_scalar(
         IC_diss_augm,
@@ -111,7 +149,8 @@ def computeIC_augm(omega, H, RR, chi1_v, chi2_v, chi_1, chi_2, m_1, m_2, **kwarg
         xtol=1e-12,
         rtol=1e-10,
     )
+
     # Now do the dissipative bit: solve for pr
     pr0 = res_diss.root
-    # print(f"Computed dissipative stuff, {pr0}")
+
     return r0, pphi0, pr0
