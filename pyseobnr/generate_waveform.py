@@ -154,11 +154,15 @@ class GenerateWaveform:
                 parameters["spin1z"],
             ]
             parameters["spin1x"], parameters["spin1y"], parameters["spin1z"] = [
-                parameters["spin2x"],
-                parameters["spin2y"],
+                -parameters["spin2x"],
+                -parameters["spin2y"],
                 parameters["spin2z"],
             ]
-            parameters["spin2x"], parameters["spin2y"], parameters["spin2z"] = aux_spin1
+            parameters["spin2x"], parameters["spin2y"], parameters["spin2z"] = [
+                -aux_spin1[0],
+                -aux_spin1[1],
+                aux_spin1[2],
+            ]
             aux_mass1 = parameters["mass1"]
             parameters["mass1"] = parameters["mass2"]
             parameters["mass2"] = aux_mass1
