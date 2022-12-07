@@ -27,7 +27,8 @@ def compute_QNM(ell: int, m: int, n: int, af: float, Mf: float):
         Mf (float): final mass of the BH
 
     Returns:
-        np.complex128: The complex QNM frequency
+        np.complex128: The complex QNM frequency.
+        The frequencies are such that Re(omega)>0 and Im(omega)<0.
     """
     if af > 0:
         omega, _, _ = qnm_cache[(ell, m)](a=af, interp_only=True)

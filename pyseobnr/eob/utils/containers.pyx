@@ -52,23 +52,8 @@ cdef class PhysicalParams:
             self.m_1 + self.m_2) * self.chi_A
         # a_{+,-}
         self.ap = self.X_1*self.chi_1+self.X_2*self.chi_2
-        self.am = self.X_1*self.chi_1+self.X_2*self.chi_2
+        self.am = self.X_1*self.chi_1-self.X_2*self.chi_2
 
-'''
-cdef class CalibCoeffs:
-    @cython.embedsignature(True)
-    def __cinit__(self,dc):
-        self.a6 = dc.get("a6",0.0)
-        self.d5 = dc.get("d5",0.0)
-        self.dSO = dc.get("dSO",0.0)
-        self.dSS = dc.get("dSS",0.0)
-        self.flagNLOSO = dc.get("flagNLOSO",1.0)
-        self.flagNLOSO2 = dc.get("flagNLOSO2",1.0)
-        self.flagNLOSO3 = dc.get("flagNLOSO3",1.0)
-        self.flagNLOSS = dc.get("flagNLOSS",1.0)
-        self.flagNLOSS2 = dc.get("flagNLOSS2",1.0)
-        self.flagS3 = dc.get("flagS3",0.0)
-'''
 cdef class CalibCoeffs():
     def __cinit__(self,dc):
         self.dc = dc

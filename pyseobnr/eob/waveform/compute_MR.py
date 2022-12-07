@@ -29,12 +29,8 @@ def compute_MR_mode_free(
 
     """
     # Step 1 - use the NR fits for amplitude and frequency at attachment time
-    chiA = (chi1 - chi2) / 2
-    chiS = (chi1 + chi2) / 2
     eta = m1 * m2 / (m1 + m2) ** 2
-    chi = 0.5 * (chi1 + chi2) + 0.5 * (chi1 - chi2) * (m1 - m2) / (m1 + m2) / (
-        1.0 - 2.0 * eta
-    )
+
     nra = attach_params["amp"]
     nraDot = attach_params["damp"]
     nromega = attach_params["omega"]

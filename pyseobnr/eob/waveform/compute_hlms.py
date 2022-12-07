@@ -534,7 +534,7 @@ def NQC_correction(
                 m_2,
                 chi_1,
                 chi_2,
-                nrDeltaT - extra,  # FIXME for the (5,5) mode
+                nrDeltaT - extra,
                 fits_dict,
             )
 
