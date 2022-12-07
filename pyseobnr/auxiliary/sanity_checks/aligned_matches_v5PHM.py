@@ -189,27 +189,36 @@ def mismatch_v5P_strain(
     f_low_phys = f_min
     f_high_phys = 2048.
 
-    psd = aLIGOZeroDetHighPowerGWINC(len(hp_v5), hp_v5.delta_f, f_low_phys)
+    try:
 
-    # Compute match for hplus
-    mm_hp = match(hp_v5,
-          hp_v5p,
-          psd,
-          low_frequency_cutoff=f_low_phys,
-          high_frequency_cutoff=f_high_phys
-          )[0]
+        psd = aLIGOZeroDetHighPowerGWINC(len(hp_v5), hp_v5.delta_f, f_low_phys)
+
+        # Compute match for hplus
+        mm_hp = match(hp_v5,
+              hp_v5p,
+              psd,
+              low_frequency_cutoff=f_low_phys,
+              high_frequency_cutoff=f_high_phys
+              )[0]
 
 
-    # Compute match for hcross
-    mm_hc = match(hc_v5,
-          hc_v5p,
-          psd,
-          low_frequency_cutoff=f_low_phys,
-          high_frequency_cutoff=f_high_phys
-          )[0]
+        # Compute match for hcross
+        mm_hc = match(hc_v5,
+              hc_v5p,
+              psd,
+              low_frequency_cutoff=f_low_phys,
+              high_frequency_cutoff=f_high_phys
+              )[0]
 
-    # Take the mean
-    mm_mean  = 1.-np.mean([mm_hp,mm_hc])
+        # Take the mean
+        mm_mean  = 1.-np.mean([mm_hp,mm_hc])
+    except:
+
+        print(
+            f"Error for the following parameters: q = {q}, chi1 = {chi1}, chi2 = {chi2}, Mt = {Mt}, iota_s = {iota_s}"
+        )
+        mm_mean = -1
+        pass
 
     #print(m1,m2,chi1,chi2,iota_s,mm_mean)
     return (m1,m2, chi1, chi2, iota_s, mm_mean)

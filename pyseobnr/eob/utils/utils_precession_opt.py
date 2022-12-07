@@ -3,51 +3,87 @@ from numba import *
 from numba import jit
 from numba import types
 
-
 from ..fits.EOB_fits import compute_QNM
 from .math_ops_opt import my_cross,my_dot,my_norm
 from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
+from ..hamiltonian import Hamiltonian
+from scri import WaveformModes
 
 import lal
 import quaternion
+from math import cos,sqrt
 
 from scipy.interpolate import CubicSpline
 
-
-
-def compute_spins_EOBdyn_opt(dynamics_low: np.ndarray, splines):
-
-    tEOB_low = dynamics_low[:, 0]
-    chi1L_spline = splines["chi1_L"]
-    chi2L_spline = splines["chi2_L"]
-    chi1LN_spline = splines["chi1_LN"]
-    chi2LN_spline = splines["chi2_LN"]
-
-    iphaseEOB_low = CubicSpline(tEOB_low, dynamics_low[:, 2])
-    omegaEOB_low = iphaseEOB_low.derivative()(tEOB_low)
-
-    chi1L_EOB = chi1L_spline(omegaEOB_low)
-    chi2L_EOB = chi2L_spline(omegaEOB_low)
-
-    chi1LN_EOB = chi1LN_spline(omegaEOB_low)
-    chi2LN_EOB = chi2LN_spline(omegaEOB_low)
-
-    chi1v_EOB = splines["chi1"](omegaEOB_low)
-    chi2v_EOB = splines["chi2"](omegaEOB_low)
-
-    return chi1L_EOB, chi2L_EOB, chi1LN_EOB, chi2LN_EOB, chi1v_EOB, chi2v_EOB
-
-def augment_dynamics_precessing_opt(dynamics,  chi1L_EOB, chi2L_EOB,  chi1LN_EOB, chi2LN_EOB, chi1v_EOB, chi2v_EOB, m_1, m_2, omegaPN_f, H):
-    """Compute dynamical quantities we need for the waveform
+def compute_spins_EOBdyn_opt(omega: np.ndarray, splines:dict):
+    """Function to evaluate the splines of the projections
+    of the spins onto the unit Newtonian orbital angular
+    momentum (LN_hat) and unit the orbital angular momentum (L_hat),
+    as well the components of the spin vectors and the LN_hat
+    vector on a grid of the orbital frequency of the non-
+    precessing EOB evolution
 
     Args:
-        dynamics (np,ndarray): The dynamics array: t,r,phi,pr,pphi
+        omega (np.ndarray): Orbital frequency from the non-precessing EOB evolution
+        splines (dict): Dictionary containing the splines in orbital frequency
+                        of the vector components of the spins, LN_hat and L_hat as well as
+                        the spin projections onto LN_hat and L_hat
+
+    Returns:
+        (tuple): Dimensionless spin vectors and LN_hat, as well as the projections of the
+                dimensionless spins onto LN_hat and L_hat
+    """
+
+
+    tmp = splines["everything"](omega)
+
+    chi1LN_EOB = tmp[:,0]
+    chi2LN_EOB = tmp[:,1]
+
+    chi1L_EOB = tmp[:,2]
+    chi2L_EOB = tmp[:,3]
+
+    chi1v_EOB = tmp[:,4:7]
+    chi2v_EOB = tmp[:,7:10]
+    LN_EOB = tmp[:,10:13]
+
+    return chi1L_EOB, chi2L_EOB, chi1LN_EOB, chi2LN_EOB, chi1v_EOB, chi2v_EOB,LN_EOB
+
+def augment_dynamics_precessing_opt(dynamics: np.ndarray,
+                                    chi1L_EOB: np.ndarray, chi2L_EOB: np.ndarray,
+                                    chi1LN_EOB: np.ndarray, chi2LN_EOB: np.ndarray,
+                                    chi1v_EOB: np.ndarray, chi2v_EOB: np.ndarray,
+                                    m_1:float, m_2:float,
+                                    H: Hamiltonian):
+    """Compute dynamical quantities we need for the waveform (low sampling rate dynamics)
+
+    Args:
+        dynamics (np.ndarray): The dynamics array: t,r,phi,pr,pphi
+        chi1L_EOB (np.ndarray): Projection of the primary spin vector onto the L vector
+        chi2L_EOB (np.ndarray): Projection of the seconday spin vector onto the L vector
+        chi1LN_EOB (np.ndarray): Projection of the primary spin vector onto the LN vector
+        chi2LN_EOB (np.ndarray): Projection of the seconday spin vector onto the LN vector
+        chi1v_EOB (np.ndarray): Spin vector of the primary
+        chi2v_EOB (np.ndarray): Spin vector of the secondary
+        m_1 (float): Mass component of the primary
+        m_2 (float): Mass component of the secondary
+        H (Hamiltonian): Hamiltonian class
+
+
+    Returns:
+        (np.ndarray): Dynamical variables (r,phi,pr,pphi), as well as the Hamiltonian, orbital frequency,
+                      circular orbital frequency, and the projections of the dimensionless spin vectors LN_hat
     """
 
     ms = m_1 + m_2
     nu = m_1*m_2/(m_1+m_2)**2
     X1 = m_1/ms
     X2 = m_2/ms
+
+    # Compute dSO
+    ap  = X1*chi1LN_EOB + X2*chi2LN_EOB
+    am  = X1*chi1LN_EOB - X2*chi2LN_EOB
+    dSO_new = dSO_poly_fit(nu, ap, am)
 
     result = []
     p_c = np.zeros(2)
@@ -61,99 +97,52 @@ def augment_dynamics_precessing_opt(dynamics,  chi1L_EOB, chi2L_EOB,  chi1LN_EOB
         chi1_v = chi1v_EOB[i]
         chi2_v = chi2v_EOB[i]
 
-        #if q[0]<2:
-        #    print(f"q = {q[0]}")
-
-
         # Evaluate a few things: H, omega,omega_circ
-        ap  = X1*chi1_LN + X2*chi2_LN
-        am  = X1*chi1_LN - X2*chi2_LN
-        p_c[1] = p[1]
-        dSO_new = dSO_poly_fit(nu, ap, am)
-        H.calibration_coeffs['dSO'] = dSO_new
+        H.calibration_coeffs['dSO'] = dSO_new[i]
 
         dyn = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
         omega = dyn[3]
         H_val = dyn[4]
+        p_c[1] = p[1]
         omega_c = H.omega(q, p_c, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
 
-        result.append([H_val, omega, omega_c, chi1_LN, chi2_LN, chi1_L, chi2_L])
+        result.append([H_val, omega, omega_c, chi1_LN, chi2_LN])
     result = np.array(result)
 
 
     return np.c_[dynamics,result]
 
 
-def project_spins_augment_dynamics_opt(
-    m_1, m_2, H, dynamics_low, dynamics_fine, splines, omegaPN_f
-):
-
-    (
-        chi1L_EOB_low,
-        chi2L_EOB_low,
-        chi1LN_EOB_low,
-        chi2LN_EOB_low,
-        chi1v_EOB_low,
-        chi2v_EOB_low,
-    ) = compute_spins_EOBdyn_opt(dynamics_low, splines)
-
-    (
-        chi1L_EOB_fine,
-        chi2L_EOB_fine,
-        chi1LN_EOB_fine,
-        chi2LN_EOB_fine,
-        chi1v_EOB_fine,
-        chi2v_EOB_fine,
-    ) = compute_spins_EOBdyn_opt(dynamics_fine, splines)
-
-    dynamics_low = augment_dynamics_precessing_opt(
-        dynamics_low,
-        chi1L_EOB_low,
-        chi2L_EOB_low,
-        chi1LN_EOB_low,
-        chi2LN_EOB_low,
-        chi1v_EOB_low,
-        chi2v_EOB_low,
-        m_1,
-        m_2,
-        omegaPN_f,
-        H,
-    )
-
-    dynamics_fine = augment_dynamics_precessing_fine_opt(
-        dynamics_fine,
-        chi1L_EOB_fine,
-        chi2L_EOB_fine,
-        chi1LN_EOB_fine,
-        chi2LN_EOB_fine,
-        chi1v_EOB_fine,
-        chi2v_EOB_fine,
-        m_1,
-        m_2,
-        omegaPN_f,
-        H,
-    )
-
-    return dynamics_fine, dynamics_low
-
-
 def augment_dynamics_precessing_fine_opt(
-    dynamics,
-    chi1L_EOB,
-    chi2L_EOB,
-    chi1LN_EOB,
-    chi2LN_EOB,
-    chi1v_EOB,
-    chi2v_EOB,
-    m_1,
-    m_2,
-    omegaPN_f,
-    H,
+    dynamics: np.ndarray,
+    chi1L_EOB: np.ndarray,
+    chi2L_EOB: np.ndarray,
+    chi1LN_EOB: np.ndarray,
+    chi2LN_EOB: np.ndarray,
+    chi1v_EOB: np.ndarray,
+    chi2v_EOB: np.ndarray,
+    m_1: float,
+    m_2: float,
+    H:Hamiltonian,
 ):
-    """Compute dynamical quantities we need for the waveform and also the csi_fine coefficient
+    """Compute dynamical quantities we need for the waveform (fine sampling rate dynamics)
 
     Args:
-        dynamics (np,ndarray): The dynamics array: t,r,phi,pr,pphi
+        dynamics (np.ndarray): The dynamics array: t,r,phi,pr,pphi
+        chi1L_EOB (np.ndarray): Projection of the primary spin vector onto the L vector
+        chi2L_EOB (np.ndarray): Projection of the seconday spin vector onto the L vector
+        chi1LN_EOB (np.ndarray): Projection of the primary spin vector onto the LN vector
+        chi2LN_EOB (np.ndarray): Projection of the seconday spin vector onto the LN vector
+        chi1v_EOB (np.ndarray): Spin vector of the primary
+        chi2v_EOB (np.ndarray): Spin vector of the secondary
+        m_1 (float): Mass component of the primary
+        m_2 (float): Mass component of the secondary
+        H (class): Hamiltonian class
+
+
+    Returns:
+        (np.ndarray): Dynamical variables (r,phi,pr,pphi), as well as the Hamiltonian, orbital frequency,
+                      circular orbital frequency, and the projections of the dimensionless spin vectors LN_hat
     """
     t = dynamics[:, 0]
     N = len(t)
@@ -192,49 +181,121 @@ def augment_dynamics_precessing_fine_opt(
         omega = dyn[3]
         H_val = dyn[4]
 
-        #if omega < 1 and abs(chi1_LN)<= 1 and abs(chi2_LN)<= 1 and rs[-1]>r or not np.isnan(omega):
-        if np.isnan(omega):
+        # Use some if statements to stop evaluating omega when the dynamics becomes unphysical
+        if np.isnan(omega) or omega>1:
             count += 1
             idx_max = i
             break
 
         if rs[-1]>=r:
-            #if omega<=omegaPN_f:
-            #print(f" omega = {omega}, rs[-1] = {rs[-1]}, r = {r}")
             omega_c = H.omega(
                 q, p_c, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L
             )
-            if np.isnan(omega_c):
+            if np.isnan(omega_c) or omega_c>1:
                 count += 1
                 idx_max = i
+
                 break
 
 
-            result.append([H_val, omega, omega_c, chi1_LN, chi2_LN, chi1_L, chi2_L])
+            result.append([H_val, omega, omega_c, chi1_LN, chi2_LN])
             idx_max = i
         else:
-            #print(f"i = {i}, omega = {omega}, rs[-1] = {rs[-1]}, r = {r}, a1LN = {abs(chi1_LN)}, a2LN = {abs(chi2_LN)}")
             count += 1
             idx_max = i
             break
         rs.append(r)
 
-        #if q[0]<1.5:
-        #    print(f"r = {np.round(q[0],5)}, chi1_LN  = {np.round(chi1_LN ,5)}, chi2_LN  = {np.round(chi2_LN ,5)}, omega = {np.round(omega,5)}, omega_c = {np.round(omega_c,5)}")
-        #print(f"r = {np.round(q[0],5)}, H = {np.round(H_val,5)}, dSO = {np.round(dSO_new[i],5)}, omega = {np.round(omega,5)}, omega_c = {np.round(omega_c,5)}")
-
     result = np.array(result)
 
-    if count >1:
-        #print(f"count = {count}, idx_max = {idx_max}, len(result) = {len(result)}")
+    # Remove part of the dynamics which becomes unphysical (typically at small separations < 2M)
+    if count >0:
         dynamics1 = dynamics[:idx_max]
     else:
-        #print(f"count = {count}, idx_max = {idx_max}, len(result) = {len(result)}")
         dynamics1 = dynamics[:len(result)]
 
-    #print(f"len(dynamics)= {len(dynamics)}, len(dynamics1)= {len(dynamics1)}, len(result) = {len(result)}")
     return np.c_[dynamics1, result]
 
+
+def project_spins_augment_dynamics_opt(
+    m_1: float,
+    m_2: float,
+    H:Hamiltonian,
+    omega_low: np.ndarray,
+    omega_fine: np.ndarray,
+    dynamics_low: np.ndarray,
+    dynamics_fine: np.ndarray,
+    splines: dict,
+):
+    """Wrapper to compute dynamical quantities needed for the waveform (for both low and high sampling rate dynamics)
+
+    Args:
+        m_1 (float): Mass component of the primary
+        m_2 (float): Mass component of the secondary
+        H (Hamiltonian): Hamiltonian class
+        omega_low (np.ndarray): Orbital frequency from the EOB non-precessing evolution (low sampling rate)
+        omega_fine (np.ndarray): Orbital frequency from the EOB non-precessing evolution (high sampling rate)
+        dynamics_low (np.ndarray): The dynamics array from the EOB non-precessing evolution: t,r,phi,pr,pphi (low sampling rate)
+        dynamics_fine (np.ndarray): The dynamics array from the EOB non-precessing evolution: t,r,phi,pr,pphi (high sampling rate)
+        splines (dict): Dictionary containing the splines in orbital frequency of the vector components of the spins, LN and L as
+                        well as the spin projections onto LN and L
+
+        Returns:
+            (np.ndarray): "Augmented" dynamical variables (r,phi,pr,pphi,H,omega,omega_c,chi1LN,chi2LN) for the low and high
+                           sampling rate dynamics, as well as LN_hat for low and high sampling rates
+        """
+
+    (
+        chi1L_EOB_low,
+        chi2L_EOB_low,
+        chi1LN_EOB_low,
+        chi2LN_EOB_low,
+        chi1v_EOB_low,
+        chi2v_EOB_low,
+        tmp_LN_low,
+    ) = compute_spins_EOBdyn_opt(omega_low, splines)
+
+    (
+        chi1L_EOB_fine,
+        chi2L_EOB_fine,
+        chi1LN_EOB_fine,
+        chi2LN_EOB_fine,
+        chi1v_EOB_fine,
+        chi2v_EOB_fine,
+        tmp_LN_fine,
+    ) = compute_spins_EOBdyn_opt(omega_fine, splines)
+
+    dynamics_low = augment_dynamics_precessing_opt(
+        dynamics_low,
+        chi1L_EOB_low,
+        chi2L_EOB_low,
+        chi1LN_EOB_low,
+        chi2LN_EOB_low,
+        chi1v_EOB_low,
+        chi2v_EOB_low,
+        m_1,
+        m_2,
+        H,
+    )
+
+    dynamics_fine = augment_dynamics_precessing_fine_opt(
+        dynamics_fine,
+        chi1L_EOB_fine,
+        chi2L_EOB_fine,
+        chi1LN_EOB_fine,
+        chi2LN_EOB_fine,
+        chi1v_EOB_fine,
+        chi2v_EOB_fine,
+        m_1,
+        m_2,
+        H,
+    )
+
+    # Take the same amount of steps as in the fine dynamics
+    tmp_LN_fine = tmp_LN_fine[:len(dynamics_fine)]
+
+    #print(f"len(tmp_LN_fine) = {len(tmp_LN_fine)}, len(dynamics_fine) = {len(dynamics_fine)}")
+    return dynamics_fine, dynamics_low, tmp_LN_low, tmp_LN_fine
 
 #################################################################################################################
 
@@ -244,13 +305,25 @@ def augment_dynamics_precessing_fine_opt(
 
 
 # This function does exactly the same as the LAL counterpart
-def SEOBBuildJframeVectors(Jhat_final):
+def SEOBBuildJframeVectors(Jhat_final:np.ndarray):
     """
-     This function computes the Jframe unit vectors, with e3J along Jhat.
-     Convention: if (ex, ey, ez) is the initial I-frame, e1J chosen such that ex
-     is in the plane (e1J, e3J) and ex.e1J>0.
-     In the case where e3J and x happen to be close to aligned, we continuously
-     switch to another prescription with y playing the role of x.
+    This function computes the Jframe unit vectors, with e3J along Jhat.
+    Convention: if (ex, ey, ez) is the initial I-frame, e1J chosen such that ex
+    is in the plane (e1J, e3J) and ex.e1J>0.
+    In the case where e3J and x happen to be close to aligned, we continuously
+    switch to another prescription with y playing the role of x.
+    Same operation as in SEOBBuildJframeVectors in
+    https://git.ligo.org/lscsoft/lalsuite/-/blob/master/lalsimulation/lib/LALSimIMRSpinPrecEOBv4P.c#L2833
+    LALSimIMRSpinPrecEOBv4P.c.
+    See Appendix A of https://arxiv.org/abs/1607.05661v1
+    and Sec. III B of https://arxiv.org/pdf/2004.09442v1.pdf for details.
+
+    Args:
+        Jhat_final(np.ndarray): Final total angular momentum vector
+
+
+    Returns:
+        (tuple): Triad of unit vectors defining the J-frame
     """
 
     e3J = Jhat_final
@@ -258,8 +331,8 @@ def SEOBBuildJframeVectors(Jhat_final):
     exvec = np.array([1.0, 0.0, 0.0])
     eyvec = np.array([0.0, 1.0, 0.0])
 
-    exdote3J = np.dot(exvec, e3J)
-    eydote3J = np.dot(eyvec, e3J)
+    exdote3J = my_dot(exvec, e3J)
+    eydote3J = my_dot(eyvec, e3J)
 
     lambda_fac = 1.0 - abs(exdote3J)
 
@@ -267,28 +340,28 @@ def SEOBBuildJframeVectors(Jhat_final):
         print("Problem: lambda=1-|e3J.ex|=%f, should be in [0,1]" % lambda_fac)
 
     elif lambda_fac > 1e-4:
-        normfacx = 1.0 / np.sqrt(1.0 - exdote3J * exdote3J)
+        normfacx = 1.0 / sqrt(1.0 - exdote3J * exdote3J)
 
         e1J = (exvec - exdote3J * e3J) / normfacx
     elif lambda_fac < 1e-5:
 
-        normfacy = 1.0 / np.sqrt(1.0 - eydote3J * eydote3J)
+        normfacy = 1.0 / sqrt(1.0 - eydote3J * eydote3J)
         e1J = (eyvec - eydote3J * e3J) / normfacy
     else:
         weightx = (lambda_fac - 1e-5) / (1e-4 - 1e-5)
         weighty = 1.0 - weightx
-        normfacx = 1.0 / np.sqrt(1.0 - exdote3J * exdote3J)
-        normfacy = 1.0 / np.sqrt(1.0 - eydote3J * eydote3J)
+        normfacx = 1.0 / sqrt(1.0 - exdote3J * exdote3J)
+        normfacy = 1.0 / sqrt(1.0 - eydote3J * eydote3J)
         e1J = (
             weightx * (exvec - exdote3J * e3J) / normfacx
             + weighty * (eyvec - eydote3J * e3J) / normfacy
         )
 
-        e1Jblendednorm = my_norm(e1J)  # np.sqrt(np.dot(e1J, e1J))
+        e1Jblendednorm = my_norm(e1J)
         e1J /= e1Jblendednorm
 
-    # /* Get e2J = e3J * e1J */
-    e2J = my_cross(e3J, e1J)  # cross_product(e3J, e1J)
+    # Get e2J = e3J x e1J
+    e2J = my_cross(e3J, e1J)
 
     e1Jnorm = my_norm(e1J)
     e2Jnorm = my_norm(e2J)
@@ -300,83 +373,80 @@ def SEOBBuildJframeVectors(Jhat_final):
 
     return e1J, e2J, e3J
 
-# This function computes Euler angles I2J given the unit vectors of the Jframe.
-# Same operation as in SEOBEulerI2JFrameVectors in LALSimIMRSpinPrecEOBv4P.c
-def compute_quatEuler_I2Jframe(e1J, e2J, e3J):
+def compute_quatEuler_I2Jframe(e1J: np.ndarray, e2J: np.ndarray, e3J: np.ndarray):
+    """
+    This function computes Euler angles between the inertial (I-)frame and the
+    (J-)frame aligned with the final angular momentum of the system (I2J angles)
+    given the unit vectors of the J-frame.
+    Same operation as in SEOBEulerI2JFrameVectors in
+    https://git.ligo.org/lscsoft/lalsuite/-/blob/master/lalsimulation/lib/LALSimIMRSpinPrecEOBv4P.c#L2925
+    LALSimIMRSpinPrecEOBv4P.c.
+    See Appendix A of https://arxiv.org/abs/1607.05661v1
+    and Sec. III B of https://arxiv.org/pdf/2004.09442v1.pdf for details.
 
+    Args:
+        e1J (np.ndarray): Unit J-frame vector e1J
+        e2J (np.ndarray): Unit J-frame vector e2J
+        e3J (np.ndarray): Unit J-frame vector e3J
+
+    Returns:
+        (tuple): Time-independent Euler angles describing the rotation from the J-frame to the I-frame
+    """
     alphaI2J = np.arctan2(e3J[1], e3J[0])
     betaI2J = np.arccos(e3J[2])
     gammaI2J = np.arctan2(e2J[2], -e1J[2])
 
     return alphaI2J, betaI2J, gammaI2J
 
-def SEOBEulerJ2PFromDynamics(t, Lhat, e1J, e2J, e3J):
+def SEOBEulerJ2PFromDynamics(t: np.ndarray, LNhat: np.ndarray, e1J: np.ndarray, e2J: np.ndarray, e3J: np.ndarray):
+    """
+    This function computes the Euler angles from J-frame to P-frame given the
+    Newtonian orbital angular momentum timeseries LNhat(t) and the basis vectors
+    of the J-frame. The minimal rotation condition is computed using the quaternion
+    package and the initial condition for gamma = np.pi-alpha ensures that the
+    AS limit is satisfied. Note that all quantities in the dynamics and the
+    basis vectors eJ are expressed in the initial I-frame.
+    Similar operation as SEOBEulerJ2PFromDynamics in LALSimIMRSpinPrecEOBv4P.c.
+    See Appendix A of https://arxiv.org/abs/1607.05661v1
+    and Sec. III B of https://arxiv.org/pdf/2004.09442v1.pdf for details.
 
-    # Compute Lhat
-    Zframe = Lhat
+    Args:
+        t (np.ndarray): Time array
+        LNhat (np.ndarray): LNhat vector array array
+        e1J (np.ndarray): Unit J-frame vector e1J
+        e2J (np.ndarray): Unit J-frame vector e2J
+        e3J (np.ndarray): Unit J-frame vector e3J
+
+    Returns:
+        (tuple): Time-dependent quaterions and Euler angles describing the rotation from the co-precessing frame to the J-frame
+
+    """
+
+    Zframe = LNhat
     Ze1J = np.dot(Zframe, e1J)
     Ze2J = np.dot(Zframe, e2J)
     Ze3J = np.dot(Zframe, e3J)
 
+    # Compute Euler angles from the co-precessing to the J-frame
     alphaJ2P = np.arctan2(Ze2J, Ze1J)
     betaJ2P = np.arccos(Ze3J)
 
     alphaJ2P = np.unwrap(alphaJ2P)
     betaJ2P = np.unwrap(betaJ2P)
 
-    #e3PiniIbasis = np.array([0, 0, 1.0])#Zframe[0]
-    #e1PiniIbasis = np.array([1.0, 0, 0])
-    # /* e2P is obtained by completing the triad */
-    #e2PiniIbasis = np.cross(e3PiniIbasis, e1PiniIbasis)
-
-    #e1PiniJbasis = np.array([0.0, 0.0, 0.0])
-    #e2PiniJbasis = np.array([0.0, 0.0, 0.0])
-
-    #e1PiniJbasis[2] = np.dot(e1PiniIbasis, e3J)
-    #e2PiniJbasis[2] = np.dot(e2PiniIbasis, e3J)
-    #initialGamma = np.arctan2(e2PiniJbasis[2], -e1PiniJbasis[2])
-    initialGamma = np.pi - alphaJ2P[0]
+    initialGamma = np.pi  -alphaJ2P[0]
 
     gamma0J2P = np.full(len(alphaJ2P), initialGamma)
 
-    """
-    if (
-        e1J[0] == 1
-        and e1J[1] == 0
-        and e1J[2] == 0
-        and e2J[0] == 0
-        and e2J[1] == 1
-        and e2J[2] == 0
-    ):
-
-        alphaJ2P *= 0
-        betaJ2P *= 0
-        gamma0J2P *= 0
-    """
     euler_anglesJ2P = np.array([alphaJ2P, betaJ2P, gamma0J2P]).T
 
-    # This works
-    """
-    ialpha = CubicSpline(t,np.unwrap(alphaJ2P))
-    alpha_dot = ialpha.derivative()(t)
-    cos_beta = np.cos(betaJ2P)
-    integ = CubicSpline(t,-1.*alpha_dot*cos_beta)
 
-    gamma2 = np.array([integ.integrate(t[0],tt) for tt in t])
-
-    gammaJ2P = np.unwrap(gamma2)+gamma0J2P[0]
-
-    euler_anglesJ2P = np.array([alphaJ2P,betaJ2P,gammaJ2P]).T
-    quatJ2P_f = quaternion.from_euler_angles(euler_anglesJ2P)
-    #quatJ2P_f = quaternion.minimal_rotation(quatJ2P_f, t,iterations=3)
-    #quatJ2P_f=  quaternion.unflip_rotors(quatJ2P_f, axis=-1, inplace=False)
-
-    """
-    # This also works
+    # Apply minimial rotation condition using the quaternion package
     quatJ2P = quaternion.from_euler_angles(euler_anglesJ2P)
     quatJ2P_f = quaternion.minimal_rotation(quatJ2P, t, iterations=3)
     quatJ2P_f = quaternion.unflip_rotors(quatJ2P_f, axis=-1, inplace=False)
 
+    # Compute Euler angles from the quaternions
     eAngles_min = quaternion.as_euler_angles(quatJ2P_f).T
     alphaJ2P = np.unwrap(eAngles_min[0])
     betaJ2P = np.unwrap(eAngles_min[1])
@@ -385,262 +455,28 @@ def SEOBEulerJ2PFromDynamics(t, Lhat, e1J, e2J, e3J):
     return quatJ2P_f, alphaJ2P, betaJ2P, gammaJ2P
 
 
-#  This is the same wrapper function for the PN orbital angular momentum in LALSimIMRPhenomX_precession.c
-def simIMRPhenomXLPNAnsatz(
-    v,  # Input velocity
-    LNorm,  # Orbital angular momentum normalization
-    L0,  # Newtonian orbital angular momentum (i.e. LN = 1.0*LNorm)
-    L1,  # 0.5PN Orbital angular momentum
-    L2,  # 1.0PN Orbital angular momentum
-    L3,  # 1.5PN Orbital angular momentum
-    L4,  # 2.0PN Orbital angular momentum
-    L5,  # 2.5PN Orbital angular momentum
-    L6,  # 3.0PN Orbital angular momentum
-    L7,  # 3.5PN Orbital angular momentum
-    L8,  # 4.0PN Orbital angular momentum
-    L8L,  # 4.0PN logarithmic orbital angular momentum term
-):
-    x = v * v
-    x2 = x * x
-    x3 = x * x2
-    x4 = x * x3
-    sqx = np.sqrt(x)
-
-    """
-      Here LN is the Newtonian pre-factor: LN = \eta / \sqrt{x} :
-
-      L = L_N \sum_a L_a x^{a/2}
-        = L_N [ L0 + L1 x^{1/2} + L2 x^{2/2} + L3 x^{3/2} + ... ]
-
-    """
-
-    return LNorm * (
-        L0
-        + L1 * sqx
-        + L2 * x
-        + L3 * (x * sqx)
-        + L4 * x2
-        + L5 * (x2 * sqx)
-        + L6 * x3
-        + L7 * (x3 * sqx)
-        + L8 * x4
-        + L8L * x4 * np.log(x)
-    )
-
-
-def orbital_angular_momentum_coeffs(eta, chi1L, chi2L):
-    """
-        4PN orbital angular momentum + leading order in spin at all PN orders terms.
-              - Marsat, CQG, 32, 085008, (2015), arXiv:1411.4118
-              - Siemonsen et al, PRD, 97, 064010, (2018), arXiv:1606.08832
-    """
-    pi2 = np.pi * np.pi
-    chi1L2 = chi1L * chi1L
-    chi2L2 = chi2L * chi2L
-
-    delta = np.sqrt(abs(1.0 - 4.0 * eta))
-    # Using same PN orders as PhenomXPHM and PhenomTPHM
-
-    L0 = 1.0
-    L1 = 0.0
-    L2 = 3.0 / 2.0 + eta / 6.0
-    L3 = (5 * (chi1L * (-2 - 2 * delta + eta) + chi2L * (-2 + 2 * delta + eta))) / 6.0
-    L4 = (81 + (-57 + eta) * eta) / 24.0
-    L5 = (
-        -7
-        * (
-            chi1L * (72 + delta * (72 - 31 * eta) + eta * (-121 + 2 * eta))
-            + chi2L * (72 + eta * (-121 + 2 * eta) + delta * (-72 + 31 * eta))
-        )
-    ) / 144.0
-    L6 = (10935 + eta * (-62001 + eta * (1674 + 7 * eta) + 2214 * pi2)) / 1296.0
-    L7 = (
-        chi2L
-        * (
-            -324
-            + eta * (1119 - 2 * eta * (172 + eta))
-            + delta * (324 + eta * (-633 + 14 * eta))
-        )
-        - chi1L
-        * (
-            324
-            + eta * (-1119 + 2 * eta * (172 + eta))
-            + delta * (324 + eta * (-633 + 14 * eta))
-        )
-    ) / 32.0
-    L8 = (
-        2835 / 128.0
-        - (
-            eta
-            * (
-                -10677852
-                + 100 * eta * (-640863 + eta * (774 + 11 * eta))
-                + 26542080 * np.euler_gamma
-                + 675 * (3873 + 3608 * eta) * pi2
-            )
-        )
-        / 622080.0
-        - (64 * eta * np.log(16)) / 3.0
-    )
-
-    # This is the log(x) term at 4PN, x^4/2 * log(x)
-    L8L = -(64.0 / 3.0) * eta
-
-    # Leading order in spin at all PN orders, note that the 1.5PN terms are already included. Here we have additional 2PN and 3.5PN corrections.
-    L4 += (
-        0
-        * (
-            chi1L2 * (1 + delta - 2 * eta)
-            + 4 * chi1L * chi2L * eta
-            - chi2L2 * (-1 + delta + 2 * eta)
-        )
-        / 2.0
-    )
-    L7 += (
-        0
-        * (
-            3
-            * (chi1L + chi2L)
-            * eta
-            * (
-                chi1L2 * (1 + delta - 2 * eta)
-                + 4 * chi1L * chi2L * eta
-                - chi2L2 * (-1 + delta + 2 * eta)
-            )
-        )
-        / 4.0
-    )
-
-    return L0, L1, L2, L3, L4, L5, L6, 0 * L7, 0 * L8, 0 * L8L
-
-
-def compute_finalJ(eta, m_1, m_2, omega_peak, splines):
-
-    chi1_peak = splines["chi1"](omega_peak)
-    chi2_peak = splines["chi2"](omega_peak)
-    LN_peak = splines["L_N"](omega_peak)
-
-    LN_peak /= my_norm(LN_peak)
-    chi1L_peak = np.dot(chi1_peak, LN_peak)
-    chi2L_peak = np.dot(chi2_peak, LN_peak)
-
-    L0, L1, L2, L3, L4, L5, L6, L7, L8, L8L = orbital_angular_momentum_coeffs(
-        eta, chi1L_peak, chi2L_peak
-    )
-
-    v_peak = omega_peak ** (1.0 / 3.0)
-    LN_norm_v5 = eta / v_peak
-
-    LnormPN = simIMRPhenomXLPNAnsatz(
-        v_peak,
-        LN_norm_v5,  # Orbital angular momentum normalization
-        L0,  # Newtonian orbital angular momentum (i.e. LN = 1.0*LNorm)
-        L1,  # 0.5PN Orbital angular momentum
-        L2,  # 1.0PN Orbital angular momentum
-        L3,  # 1.5PN Orbital angular momentum
-        L4,  # 2.0PN Orbital angular momentum
-        L5,  # 2.5PN Orbital angular momentum
-        L6,  # 3.0PN Orbital angular momentum
-        L7,  # 3.5PN Orbital angular momentum
-        L8,  # 4.0PN Orbital angular momentum
-        L8L,  # 4.0PN logarithmic orbital angular momentum term
-    )
-
-    spin1_v5P_final = m_1 * m_1 * chi1_peak
-    spin2_v5P_final = m_2 * m_2 * chi2_peak
-    LpeakPN = LN_peak * LnormPN
-    # print(spin1_v5P_final, spin2_v5P_final,LpeakPN)
-    Jpeak = spin1_v5P_final + spin2_v5P_final + LpeakPN
-    #print(f"LpeakPN = {LpeakPN}, Jpeak = {Jpeak}")
-    #print(f"tpeakPN: Lvec = {LpeakPN}, s1 = {spin1_v5P_final}, s2 = {spin2_v5P_final}, Jf = {Jpeak}")
-
-    Jhat_peak = Jpeak / my_norm(Jpeak)
-    Lhat_final = LpeakPN / my_norm(LpeakPN)
-
-    return Jpeak, Jhat_peak, Lhat_final
-
-
-# Code up same waveform rotation as in LAL: SEOBRotatehIlmFromhJlm
-def SEOBWignerDAmp(l, m, mp, beta):
-    return lal.WignerdMatrix(l, m, mp, beta)
-
-
-def SEOBWignerDPhase(m, mp, alpha, gamma):
-    return m * alpha + mp * gamma
-
-
-def SEOBRotatehIlmFromhJlm(
-    hJlm,  # hJlm time series, complex values on fixed sampling
-    modes_lmax,  # Input: maximum value of l in modes (l,m)
-    alphaI2J,  # Input: Euler angle alpha I->J
-    betaI2J,  # Input: Euler angle beta I->J
-    gammaI2J,  # Input: Euler angle gamma I->J
-):
-
-    """
-     This function computes the hIlm Re/Im timeseries (fixed sampling) from hJlm
-     Re/Im timeseries (same sampling). This is a simple rotation,
-     sample-by-sample, with constant Wigner coefficients.
-     See the comment before SEOBWignerDAmp for explanation of conventions,
-     and Appendix A of Babak et al, Phys. Rev. D 95, 024010, 2017 [arXiv:1607.05661] for a general
-     discussion.
-    """
-
-    amp_wigner = 0.0
-    phase_wigner = 0.0
-    D_wigner = 0.0
-
-    # /* Loop on l */
-    hIlm = {}
-    for l in range(2, modes_lmax + 1):
-        # print(f"l = {l}")
-        # /* Loop on m */
-        for m in range(-l, l + 1):
-            # print(f"l = {l}, m = {m}")
-            mode_lm = str(l) + "," + str(m)
-            hIlm[mode_lm] = 0.0
-            # hIlm[l,m] = 0.
-            # /* Loop on mp - exclude value 0, since hPl0=0 in our approximation */
-            for mp in range(-l, l + 1):
-                # /* Get hJlm mode */
-                # hJlmpmode = XLALSphHarmTimeSeriesGetMode(hJlm, l, mp);
-                # hJlmpmode_data = hJlmpmode->data->data;
-                # hJlmpmode_data = hJlm[l, mp]
-                mode_lmp = str(l) + "," + str(mp)
-
-                if mode_lmp in hJlm.keys():
-                    hJlmpmode_data = hJlm[mode_lmp]
-
-                else:
-                    hJlmpmode_data = hJlm[l, mp]
-
-                # /* Compute constant Wigner coefficient */
-                amp_wigner = SEOBWignerDAmp(l, m, mp, betaI2J)
-                phase_wigner = SEOBWignerDPhase(m, mp, alphaI2J, gammaI2J)
-                D_wigner = amp_wigner * np.exp(
-                    -1.0j * phase_wigner
-                )  # /* mind the conjugation Dlmmpstar */
-                # /* Evaluate mode contribution */
-                # for i in range(retLen):
-                # hIlmmode_data[i] += D_wigner * hJlmpmode_data[i];
-                # hIlm[l,m] += hJlmpmode_data
-                hIlm[mode_lm] += D_wigner * hJlmpmode_data
-
-    return hIlm
-
-
 def SEOBRotatehIlmFromhJlm_opt(
-    w_hJlm,  # hJlm time series, complex values on fixed sampling
-    modes_lmax,  # Input: maximum value of l in modes (l,m)
-    alphaI2J,  # Input: Euler angle alpha I->J
-    betaI2J,  # Input: Euler angle beta I->J
-    gammaI2J,  # Input: Euler angle gamma I->J
-):
+    w_hJlm: WaveformModes,
+    modes_lmax: int,
+    alphaI2J: float,
+    betaI2J: float,
+    gammaI2J: float,
+)-> WaveformModes:
 
     """
      This function computes the hIlm Re/Im timeseries (fixed sampling) from hJlm
      Re/Im timeseries (same sampling). This is a simple rotation,
      sample-by-sample, with constant Wigner coefficients.
+
+     Args:
+        w_hJlm (WaveformModes): WaveformModes object from the scri python package. It contains waveform modes in the final J-frame
+        modes_lmax (int): Maximum value of l in modes (l,m)
+        alphaI2J (float): Alpha Euler angle between the I-frame and the J-frame
+        betaI2J (float): Beta Euler angle between the I-frame and the J-frame
+        gammaI2J (float): Gamma Euler angle between the I-frame and the J-frame
+
+    Returns:
+        (WaveformModes): WaveformModes scri object in the inertial frame
 
     """
     quat = quaternion.from_euler_angles(alphaI2J, betaI2J, gammaI2J)
@@ -648,20 +484,39 @@ def SEOBRotatehIlmFromhJlm_opt(
 
     return res
 
-
-# Ringdown approximation for the Euler angles
 def seobnrv4P_quaternionJ2P_postmerger_extension(
-    t_full,
-    final_spin,
-    final_mass,
-    euler_angles_attach,
-    t_attach,
-    idx,
-    flip,
-    rd_approx,
+    t_full: np.ndarray,
+    final_spin: float,
+    final_mass: float,
+    euler_angles_attach: np.ndarray,
+    t_attach: float,
+    idx: int,
+    flip: int,
+    rd_approx: bool,
     beta_approx: int = 0,
 ):
+    """
+     This function computes the ringdown approximation of the Euler angles in
+     the J-frame, assuming simple precession around the final J-vector with a
+     precession frequency approximately equal to the differences between the
+     lowest overtone of the (2,2) and (2,1) QNM frequencies.
 
+     Args:
+        t_full (np.ndarray): Time array of the waveform modes
+        final_spin (float): Final spin of the BH
+        final_mass (float): Final mass of the BH
+        euler_angles_attach (np.ndarray): Euler angles (alpha,beta,gamma) at the attachment time
+        t_attach (float): Attachment time of the dynamics and the ringdown
+        idx (int): Index at which the attachment of the ringdown is performed
+        flip (int): Sign of the direction of the final spin with respect to the final orbital angular momentum
+                    It distinguishes between the prograde and the retrograde cases
+                    See Sec. III B of https://arxiv.org/pdf/2004.09442v1.pdf for details
+        rd_approx (bool): If True apply the approximation of the Euler angles, if False use constant angles
+        beta_approx (int): If 0 use constant beta angle, otherwise use small opening angle approximation
+
+    Returns:
+        (quaternion): Quaternion describing the ringdown approximation of the Euler angles in the J-frame
+    """
     alphaAttach, betaAttach, gammaAttach = euler_angles_attach
     t_RD = t_full[idx[-1] :]
 
@@ -672,11 +527,11 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
         sigmaQNM220 = compute_QNM(2, 2, 0, final_spin, final_mass).conjugate()
         sigmaQNM210 = compute_QNM(2, 1, 0, final_spin, final_mass).conjugate()
 
-        omegaQNM220 = np.real(sigmaQNM220)
-        omegaQNM210 = np.real(sigmaQNM210)
+        omegaQNM220 = sigmaQNM220.real
+        omegaQNM210 = sigmaQNM210.real
         precRate = omegaQNM220 - omegaQNM210
 
-        cosbetaAttach = np.cos(betaAttach)
+        cosbetaAttach = cos(betaAttach)
 
         precRate *= flip
 
@@ -709,25 +564,58 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
 
 
 def quat_ringdown_approx_opt(
-    nu,
-    m_1,
-    m_2,
-    idx,
-    t_full,
-    t_low,
-    t_fine,
-    tmp_LN_low,
-    tmp_LN_fine,
-    final_spin,
-    final_mass,
-    t_attach,
-    omega_peak,
-    Lvec_hat_attach,
-    Jfhat_attach,
-    splines,
-    rd_approx,
+    nu: float,
+    m_1: float,
+    m_2: float,
+    idx: int,
+    t_full: np.ndarray,
+    t_low: np.ndarray,
+    t_fine: np.ndarray,
+    tmp_LN_low: np.ndarray,
+    tmp_LN_fine: np.ndarray,
+    final_spin: float,
+    final_mass: float,
+    t_attach: float,
+    Lvec_hat_attach: np.ndarray,
+    Jfhat_attach: np.ndarray,
+    splines: dict,
+    rd_approx: bool,
     beta_approx: int = 0,
 ):
+    """
+        Wrapper function to compute the angles/quaternions necessary to perform the rotations
+        from the co-precessing frame (P-frame) to the observer inertial frame (I-frame) passing
+        through the final angular momentum frame (J-frame), where the ringdown approximation of the
+        Euler angles is applied
+
+        Args:
+            nu (float): Symmetric mass ratio
+            m_1 (float): Mass component of the primary
+            m_2 (float): Mass component of the secondary
+            idx (int): Index at which the attachment of the ringdown is performed
+            t_full (np.ndarray): Time array of the waveform modes
+            t_low (np.ndarray): Time array of the EOB non-precessing evolution (low sampling rate)
+            t_fine (np.ndarray): Time array of the EOB non-precessing evolution (high sampling rate)
+            tmp_LN_low (np.ndarray): Newtonian angular momentum vector at the low sampling rate of the EOB non-precessing evolution
+            tmp_LN_fine (np.ndarray): Newtonian angular momentum vector at the high sampling rate of the EOB non-precessing evolution
+            tmp_LN_fine (np.ndarray): Time array of the EOB non-precessing evolution (high sampling rate)
+            final_spin (float): Final spin of the BH
+            final_mass (float): Final mass of the BH
+            euler_angles_attach (np.ndarray): Euler angles (alpha,beta,gamma) at the attachment time
+            t_attach (float): Attachment time of the dynamics and the ringdown
+            Lvec_hat_attach (np.ndarray): Orbital angular momentum unit vector at the attachment time
+            Jfhat_hat_attach (np.ndarray): Total angular momentum unit vector at the attachment time
+            splines (dict): Dictionary containing the splines in orbital frequency of the vector components of the spins, LN and L as
+                            well as the spin projections onto LN and L
+            rd_approx (bool): If True apply the approximation of the Euler angles, if False use constant angles
+            beta_approx (int): If 0 use constant beta angle, otherwise use small opening angle approximation
+
+
+            Returns:
+                (tuple): Quantities required to perform the rotations from the co-precessing to the inertial frame (time of
+                         of the dynamics, time dependent quaternion from the P-frame to the J-frame, Euler angles from the
+                         J-frame to the I-frame, and the quaternions at ringdown in the J-frame)
+    """
 
     # Correct merger-RD attachment
     tt0 = t_attach
@@ -737,15 +625,9 @@ def quat_ringdown_approx_opt(
     t_dyn = np.concatenate((t_low[:idx_restart], t_fine))
     tmp_LN = np.vstack((tmp_LN_low[:idx_restart], tmp_LN_fine))
 
-    tmp_LN_norm = np.sqrt(np.einsum("ij,ij->i", tmp_LN, tmp_LN))
-    tmp_LN = (tmp_LN.T / tmp_LN_norm).T
-
     # Apply ringdown approximation at the attachment time
-    #Jf_v5, Jf_hat_v5, Lf_hat_v5 = compute_finalJ( nu, m_1, m_2, omega_peak, splines)
-    #print(f"PN : Lf_hat_v5 = {Lf_hat_v5}, Jf_hat_v5 = {Jf_hat_v5}")
     Lf_hat_v5 = Lvec_hat_attach
     Jf_hat_v5 = Jfhat_attach
-    #print(f"EOB: Lf_hat_v5 = {Lf_hat_v5}, Jf_hat_v5 = {Jf_hat_v5}")
 
     # Compute e1J, e2J, e3J triad
     e1J, e2J, e3J = SEOBBuildJframeVectors(Jf_hat_v5)
@@ -768,15 +650,15 @@ def quat_ringdown_approx_opt(
     gamma_attach = igammaJ2P_dyn(tt0)
     euler_angles_attach = [alpha_attach, beta_attach, gamma_attach]
 
-    # print(f"alpha_attach = {alpha_attach}, beta_attach = {beta_attach}, gamma_attach = {gamma_attach}")
-    # print(f"alphaI2J = {alphaI2J}, betaI2J = {betaI2J}, gammaI2J = {gammaI2J}")
-
+    # Compute sign from the angle between the final total and orbital angular momenta to check if we
+    # are in the prograde or retrograde case
     cos_angle = my_dot(Jf_hat_v5, Lf_hat_v5)
     flip = 1
     if cos_angle < 0:
         final_spin *= -1
         flip = -1
 
+    # Compute ringdown approximation of the Euler angles in the J-frame
     quat_postMerger = seobnrv4P_quaternionJ2P_postmerger_extension(
         t_full,
         final_spin,
@@ -789,12 +671,23 @@ def quat_ringdown_approx_opt(
         beta_approx,
     )
 
-    # quat_postMerger =  quaternion.unflip_rotors(quat_postMerger, axis=-1, inplace=False)
-
     return t_dyn, quatJ2P_dyn, quat_postMerger, alphaI2J, betaI2J, gammaI2J
 
 @jit(nopython=True,cache=True)
-def custom_swsh(beta, gamma, lmax):
+def custom_swsh(beta: np.ndarray, gamma:np.ndarray,lmax:int):
+    """
+        Function to compute the spin-weighted spherical harmonics necessary to
+        compute the polarizations in the inertial frame from the co-precessing
+        frame modes [(2,|2|),(2,|1|),(3,|3|),(3,|2|),(4,|4|),(4,|3|),(5,|5|)].
+
+        Args:
+            beta (np.ndarray): Euler angle beta between the co-precessing frame and the inertial frame
+            gamma (np.ndarray): Euler angle gamma between the co-precessing frame and the inertial frame
+            lmax (int): Maximum ell to use
+
+        Returns:
+            (dict): Dictionary containing specific values of the spin-weighted spherical harmonics
+    """
 
     cBH = np.cos(beta/2.)
     sBH = np.sin(beta/2.)
@@ -844,7 +737,21 @@ def custom_swsh(beta, gamma, lmax):
 
     return swsh
 
-def interpolate_quats(quat,t_intrp,t_full):
+
+def interpolate_quats(quat: quaternion.quaternion, t_intrp: np.ndarray, t_full: np.ndarray):
+    """
+        Function to interpolate the quaternions from the co-precessing frame to the final
+        J-frame into the equal-spacing and finer time grid of the waveform modes
+
+        Args:
+            quat (quaternion): Quaternion from the co-precessing frame to the final J-frame
+            t_intrp (np.ndarray): Time array of the EOB dynamics
+            t_full (np.ndarray): Time array of waveform modes
+
+
+        Returns:
+            (quaternion): Quaternion interpolated to the finer time grid of the waveform modes
+    """
     angles = quaternion.as_euler_angles(quat)
     sp = CubicSpline(t_intrp,np.unwrap(angles.T).T)
     intrp_angles = sp(t_full)

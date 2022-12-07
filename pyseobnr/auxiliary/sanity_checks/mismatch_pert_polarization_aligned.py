@@ -172,30 +172,36 @@ def perturbation_mismatch_aligned(m1,m2, s1x,s1y,s1z,s2x,s2y,s2z, iota_s):
     # Generate PSD
     f_low_phys = f_min
     f_high_phys = 2048.
+    try:
+        psd = aLIGOZeroDetHighPowerGWINC(len(hp), hp.delta_f, f_low_phys)
 
-    psd = aLIGOZeroDetHighPowerGWINC(len(hp), hp.delta_f, f_low_phys)
-
-    # Compute match for hplus
-    mm_hp = match(hp,
-          hp_pert,
-          psd,
-          low_frequency_cutoff=f_low_phys,
-          high_frequency_cutoff=f_high_phys
-          )[0]
+        # Compute match for hplus
+        mm_hp = match(hp,
+              hp_pert,
+              psd,
+              low_frequency_cutoff=f_low_phys,
+              high_frequency_cutoff=f_high_phys
+              )[0]
 
 
-    # Compute match for hcross
-    mm_hc = match(hc,
-          hc_pert,
-          psd,
-          low_frequency_cutoff=f_low_phys,
-          high_frequency_cutoff=f_high_phys
-          )[0]
+        # Compute match for hcross
+        mm_hc = match(hc,
+              hc_pert,
+              psd,
+              low_frequency_cutoff=f_low_phys,
+              high_frequency_cutoff=f_high_phys
+              )[0]
 
-    # Take the mean
-    mm_mean  = 1.-np.mean([mm_hp,mm_hc])
-    #print(f"mm = {mm_mean}")
+        # Take the mean
+        mm_mean  = 1.-np.mean([mm_hp,mm_hc])
+        #print(f"mm = {mm_mean}")
+    except:
 
+        print(
+            f"Error for the following parameters: q = {q}, chi1x = {s1x}, chi1y = {s1y}, chi1z = {s1z}, chi2x = {s2x}, chi2y = {s2y}, chi2z = {s2z}, Mt = {Mt}, iota_s = {iota_s}"
+        )
+        mm_mean = -1
+        pass
     chi1 = [s1x,s1y,s1z]
     chi2 = [s2x,s2y,s2z]
 
@@ -364,8 +370,8 @@ if __name__ == "__main__":
         plt.title(
             "$\mathcal{M}_{\mathrm{median}} = $" +
             f"{np.round(np.median(mm),12)}" +
-            "$\mathcal{M}_{\mathrm{max}} = $" + 
-            f"{np.round(np.max(mm),6)}" 
+            "$\mathcal{M}_{\mathrm{max}} = $" +
+            f"{np.round(np.max(mm),6)}"
         )
         plt.savefig(f'{plt_dir}/mm_hist.png', bbox_inches = 'tight', dpi = 300)
         plt.close()

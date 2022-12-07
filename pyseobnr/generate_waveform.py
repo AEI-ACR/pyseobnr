@@ -3,9 +3,6 @@ from .eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
 )
 from .eob.waveform.waveform import SEOBNRv5RRForce
 from .models import SEOBNRv5HM
-from .eob.hamiltonian.Ham_align_AvgS2precess_simple_18102022_clean_v5PHM_opt_AD import (
-    Ham_align_AvgS2precess_simple_18102022_clean_v5PHM_opt_AD as Ham_prec_opt,
-)
 
 from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_AD import (
     Ham_AvgS2precess_simple_cython_AD as Ham_prec_cy,

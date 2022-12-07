@@ -22,7 +22,7 @@ from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
 
 from .initial_conditions_aligned_precessing import computeIC_augm
 from .pn_evolution_opt import compute_quasiprecessing_PNdynamics_opt
-from .pn_evolution_opt import build_splines_PN_opt
+from .pn_evolution_opt import build_splines_PN
 from .integrate_ode_prec import compute_dynamics_prec_opt
 from pyseobnr.eob.utils.utils_precession_opt import augment_dynamics_precessing_opt,compute_spins_EOBdyn_opt
 from pyseobnr.eob.fits.fits_Hamiltonian import dSO
@@ -170,14 +170,16 @@ cpdef compute_adiabatic_solution(
 ):
     cdef int i
     cdef double[:] j0 = Newtonian_j0(r)
-    chi1_v = splines["chi1"](omega)
-    chi2_v = splines["chi2"](omega)
 
-    cdef double[:] chi1_LN = splines["chi1_LN"](omega)
-    cdef double[:] chi2_LN = splines["chi2_LN"](omega)
+    tmp = splines["everything"](omega)
+    cdef double[:] chi1_LN = tmp[:,0]
+    cdef double[:] chi2_LN = tmp[:,1]
 
-    cdef double[:] chi1_L = splines["chi1_L"](omega)
-    cdef double[:] chi2_L = splines["chi2_L"](omega)
+    chi1_v = tmp[:,4:7]
+    chi2_v = tmp[:,7:10]
+
+    cdef double[:] chi1_L = tmp[:,2]
+    cdef double[:] chi2_L = tmp[:,3]
 
     for i in range(r.shape[0]):
         j0_solution = optimize.root(
@@ -348,14 +350,17 @@ cpdef compute_pr(
     # print(dpphi_dr_new)
     # raise KeyboardInterrupt
     cdef int i
-    chi1_v = splines["chi1"](omega)
-    chi2_v = splines["chi2"](omega)
 
-    cdef double[:] chi1_LN = splines["chi1_LN"](omega)
-    cdef double[:] chi2_LN = splines["chi2_LN"](omega)
+    tmp = splines["everything"](omega)
 
-    cdef double[:] chi1_L = splines["chi1_L"](omega)
-    cdef double[:] chi2_L = splines["chi2_L"](omega)
+    chi1_v = tmp[:,4:7]
+    chi2_v = tmp[:,7:10]
+
+    cdef double[:] chi1_LN = tmp[:,0]
+    cdef double[:] chi2_LN = tmp[:,1]
+
+    cdef double[:] chi1_L = tmp[:,2]
+    cdef double[:] chi2_L = tmp[:,3]
     for i in range(r.shape[0]):
         if np.abs(pr[i])<1e-14:
             x0 = 0.0
@@ -511,14 +516,16 @@ cpdef compute_pphi(
 
     cdef double[:] dpr_dr = - fin_diff_derivative(r, pr)
     cdef int i
-    chi1_v = splines["chi1"](omega)
-    chi2_v = splines["chi2"](omega)
 
-    cdef double[:] chi1_LN = splines["chi1_LN"](omega)
-    cdef double[:] chi2_LN = splines["chi2_LN"](omega)
+    tmp = splines["everything"](omega)
+    chi1_v = tmp[:,4:7]
+    chi2_v = tmp[:,7:10]
 
-    cdef double[:] chi1_L = splines["chi1_L"](omega)
-    cdef double[:] chi2_L = splines["chi2_L"](omega)
+    cdef double[:] chi1_LN = tmp[:,0]
+    cdef double[:] chi2_LN = tmp[:,1]
+
+    cdef double[:] chi1_L = tmp[:,2]
+    cdef double[:] chi2_L = tmp[:,3]
     for i in range(r.shape[0]):
         pphi_solution = optimize.root(
             pphi_eqn,
@@ -621,14 +628,18 @@ cpdef compute_postadiabatic_solution(
                 tol=tol_current,
                 params=params,
             )
-        chi1_v = splines["chi1"](omega)
-        chi2_v = splines["chi2"](omega)
 
-        chi1_LN = splines["chi1_LN"](omega)
-        chi2_LN = splines["chi2_LN"](omega)
 
-        chi1_L = splines["chi1_L"](omega)
-        chi2_L = splines["chi2_L"](omega)
+        tmp = splines["everything"](omega)
+        chi1_v = tmp[:,4:7]
+        chi2_v = tmp[:,7:10]
+
+        chi1_LN = tmp[:,0]
+        chi2_LN = tmp[:,1]
+
+        chi1_L = tmp[:,2]
+        chi2_L = tmp[:,3]
+
         ap = chi1_LN * X1 + chi2_LN * X2
         am = chi1_LN * X1 - chi2_LN * X2
         dSO_new = dSO(params.p_params.nu, ap, am)
@@ -688,21 +699,24 @@ cpdef compute_postadiabatic_dynamics(
         chi_1, chi_2,
     )
 
-    splines, chi_1, chi_2, chi1L_spline, chi2L_spline, chi1LN_spline, chi2LN_spline = build_splines_PN_opt(
+    splines = build_splines_PN(
         combined_t,
         combined_y,
         m_1, m_2,
         omega_start,
     )
 
-    cdef double chi1_L =  chi1L_spline(omega_start)
-    cdef double chi2_L =  chi2L_spline(omega_start)
+    tmp = splines["everything"](omega_start)
 
-    cdef double chi1_LN =  chi1LN_spline(omega_start)
-    cdef double chi2_LN =  chi2LN_spline(omega_start)
+    cdef double chi1_LN = tmp[0]
+    cdef double chi2_LN = tmp[1]
 
-    chi1_v = splines["chi1"](omega_start)
-    chi2_v = splines["chi2"](omega_start)
+    cdef double chi1_L = tmp[2]
+    cdef double chi2_L = tmp[3]
+
+    chi1_v = tmp[4:7]
+    chi2_v = tmp[7:10]
+    LNhat = tmp[10:13]
 
     params.p_params.chi_1x, params.p_params.chi_1y, params.p_params.chi_1z = chi1_v
     params.p_params.chi_2x, params.p_params.chi_2y, params.p_params.chi_2z = chi2_v
@@ -711,8 +725,6 @@ cpdef compute_postadiabatic_dynamics(
     params.p_params.chi1_L, params.p_params.chi2_L = chi1_L, chi2_L
 
     params.p_params.update_spins(chi1_LN, chi2_LN)
-
-    LNhat = splines["L_N"](omega_start)
 
     cdef double X1 = params.p_params.X_1
     cdef double X2 = params.p_params.X_2
@@ -726,7 +738,7 @@ cpdef compute_postadiabatic_dynamics(
 
 
     cdef double r0
-    r0, _, _ =computeIC_augm(omega_start, H, RR, chi1_v, chi2_v, chi1_LN, chi2_LN, m_1, m_2, params=params)
+    r0, _, _ =computeIC_augm(omega_start, H, RR, chi1_v, chi2_v, m_1, m_2, params=params)
     cdef double chi_eff = ap
     cdef double r_final_prefactor = 2.7+chi_eff*(1-4.*nu)+chi_perp_eff
     #print(f"r_final_prefactor={r_final_prefactor}")
@@ -763,14 +775,17 @@ cpdef compute_postadiabatic_dynamics(
         q[0] = r[i]
         p[1] = pphi[i]
 
-        chi1_v = splines["chi1"](omega[i])
-        chi2_v = splines["chi2"](omega[i])
+        tmp = splines["everything"](omega[i])
 
-        chi1_LN = splines["chi1_LN"](omega[i])
-        chi2_LN = splines["chi2_LN"](omega[i])
+        chi1_LN = tmp[0]
+        chi2_LN = tmp[1]
 
-        chi1_L = splines["chi1_L"](omega[i])
-        chi2_L = splines["chi2_L"](omega[i])
+        chi1_L = tmp[2]
+        chi2_L = tmp[3]
+
+        chi1_v = tmp[4:7]
+        chi2_v = tmp[7:10]
+
 
         dH_dq = H.grad(
             q, p,
@@ -806,13 +821,19 @@ cpdef compute_postadiabatic_dynamics(
     for i in range(r.shape[0]):
         q = np.array([r[i], 0])
         p = np.array([pr[i], pphi[i]])
-        chi1_LN = chi1LN_spline(omega[i])
-        chi2_LN = chi2LN_spline(omega[i])
 
-        chi_1L = chi1L_spline(omega[i])
-        chi_2L = chi2L_spline(omega[i])
-        chi1_v = splines["chi1"](omega[i])
-        chi2_v = splines["chi2"](omega[i])
+
+        tmp = splines["everything"](omega[i])
+
+        chi1_LN = tmp[0]
+        chi2_LN = tmp[1]
+
+        chi1_L = tmp[2]
+        chi2_L = tmp[3]
+
+        chi1_v = tmp[4:7]
+        chi2_v = tmp[7:10]
+
         X1 = params.p_params.X_1
         X2 = params.p_params.X_2
 
@@ -822,7 +843,7 @@ cpdef compute_postadiabatic_dynamics(
         dSO_new = dSO(params.p_params.nu, ap, am)
 
         H.calibration_coeffs['dSO'] = dSO_new
-        dyn[:] = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2,chi1_LN, chi2_LN, chi_1L, chi_2L)
+        dyn[:] = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2,chi1_LN, chi2_LN, chi1_L, chi2_L)
         dH_dpr = dyn[2]
         dH_dpphi = dyn[3]
 
@@ -858,7 +879,7 @@ cpdef compute_postadiabatic_dynamics(
     # ]
     # postadiabatic_dynamics = postadiabatic_dynamics[postadiabatic_dynamics[:, 1] >= r_switch]
     # postadiabatic_dynamics = postadiabatic_dynamics[:-2]
-    return postadiabatic_dynamics,combined_t,combined_y,chi1L_spline,chi2L_spline,chi1LN_spline,chi2LN_spline,splines,omega
+    return postadiabatic_dynamics,combined_t,combined_y,splines,omega
 
 
 @cython.boundscheck(False)
@@ -875,7 +896,6 @@ cpdef compute_combined_dynamics(
     double m_2,
     chi_1,
     chi_2,
-    ODE_system_RHS,
     double tol=1e-12,
     EOBParams params=None,
     double step_back=50,
@@ -883,7 +903,7 @@ cpdef compute_combined_dynamics(
     int PA_order=8
 ):
     try:
-        postadiabatic_dynamics,combined_t,combined_y,chi1L_spline,chi2L_spline,chi1LN_spline,chi2LN_spline,splines, omega= compute_postadiabatic_dynamics(
+        postadiabatic_dynamics,combined_t,combined_y,splines, omega= compute_postadiabatic_dynamics(
             omega_ref,
             omega0,
             H,
@@ -916,12 +936,10 @@ cpdef compute_combined_dynamics(
     (
         ode_dynamics_low,
         ode_dynamics_high,
-        chi1L_spline,
-        chi2L_spline,
-        chi1LN_spline,
-        chi2LN_spline,
-        splines,
+        tmp_LN_low,
+        tmp_LN_fine,
         dynamics,
+        idx_restart
     ) = compute_dynamics_prec_opt(
         omega[-1],
         omegaPN_f,
@@ -929,16 +947,13 @@ cpdef compute_combined_dynamics(
         RR,
         m_1,
         m_2,
-        chi1L_spline,
-        chi2L_spline,
-        chi1LN_spline,
-        chi2LN_spline,
         splines,
+        params,
         rtol=1e-9,
         atol=1e-9,
-        params=params,
         step_back=step_back,
         y_init=ode_y_init,
+        pa=True,
     )
     if PA_success is True:
 
@@ -949,7 +964,8 @@ cpdef compute_combined_dynamics(
         chi2LN_EOB_low,
         chi1v_EOB_low,
         chi2v_EOB_low,
-        ) = compute_spins_EOBdyn_opt(postadiabatic_dynamics, splines)
+        tmp_LN_low,
+        ) = compute_spins_EOBdyn_opt(omega, splines)
 
 
         postadiabatic_dynamics = augment_dynamics_precessing_opt(
@@ -962,7 +978,6 @@ cpdef compute_combined_dynamics(
             chi2v_EOB_low,
             m_1,
             m_2,
-            omegaPN_f,
             H,
         )
         #print(f"last point of PA is at t={postadiabatic_dynamics[-1,0]}")
@@ -983,7 +998,7 @@ cpdef compute_combined_dynamics(
         combined_dynamics = ode_dynamics_low
 
     dynamics = np.vstack((combined_dynamics, ode_dynamics_high))
-    return combined_dynamics, ode_dynamics_high,combined_t,combined_y,chi1L_spline,chi2L_spline,chi1LN_spline,chi2LN_spline,splines,dynamics
+    return combined_dynamics, ode_dynamics_high,combined_t,combined_y,splines,dynamics
 
 # def cumulative_integral_old(
 #     x: np.array,
