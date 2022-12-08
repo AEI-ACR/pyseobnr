@@ -12,9 +12,12 @@ import lal
 import lalsimulation as lalsim
 import numpy as np
 
-def generate_prec_hpc_opt(q, chi1, chi2, omega0, omega_start=None, settings=None, debug=False):
+
+def generate_prec_hpc_opt(
+    q, chi1, chi2, omega0, omega_start=None, settings=None, debug=False
+):
     if settings is None:
-        settings = {"polarizations_from_coprec":True}
+        settings = {"polarizations_from_coprec": True}
     else:
         settings.update(polarizations_from_coprec=True)
 
@@ -25,12 +28,20 @@ def generate_prec_hpc_opt(q, chi1, chi2, omega0, omega_start=None, settings=None
 
     model()
     if debug:
-        return model.t,model.hpc,model
+        return model.t, model.hpc, model
     else:
         return model.t, model.hpc
 
+
 def generate_modes_opt(
-    q, chi1, chi2, omega0, omega_start=None, approximant="SEOBNRv5HM", settings=None, debug=False
+    q,
+    chi1,
+    chi2,
+    omega0,
+    omega_start=None,
+    approximant="SEOBNRv5HM",
+    settings=None,
+    debug=False,
 ):
     if approximant == "SEOBNRv5HM":
         RR_f = SEOBNRv5RRForce()
@@ -97,8 +108,11 @@ class GenerateWaveform:
         if "mass2" not in parameters:
             raise ValueError("mass2 has to be specified!")
 
-        mass1 = parameters["mass1"]
-        mass2 = parameters["mass2"]
+        if parameters["mass1"] > 0 and parameters["mass2"] > 0:
+            mass1 = parameters["mass1"]
+            mass2 = parameters["mass2"]
+        else:
+            raise ValueError("Masses have to be positive!")
 
         Mtot = mass1 + mass2
         if Mtot < 0.001 or Mtot > 1e6:
@@ -122,7 +136,7 @@ class GenerateWaveform:
             "mode_array": None,
             "approximant": "SEOBNRv5HM",
             "conditioning": 2,
-            "polarizations_from_coprec": False
+            "polarizations_from_coprec": False,
         }
 
         for param in default_params.keys():
@@ -142,6 +156,22 @@ class GenerateWaveform:
             raise ValueError(
                 "In-plane spin components must be zero for calling non-precessing approximant."
             )
+
+        if (
+            np.sqrt(
+                parameters["spin1x"] ** 2
+                + parameters["spin1y"] ** 2
+                + parameters["spin1z"] ** 2
+            )
+            > 1
+            or np.sqrt(
+                parameters["spin2x"] ** 2
+                + parameters["spin2y"] ** 2
+                + parameters["spin2z"] ** 2
+            )
+            > 1
+        ):
+            raise ValueError("Dimensionless spin magnitudes cannot be greater than 1!")
 
         if mass2 > mass1:
             self.swap_masses = True
@@ -184,8 +214,16 @@ class GenerateWaveform:
             chi1 = self.parameters["spin1z"]
             chi2 = self.parameters["spin2z"]
         elif approx == "SEOBNRv5PHM":
-            chi1 = [self.parameters["spin1x"], self.parameters["spin1y"], self.parameters["spin1z"]]
-            chi2 = [self.parameters["spin2x"], self.parameters["spin2y"], self.parameters["spin2z"]]
+            chi1 = [
+                self.parameters["spin1x"],
+                self.parameters["spin1y"],
+                self.parameters["spin1z"],
+            ]
+            chi2 = [
+                self.parameters["spin2x"],
+                self.parameters["spin2y"],
+                self.parameters["spin2z"],
+            ]
 
         omega0 = np.pi * fmin * Mtot * lal.MTSUN_SI
         q = m1 / m2  # Model convention q=m1/m2>=1
@@ -193,11 +231,7 @@ class GenerateWaveform:
             q = 1 / q
 
         # Generate internal models, in geometrized units
-        settings = {
-            "dt": dt,
-            "M": Mtot,
-            "beta_approx": None
-        }
+        settings = {"dt": dt, "M": Mtot, "beta_approx": None}
         if "postadiabatic" in self.parameters:
             settings.update(postadiabatic=self.parameters["postadiabatic"])
 
@@ -208,11 +242,17 @@ class GenerateWaveform:
 
         settings.update(f_ref=self.parameters["f_ref"])
         times, h = generate_modes_opt(
-            q, chi1, chi2, omega0, omega_start=None, approximant=approx, settings=settings
+            q,
+            chi1,
+            chi2,
+            omega0,
+            omega_start=None,
+            approximant=approx,
+            settings=settings,
         )
 
         # Convert to physical units and LAL convention
-        Mpc_to_meters = lal.PC_SI*1e6
+        Mpc_to_meters = lal.PC_SI * 1e6
         times *= Mtot * lal.MTSUN_SI  # Physical times
         fac = (
             -1 * Mtot * lal.MRSUN_SI / (dist * Mpc_to_meters)
@@ -221,7 +261,7 @@ class GenerateWaveform:
         hlm_dict = {}
         for ellm, mode in h.items():
             ell = int(ellm[0])
-            if ellm[2] == '-':
+            if ellm[2] == "-":
                 emm = -int(ellm[3])
             else:
                 emm = int(ellm[2])
@@ -256,7 +296,9 @@ class GenerateWaveform:
             times, hlm_dict = self.generate_td_modes()
             for ell, emm in hlm_dict:
                 hlm = hlm_dict[(ell, emm)]
-                ylm = lal.SpinWeightedSphericalHarmonic(incl, np.pi / 2 - phi, -2, ell, emm)
+                ylm = lal.SpinWeightedSphericalHarmonic(
+                    incl, np.pi / 2 - phi, -2, ell, emm
+                )
                 hpc += ylm * hlm
 
         else:
@@ -264,17 +306,21 @@ class GenerateWaveform:
             f_ref = self.parameters.get("f_ref")
             m1, m2 = self.parameters["mass1"], self.parameters["mass2"]
             Mtot = m1 + m2
-            chi1 = [self.parameters["spin1x"], self.parameters["spin1y"], self.parameters["spin1z"]]
-            chi2 = [self.parameters["spin2x"], self.parameters["spin2y"], self.parameters["spin2z"]]
+            chi1 = [
+                self.parameters["spin1x"],
+                self.parameters["spin1y"],
+                self.parameters["spin1z"],
+            ]
+            chi2 = [
+                self.parameters["spin2x"],
+                self.parameters["spin2y"],
+                self.parameters["spin2z"],
+            ]
             dist = self.parameters["distance"]
             omega0 = np.pi * fmin * Mtot * lal.MTSUN_SI
             q = m1 / m2
             # Generate internal polarizations, in geometrized units
-            settings = {
-                "dt": dt,
-                "M": Mtot,
-                "beta_approx": None
-            }
+            settings = {"dt": dt, "M": Mtot, "beta_approx": None}
             if "postadiabatic" in self.parameters:
                 settings.update(postadiabatic=self.parameters["postadiabatic"])
 
@@ -284,18 +330,20 @@ class GenerateWaveform:
                 ]  # Select mode array
 
             settings.update(f_ref=self.parameters["f_ref"])
-            Mpc_to_meters = lal.PC_SI*1e6
+            Mpc_to_meters = lal.PC_SI * 1e6
             fac = (
                 -1 * Mtot * lal.MRSUN_SI / (dist * Mpc_to_meters)
             )  # Minus sign to satisfy LAL convention
 
-            #inclination and phiref for polarizations
+            # inclination and phiref for polarizations
             settings.update(inclination=incl)
             # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a pi rotation on the orbital plane.
             if self.swap_masses:
                 phi += np.pi
             settings.update(phiref=np.pi / 2 - phi)
-            times, hpc = generate_prec_hpc_opt(q, chi1, chi2, omega0, omega_start=None, settings=settings, debug=False)
+            times, hpc = generate_prec_hpc_opt(
+                q, chi1, chi2, omega0, omega_start=None, settings=settings, debug=False
+            )
             hpc *= fac
             times *= Mtot * lal.MTSUN_SI
 
@@ -364,8 +412,8 @@ class GenerateWaveform:
         spinkerr = lalsim.SimInspiralFinalBlackHoleSpinBound(S1z, S2z)
         # upper bound on the final plunge, merger, and ringdown time */
         tmerge = lalsim.SimInspiralMergeTimeBound(
-            m1* lal.MSUN_SI, m2* lal.MSUN_SI
-        ) + lalsim.SimInspiralRingdownTimeBound((m1 + m2)* lal.MSUN_SI, spinkerr)
+            m1 * lal.MSUN_SI, m2 * lal.MSUN_SI
+        ) + lalsim.SimInspiralRingdownTimeBound((m1 + m2) * lal.MSUN_SI, spinkerr)
 
         # extra time to include for all waveforms to take care of situations where the frequency is close to merger (and is sweeping rapidly): this is a few cycles at the low frequency
         textra = extra_cycles / f_min
@@ -398,7 +446,7 @@ class GenerateWaveform:
         """
         Generate Fourier-domain polarizations, returned as LAL COMPLEX16FrequencySeries
 
-        Routine similar to LAL SimInspiralFD, but without modifying starting frequency.
+        Routine similar to LAL SimInspiralFD.
         """
 
         # Adjust deltaT depending on sampling rate
@@ -410,7 +458,7 @@ class GenerateWaveform:
 
         if deltaF != 0:
             n = int(np.round(fmax / deltaF))
-            if ((n & (n - 1))):
+            if n & (n - 1):
                 chirplen_exp = np.frexp(n)
                 f_nyquist = np.ldexp(1, chirplen_exp[1]) * deltaF
 
@@ -458,13 +506,5 @@ class GenerateWaveform:
         plan = lal.CreateForwardREAL8FFTPlan(chirplen, 0)
         lal.REAL8TimeFreqFFT(hctilde, hc, plan)
         lal.REAL8TimeFreqFFT(hptilde, hp, plan)
-
-        # Adjust timeshift in FD signal to match LAL conventions
-        # shift = float(hp.deltaT * hp.data.length - hp.epoch)
-        # expshift = np.exp(
-        #    2j * np.pi * shift * np.arange(hptilde.data.length) * hptilde.deltaF
-        # )
-        # hptilde.data.data *= expshift
-        # hctilde.data.data *= expshift
 
         return hptilde, hctilde
