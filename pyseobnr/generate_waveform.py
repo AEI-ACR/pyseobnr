@@ -235,6 +235,7 @@ class GenerateWaveform:
                 emm = int(ellm[2])
                 hlm_dict[(ell, -emm)] = pow(-1, ell) * fac * np.conj(mode)
 
+        # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a pi rotation on the orbital plane, which translates into a minus sign for the odd modes.
         if self.swap_masses is True:
             for ell, emm in hlm_dict.keys():
                 if np.abs(emm) % 2 != 0:
@@ -290,6 +291,7 @@ class GenerateWaveform:
 
             #inclination and phiref for polarizations
             settings.update(inclination=incl)
+            # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a pi rotation on the orbital plane.
             if self.swap_masses:
                 phi += np.pi
             settings.update(phiref=np.pi / 2 - phi)
