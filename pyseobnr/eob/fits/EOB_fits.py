@@ -147,13 +147,13 @@ def EOBCalculateNQCCoefficients_freeattach(
     coeffs = {}
 
     eta = (m1 * m2) / ((m1 + m2) * (m1 + m2))
-    # Eq (3) in T1100433
+    # Eq (3) in LIGO DCC document T1100433v2
     rOmega = r * omega_orb
     q1 = pr**2 / rOmega**2
     q2 = q1 / r
     q3 = q2 / np.sqrt(r)
 
-    # Eq (4) in T1100433
+    # Eq (4) in LIGO DCC document T1100433v2
     p1 = pr / rOmega
     p2 = p1 * pr**2
 
@@ -163,6 +163,9 @@ def EOBCalculateNQCCoefficients_freeattach(
     q3LM = q3 * amplitude
 
     # Compute the attachment time
+    # This is given by Eq.(41) of v5HM doc
+    # with time_peak <-> t_ISCO and nrDeltaT <-> - DeltaT_22
+    # i.e. nrDeltaT > 0 means the attachment time is before t_ISCO
     nrTimePeak = time_peak - nrDeltaT
     if nrTimePeak > time[-1]:
         # If the predicted time is after the end of the dynamics
@@ -171,6 +174,7 @@ def EOBCalculateNQCCoefficients_freeattach(
         if ell == 5 and m == 5:
             nrTimePeak -= 10  # (5,5) mode always 10 M before peak of (2,2)
 
+    # Compute amplitude NQCs (a1,a2,a3) by solving Eq.(10) of T1100433v2
     # Evaluate the Qs at the right time and build Q matrix (LHS)
     idx = np.argmin(np.abs(time - nrTimePeak))
     N = 5
@@ -187,7 +191,7 @@ def EOBCalculateNQCCoefficients_freeattach(
     Q[:, 1] = intrp_q2LM.derivatives(nrTimePeak)[:-1]
     Q[:, 2] = intrp_q3LM.derivatives(nrTimePeak)[:-1]
 
-    # Build the RHS
+    # Build the RHS of Eq.(10)
     # Compute the NR fits
     nra = eta * fits_dict["amp"][(ell, m)]
     nraDot = eta * fits_dict["damp"][(ell, m)]
@@ -208,14 +212,18 @@ def EOBCalculateNQCCoefficients_freeattach(
     coeffs["a2"] = res[1]
     coeffs["a3"] = res[2]
 
-    # Now we (should) have calculated the a values. Now we can do the b values
-    # Populate the P matrix in Eq. 18 of the LIGO DCC document T1100433v2
+    # Now we (should) have calculated the a values. 
+    # We now compute the frequency NQCs (b1,b2) by solving Eq.(11) of T1100433v2
+    # Populate the P matrix in LHS of Eq.(11) of T1100433v2
     intrp_p1 = InterpolatedUnivariateSpline(time[left:right], p1[left:right])
     intrp_p2 = InterpolatedUnivariateSpline(time[left:right], p2[left:right])
     P = np.zeros((2, 2))
 
     P[:, 0] = -intrp_p1.derivatives(nrTimePeak)[1:-1]
     P[:, 1] = -intrp_p2.derivatives(nrTimePeak)[1:-1]
+
+    # Build the RHS of Eq.(11)
+    # Compute frequency and derivative at the right time
     intrp_phase = InterpolatedUnivariateSpline(time[left:right], phase[left:right])
     omega, omegaDot = intrp_phase.derivatives(nrTimePeak)[1:-1]
 
@@ -227,11 +235,14 @@ def EOBCalculateNQCCoefficients_freeattach(
         omega = np.abs(omega)
         omegaDot = -np.abs(omegaDot)
 
+    # Compute the NR fits
     nromega = np.abs(fits_dict["omega"][(ell, m)])
     nromegaDot = np.abs(fits_dict["domega"][(ell, m)])
 
+    # Assemble RHS
     omegas = np.array([nromega - omega, nromegaDot - omegaDot])
-    # Solve the equation Q*coeffs = amps
+
+    # Solve the equation P*coeffs = omegas
     res = np.linalg.solve(P, omegas)
     coeffs["b1"] = res[0]
     coeffs["b2"] = res[1]
