@@ -155,7 +155,7 @@ cpdef double pphi_eqn(
     params.dynamics.p_circ[1] = pphi_sol
     omega_circ = H.omega(q,params.dynamics.p_circ,chi_1,chi_2,m_1,m_2)
 
-    cdef double drdt = A/(2*nu*H_val*Heven)*(2*pr/xi*(1+Bnp)+dQdprst)
+    cdef double drdt = A/(2*nu*H_val*Heven)*(2*pr/xi*(1+Bnp)+xi*dQdprst)
 
     cdef (double,double) flux = RR.RR(q, p, omega,omega_circ,H_val,params)
 
