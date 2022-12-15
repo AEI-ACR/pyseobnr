@@ -656,7 +656,8 @@ cpdef compute_combined_dynamics(
     EOBParams params=None,
     double step_back=50,
     str backend="ode",
-    int PA_order=8
+    int PA_order=8,
+    double r_stop=-1
 ):
     try:
         postadiabatic_dynamics = compute_postadiabatic_dynamics(
@@ -697,6 +698,7 @@ cpdef compute_combined_dynamics(
         max_step=0.5,
         min_step=1.0e-9,
         y_init=ode_y_init,
+        r_stop=r_stop
     )
 
     if PA_success is True:

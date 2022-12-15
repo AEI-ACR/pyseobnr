@@ -111,8 +111,8 @@ def computeIC_opt(omega, H, RR, chi_1, chi_2, m_1, m_2, **kwargs):
     res_cons = root(IC_cons, z, args=(omega, H, chi_1, chi_2, m_1, m_2), tol=6e-12)
     if not res_cons.success:
         logger.error(
-            "The solution fo the conservative part of intial conditions failed for"
-            " m1={m1},m2={m2},chi1={chi_1},chi2={chi_2},omega={omega}"
+            f"The solution fo the conservative part of intial conditions failed for"
+            f" m1={m_1},m2={m_2},chi1={chi_1},chi2={chi_2},omega={omega}"
         )
 
     r0, pphi0 = res_cons.x

@@ -3,7 +3,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.signal import argrelmin
 from .initial_conditions_aligned_opt import computeIC_opt
-from .rhs_aligned import get_rhs
+from .rhs_aligned import get_rhs, augment_dynamics
 
 from jax.config import config
 from numba import jit
@@ -24,7 +24,7 @@ class control_y_new(_control):
         a_dydt = 1
         _control.__init__(self, eps_abs, eps_rel, a_y, a_dydt, None)
 
-
+'''
 def augment_dynamics(dynamics, chi_1, chi_2, m_1, m_2, H):
     """Compute dynamical quantities we need for the waveform
 
@@ -32,10 +32,12 @@ def augment_dynamics(dynamics, chi_1, chi_2, m_1, m_2, H):
         dynamics (np,ndarray): The dynamics array: t,r,phi,pr,pphi
     """
     result = []
+    p_c = np.zeros(2)
+
     for i, row in enumerate(dynamics):
         q = row[1:3]
         p = row[3:5]
-        p_c = np.array([0.0, p[1]])
+        p_c[1] = p[1]
         # Evaluate a few things: H, omega,omega_circ
 
         dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
@@ -47,7 +49,7 @@ def augment_dynamics(dynamics, chi_1, chi_2, m_1, m_2, H):
         result.append([H_val, omega, omega_c])
     result = np.array(result)
     return np.c_[dynamics, result]
-
+'''
 
 @jit(nopython=True)
 def h_max(r):
@@ -89,6 +91,7 @@ def compute_dynamics_opt(
     max_step=0.1,
     min_step=1.0e-9,
     y_init=None,
+    r_stop = None
 ):
     sys = odeiv2.system(
         ODE_system_RHS_opt, None, 4, [H, RR, chi_1, chi_2, m_1, m_2, params]
@@ -101,6 +104,8 @@ def compute_dynamics_opt(
 
     t = 0
     t1 = 2.0e9
+    if r_stop < 0:
+        r_stop = 1.4
 
     if y_init is None:
 
@@ -144,8 +149,8 @@ def compute_dynamics_opt(
         r = y[0]
 
         # Check if the proposed step is larger than the maximum timestep
-        h_mx = h_max(r)
-        h = h / h_mx
+        #h_mx = h_max(r)
+        #h = h / h_mx
 
         # Handle termination conditions
         if r <= 6:
@@ -167,7 +172,7 @@ def compute_dynamics_opt(
             if dprdt > 0:
                 peak_pr = True
                 break
-            if r <= 1.4:
+            if r <= r_stop:
                 break
             if r < 3:
                 q_vec = y[:2]

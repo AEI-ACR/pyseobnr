@@ -287,7 +287,11 @@ class SEOBNRv5HM_opt(Model):
         self.H.calibration_coeffs = cfs
 
     def _evaluate_model(self):
-
+        r_ISCO, _ = Kerr_ISCO(self.chi_1, self.chi_2, self.m_1, self.m_2,)
+        if self.NR_deltaT > 0:
+            r_stop = 0.98*r_ISCO
+        else:
+            r_stop = -1
         try:
             # Step 1: compute the dynamics
             # This includes both the initial conditions
@@ -306,6 +310,7 @@ class SEOBNRv5HM_opt(Model):
                     params=self.eob_pars,
                     backend="ode",
                     step_back=self.step_back,
+                    r_stop =  r_stop
                 )
             else:
                 if self.PA_style == "root":
@@ -322,6 +327,7 @@ class SEOBNRv5HM_opt(Model):
                         backend="ode",
                         step_back=self.step_back,
                         PA_order=self.PA_order,
+                        r_stop = r_stop
                     )
                 elif self.PA_style == "analytic":
                     dynamics_low, dynamics_fine = compute_combined_dynamics_fast(
@@ -337,6 +343,7 @@ class SEOBNRv5HM_opt(Model):
                         backend="ode",
                         step_back=self.step_back,
                         PA_order=self.PA_order,
+                        r_stop=r_stop
                     )
 
             len_fine = dynamics_fine[-1, 0] - dynamics_fine[0, 0]
@@ -385,7 +392,6 @@ class SEOBNRv5HM_opt(Model):
             # Step 2: compute the reference point based on Kerr r_ISCO of remnant
             # with final spin
 
-            r_ISCO, _ = Kerr_ISCO(self.chi_1, self.chi_2, self.m_1, self.m_2,)
 
             self.r_ISCO = r_ISCO
 
