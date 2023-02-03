@@ -15,6 +15,7 @@ from ..fits.IV_fits import InputValueFits
 from ..fits.MR_fits import MergerRingdownFits
 from ..waveform.waveform import *
 from .compute_MR import compute_MR_mode_free
+from ..utils.utils_precession_opt import compute_omegalm_P_frame
 
 
 def concatenate_modes(hlms_1: Dict[Any, Any], hlms_2: Dict[Any, Any]) -> Dict[Any, Any]:
@@ -99,6 +100,7 @@ def compute_IMR_modes(
     t_attach,
     mixed_modes=[(3, 2), (4, 3)],
     final_state=None,
+    qnm_rotation=0.,
 ):
     """This computes the IMR modes given the inspiral modes and the
     attachment time.
@@ -116,6 +118,8 @@ def compute_IMR_modes(
         mixed_modes (List): List of mixed modes to consider. Defaults to [(3,2),(4,3)]
         final_state (List): Final mass and spin of the remnant. Default to None. If None,
                             compute internally.
+        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame (Eq. 33 of Hamilton et al.)
+
     Returns:
         dict: Dictionary containing the waveform modes
     """
@@ -167,6 +171,9 @@ def compute_IMR_modes(
         )
 
     omega_complex = compute_QNM(2, 2, 0, final_spin, final_mass).conjugate()
+
+    # For non-precessing system this does not make any difference
+    omega_complex = compute_omegalm_P_frame(omega_complex, 2, qnm_rotation)
     damping_time = 1 / np.imag(omega_complex)
     # The length of the ringdown rounded to closest M
     ringdown_time = int(30 * damping_time)
@@ -223,10 +230,10 @@ def compute_IMR_modes(
 
         # To improve the stability of the merger-ringdown for odd-m configurations
         # with a minimum in the ampliutde close to the attachment point,
-        # we directly use the Input Value fits for the frequency, 
+        # we directly use the Input Value fits for the frequency,
         # instead of reading its value from the inspiral phase.
         # If the NQCs were *not* applied this would lead to a
-        # discontinuity, and one would need to go back to the 
+        # discontinuity, and one would need to go back to the
         # previous prescription.
 
         if m%2 == 1:
@@ -253,6 +260,7 @@ def compute_IMR_modes(
             fits_dict,
             t_match=0,
             phi_match=phi_match,
+            qnm_rotation=qnm_rotation,
         )
 
         # Construct the full IMR waveform
@@ -279,6 +287,7 @@ def compute_IMR_modes(
             t_attach,
             t_ringdown,
             fits_dict,
+            qnm_rotation=qnm_rotation,
         )
         # Construct the full IMR waveform
         hIMR[(ell, m)] = 1 * h
@@ -305,9 +314,10 @@ def compute_mixed_mode(
     t_match,
     t_ringdown,
     fits_dict,
+    qnm_rotation = 0.,
 ):
     """
-    Computes the (3,2) and (4,3) modes, including mode-mixing in the ringdown. 
+    Computes the (3,2) and (4,3) modes, including mode-mixing in the ringdown.
     See Sec. II C of the v5HM doc, especially Eqs.(71, 72)
 
     Args:
@@ -324,6 +334,7 @@ def compute_mixed_mode(
         t_match (float): inspiral time at which the merger-ringdown waveform is attached
         t_ringdown (np.ndarray): rindgown time array
         fits_dict (dict): dictionary of fit coefficients in the ringdown anzatz
+        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame (Eq. 33 of Hamilton et al.)
 
     Returns:
         np.ndarray: the merger-ringdown waveform for the mixed modes
@@ -375,16 +386,16 @@ def compute_mixed_mode(
 
     # To improve the stability of the merger-ringdown for configurations
     # with a minimum in the ampliutde close to the attachment point,
-    # we directly use the Input Value fits for the frequency, 
+    # we directly use the Input Value fits for the frequency,
     # instead of reading its value from the inspiral phase.
     # If the NQCs were *not* applied this would lead to a
-    # discontinuity, and one would need to go back to the 
+    # discontinuity, and one would need to go back to the
     # previous prescription.
 
     if m%2 == 1:
         IVfits = InputValueFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
         om = IVfits.omega()[ell,m]
-        om_mm =  IVfits.omega()[m,m]    
+        om_mm =  IVfits.omega()[m,m]
 
     # Spherical mode we need in the ringdown
     attach_params = dict(
@@ -403,6 +414,7 @@ def compute_mixed_mode(
         fits_dict,
         t_match=0 * t_match,
         phi_match=phi_mm,
+        qnm_rotation=qnm_rotation,
     )
 
     # Approximation to spheroidal
@@ -445,6 +457,7 @@ def compute_mixed_mode(
         fits_dict,
         t_match=0 * t_match,
         phi_match=ph_ellm0,
+        qnm_rotation=qnm_rotation,
     )
     # Reconstruct the spherical mode
     hring = hmm_spheroidal * np.conj(

@@ -11,162 +11,36 @@ from pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C cimport Hamiltonian_v5PHM_C
 
 from libc.math cimport log, sqrt, exp, abs, tgamma,sin,cos
 
-cdef evaluate_H(double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2,
-    EOBParams EOBpars, double a6, double dSO):
-        # Coordinate definitions
-
-        cdef double r = q[0]
-        cdef double phi = q[1]
-
-        cdef double prst = p[0]
-        cdef double L = p[1]
-
-        cdef double chix1 = chi1_v[0]
-        cdef double chiy1 = chi1_v[1]
-        cdef double chiz1 = chi1_v[2]
-
-        cdef double chix2 = chi2_v[0]
-        cdef double chiy2 = chi2_v[1]
-        cdef double chiz2 = chi2_v[2]
-
-        cdef double pphi = L
 
 
 
-        # Extra quantities used in the Hamiltonian
-        cdef double M = EOBpars.p_params.M
-        cdef double nu = EOBpars.p_params.nu
-        cdef double X_1 = EOBpars.p_params.X_1
-        cdef double X_2 = EOBpars.p_params.X_2
-        cdef double delta = EOBpars.p_params.delta
-
-        cdef double r2 = r*r
-        cdef double r3 = r2*r
-        cdef double r4 = r2*r2
-        cdef double r5 = r*r4
-
-        cdef double L2 = L*L
-        cdef double L4 = L2*L2
-        cdef double lr = log(r)
-
-        cdef double nu2 = nu*nu
-        cdef double nu3 = nu2*nu
-        cdef double nu4 = nu3*nu
-
-        cdef double prst2 = prst*prst
-        cdef double prst4 = prst2*prst2
-        cdef double prst6 = prst4*prst2
-        cdef double prst8 = prst6*prst2
-
-        # Actual Hamiltonian expressions
-        cdef double Dbpm = r*(6730497718123.02*nu3 + 133772083200.0*nu2*r2 + 1822680546449.21*nu2*r + 80059249540278.2*nu2 + 2589101062873.81*nu*r2 + 10611661054566.2*nu*r - 12049908701745.2*nu + 5107745331375.71*r2 - 326837426.241486*r*(14700.0*nu + 42911.0) - 39476764256925.6*r - (-5041721180160.0*nu2 - 25392914995744.3*nu - 879923036160.0*r2 - 283115520.0*r*(14700.0*nu + 42911.0) + 104186110149937.0)*lr + 5787938193408.0*lr**2 + 275059053208689.0)/(55296.0*nu*(14515200.0*nu3 - 42636451.6032331*nu2 - 2510664218.28128*nu + 1002013764.01019) - 967680.0*r3*(-138240.0*nu2 - 2675575.66847905*nu - 5278341.3229329) - 9216.0*r2*(-197773496.793534*nu2 - 630116198.873299*nu + 5805304367.87913) + r*(5927865218923.02*nu3 + 43133561885859.3*nu2 + 43393301259014.8*nu + 86618264430493.3*(1 - 0.496948781616935*nu)**2 + 188440788778196.0) + 5787938193408.0*r*lr**2 + (-1698693120.0*nu*(11592.0*nu + 69847.0) + 879923036160.0*r3 + 283115520.0*r2*(14700.0*nu + 42911.0) + 49152.0*r*(102574080.0*nu2 + 409207698.136075*nu - 2119671837.36038))*lr)
-
-        cdef double Apm = 7680.0*r4*(-5416406.59541186*nu2 + 28.0*nu*(1920.0*a6 + 733955.307463037) + 2048.0*nu*(756.0*nu + 336.0*r + 407.0)*lr - 7.0*r*(-185763.092693281*nu2 + 938918.400156317*nu - 245760.0) - 3440640.0)/(241555486248.807*nu4 + 1120.0*nu3*(-17833256.898555*r2 - 163683964.822551*r - 1188987459.03162) + 7.0*nu2*(-39321600.0*a6*(3.0*r + 59.0) + 745857848.115604*a6 + 1426660551.8844*r5 - 3089250703.76879*r4 - 6178501407.53758*r3 + 2064783811.32587*r2 + 122635399361.987*r + 276057889687.011) + 67645734912.0*nu2*lr**2 + 53760.0*nu*(7680.0*a6*(r4 + 2.0*r3 + 4.0*r2 + 8.0*r + 16.0) + 128.0*r*(-6852.34813868015*r4 + 4264.6962773603*r3 + 8529.39255472061*r2 + 13218.7851094412*r - 33722.4297811176) + 113485.217444961*r*(-r4 + 2.0*r3 + 4.0*r2 + 8.0*r + 16.0) + 148.04406601634*r*(349.0*r4 + 1926.0*r3 + 3852.0*r2 + 7704.0*r + 36400.0)) + 32768.0*nu*(-1882456.23663972*nu2 - 38842241.4769507*nu + 161280.0*r5 + 480.0*r4*(756.0*nu + 1079.0) + 960.0*r3*(756.0*nu + 1079.0) + 1920.0*r2*(588.0*nu + 1079.0) + 240.0*r*(-3024.0*nu2 - 7466.27061066206*nu + 17264.0) + 13447680.0)*lr + 13212057600.0*r5)
-
-        cdef double t2 = chix2**2 + chiy2**2 + chiz2**2
-
-        cdef double t1 = chix1**2 + chiy1**2 + chiz1**2
-
-        cdef double ap2 = X_1**2*t1 + X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-
-        cdef double xi = sqrt(Dbpm)*r2*(Apm + ap2/r2)/(ap2 + r2)
-
-        cdef double apam = X_1**2*t1 - X_2**2*t2
-
-        cdef double am2 = X_1**2*t1 - X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-
-        cdef double QSalign2 = prst4*(-0.46875*am2*(4.0*nu2 - 5.0*nu + 1.0) - 0.15625*ap2*(32.0*nu2 - 33.0*nu - 5.0) + 0.3125*apam*delta*(18.0*nu - 1.0))/(r3*xi**4)
-
-        cdef double Qpm = 1.48275342024365*nu*prst8/r**2.5 + 0.121954868780449*nu*prst8/r - 11.3175085791863*nu*prst6/r**3.5 + 147.443752990146*nu*prst4/r**4.5 + prst8*(-6.0*nu4 + 3.42857142857143*nu3 + 3.33842023648322*nu2 + 1.38977750996128*nu)/r2 + prst6*(6.0*nu3 - 5.4*nu2 - 2.78300763695006*nu)/r2 + prst6*(-14.0*nu4 + 188.0*nu3 - 89.5298327361234*nu2 - 33.9782122170436*nu)/r3 + prst4*(-6.0*nu2 + 8.0*nu)/r2 + prst4*(10.0*nu3 - 131.0*nu2 + 92.7110442849544*nu)/r3 + prst4*(602.318540416564*nu3 + nu2*(118.4*lr - 1796.13660498019) + nu*(452.542166996693 - 51.6952380952381*lr))/r4
-
-        cdef double Qq = QSalign2 + Qpm
-
-        cdef double Bnpa = -r*(r + 2.0)/(ap2*r*(r + 2.0) + r4)
-
-        cdef double BnpSalign2 = (0.1875*am2*(4.0*nu - 1.0) + ap2*(3.0*nu + 2.8125) - 2.625*apam*delta)/r3 + (0.015625*am2*(4.0*nu2 + 115.0*nu - 37.0) + 0.015625*ap2*(-1171.0*nu - 861.0) + 0.03125*apam*delta*(26.0*nu + 449.0))/r4
-
-        cdef double Bnp = Apm*Dbpm + BnpSalign2 + ap2/r2 - 1.0
-
-        cdef double amz = chi_1*X_1 - chi_2*X_2
-
-        cdef double apz = chi_1*X_1 + chi_2*X_2
-
-        cdef double napnam = -0.5*amz*apz + 0.5*apam
-
-        cdef double amz2 = amz*amz
-
-        cdef double nam2 = 0.5*am2 - 0.5*amz2
-
-        cdef double apz2 = apz*apz
-
-        cdef double nap2 = 0.5*ap2 - 0.5*apz2
-
-        cdef double BpSprec2 = -nap2/r2 + (nam2*(0.1875 - 0.75*nu) + nap2*(-1.75*nu - 0.9375) + napnam*(0.75 - 1.5*X_2))/r3 + (-0.125*delta*napnam*(98.0*nu + 43.0) + 0.015625*nam2*(152.0*nu2 - 1090.0*nu + 219.0) + 0.00520833333333333*nap2*(264.0*nu2 - 1610.0*nu + 375.0))/r4
-
-        cdef double Bp = BpSprec2 + 1.0
-
-        cdef double ASprec2 = 2.0*nap2/r3 + (4.125*delta*napnam + 0.125*nam2*(-4.0*nu - 3.0) + 0.25*nap2*(7.0*nu - 31.0))/r4 + (0.25*delta*napnam*(68.0*nu - 1.0) + 0.015625*nam2*(-328.0*nu2 + 1166.0*nu - 171.0) + 0.00520833333333333*nap2*(-264.0*nu2 + 2870.0*nu + 561.0))/r5
-
-        cdef double ASalign2 = (0.125*am2*(4.0*nu + 1.0) + 1.125*ap2 - 1.25*apam*delta)/r4 + (0.046875*am2*(28.0*nu2 - 27.0*nu - 3.0) - 0.390625*ap2*(7.0*nu + 9.0) - 1.21875*apam*delta*(2.0*nu - 3.0))/r5
-
-        cdef double A = (ASalign2 + ASprec2 + Apm + ap2/r2)/(ap2*(1.0 + 2.0/r)/r2 + 1.0)
-
-        cdef double ap = X_1*chiL1 + X_2*chiL2
-
-        cdef double lap = ap
-
-        cdef double Heven = sqrt(A*(Bnpa*L2*lap**2/r2 + Bp*L2/r2 + Qq + prst2*(Bnp + 1.0)/xi**2 + 1.0))
-
-        cdef double am = X_1*chiL1 - X_2*chiL2
-
-        cdef double lam = am
-
-        cdef double Ga3 = L*lam*(-0.25*L2*delta*nap2/r3 + (0.0416666666666667*ap2*delta + nap2*(0.416666666666667 - 0.833333333333333*X_2))/r2) + L*lap*(L2*(-0.25*nap2 + napnam*(0.5 - X_2))/r3 + (-0.25*ap2 + 0.208333333333333*apam*delta - 1.66666666666667*delta*napnam - 0.75*nap2)/r2)
-
-        cdef double SOcalib = L*nu*dSO*lap/r3
-
-        cdef double gam = L4*(0.29296875*nu2 - 0.3515625*nu - 0.41015625)/r4 + L2*(0.46875 - 0.28125*nu)/r2 + L2*(-0.798177083333333*nu2 - 0.2734375*nu - 0.23046875)/r3 + 0.25 + (0.34375*nu + 0.09375)/r + (0.536458333333333*nu2 - 0.03125*nu + 0.078125)/r2
-
-        cdef double gap = L4*(1.34765625*nu2 + 0.5859375*nu + 0.41015625)/r4 + L2*(-1.40625*nu - 0.46875)/r2 + L2*(-2.07161458333333*nu2 - 2.0859375*nu + 0.23046875)/r3 + 1.75 + (0.71875*nu - 0.09375)/r + (0.567708333333333*nu2 - 5.53125*nu - 0.078125)/r2
-
-        cdef double Hodd = (Ga3 + L*delta*gam*lam + L*gap*lap + SOcalib)/(ap2*(r + 2.0) + r3)
-
-        cdef double pr = prst/xi
-
-        cdef double Heff = Heven + Hodd
-
-        # Evaluate H_real/nu
-        cdef double H = M * sqrt(1.+2*nu*(Heff-1)) / nu
-        return H,xi
-
-
-cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
+cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
     cdef public CalibCoeffs calibration_coeffs
     def __cinit__(self,EOBParams params):
         self.EOBpars = params
 
-    def __call__(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2,bint verbose=False):
-        return self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2,verbose=verbose)
+    def __call__(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
+        return self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
 
-    cpdef _call(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2,bint verbose=False):
-
+    cpdef _call(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
+        
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-
+        
         cdef double r = q[0]
         cdef double phi = q[1]
-
+        
         cdef double prst = p[0]
         cdef double L = p[1]
-
+        
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-
+        
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -188,109 +62,105 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
 
         # Actual Hamiltonian expressions
         cdef double Dbpm = r*(6730497718123.02*nu**3 + 133772083200.0*nu**2*r**2 + 1822680546449.21*nu**2*r + 80059249540278.2*nu**2 + 2589101062873.81*nu*r**2 + 10611661054566.2*nu*r - 12049908701745.2*nu + 5107745331375.71*r**2 - 326837426.241486*r*(14700.0*nu + 42911.0) - 39476764256925.6*r - (-5041721180160.0*nu**2 - 25392914995744.3*nu - 879923036160.0*r**2 - 283115520.0*r*(14700.0*nu + 42911.0) + 104186110149937.0)*log(r) + 5787938193408.0*log(r)**2 + 275059053208689.0)/(55296.0*nu*(14515200.0*nu**3 - 42636451.6032331*nu**2 - 2510664218.28128*nu + 1002013764.01019) - 967680.0*r**3*(-138240.0*nu**2 - 2675575.66847905*nu - 5278341.3229329) - 9216.0*r**2*(-197773496.793534*nu**2 - 630116198.873299*nu + 5805304367.87913) + r*(5927865218923.02*nu**3 + 43133561885859.3*nu**2 + 43393301259014.8*nu + 86618264430493.3*(1 - 0.496948781616935*nu)**2 + 188440788778196.0) + 5787938193408.0*r*log(r)**2 + (-1698693120.0*nu*(11592.0*nu + 69847.0) + 879923036160.0*r**3 + 283115520.0*r**2*(14700.0*nu + 42911.0) + 49152.0*r*(102574080.0*nu**2 + 409207698.136075*nu - 2119671837.36038))*log(r))
-
+        
         cdef double Apm = 7680.0*r**4*(-5416406.59541186*nu**2 + 28.0*nu*(1920.0*a6 + 733955.307463037) + 2048.0*nu*(756.0*nu + 336.0*r + 407.0)*log(r) - 7.0*r*(-185763.092693281*nu**2 + 938918.400156317*nu - 245760.0) - 3440640.0)/(241555486248.807*nu**4 + 1120.0*nu**3*(-17833256.898555*r**2 - 163683964.822551*r - 1188987459.03162) + 7.0*nu**2*(-39321600.0*a6*(3.0*r + 59.0) + 745857848.115604*a6 + 1426660551.8844*r**5 - 3089250703.76879*r**4 - 6178501407.53758*r**3 + 2064783811.32587*r**2 + 122635399361.987*r + 276057889687.011) + 67645734912.0*nu**2*log(r)**2 + 53760.0*nu*(7680.0*a6*(r**4 + 2.0*r**3 + 4.0*r**2 + 8.0*r + 16.0) + 128.0*r*(-6852.34813868015*r**4 + 4264.6962773603*r**3 + 8529.39255472061*r**2 + 13218.7851094412*r - 33722.4297811176) + 113485.217444961*r*(-r**4 + 2.0*r**3 + 4.0*r**2 + 8.0*r + 16.0) + 148.04406601634*r*(349.0*r**4 + 1926.0*r**3 + 3852.0*r**2 + 7704.0*r + 36400.0)) + 32768.0*nu*(-1882456.23663972*nu**2 - 38842241.4769507*nu + 161280.0*r**5 + 480.0*r**4*(756.0*nu + 1079.0) + 960.0*r**3*(756.0*nu + 1079.0) + 1920.0*r**2*(588.0*nu + 1079.0) + 240.0*r*(-3024.0*nu**2 - 7466.27061066206*nu + 17264.0) + 13447680.0)*log(r) + 13212057600.0*r**5)
-
+        
         cdef double t2 = chix2**2 + chiy2**2 + chiz2**2
-
+        
         cdef double t1 = chix1**2 + chiy1**2 + chiz1**2
-
+        
         cdef double ap2 = X_1**2*t1 + X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-
+        
         cdef double xi = Dbpm**0.5*r**2*(Apm + ap2/r**2)/(ap2 + r**2)
-
+        
         cdef double apam = X_1**2*t1 - X_2**2*t2
-
+        
         cdef double am2 = X_1**2*t1 - X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-
+        
         cdef double QSalign2 = prst**4*(-0.46875*am2*(4.0*nu**2 - 5.0*nu + 1.0) - 0.15625*ap2*(32.0*nu**2 - 33.0*nu - 5.0) + 0.3125*apam*delta*(18.0*nu - 1.0))/(r**3*xi**4)
-
+        
         cdef double Qpm = 1.48275342024365*nu*prst**8/r**2.5 + 0.121954868780449*nu*prst**8/r - 11.3175085791863*nu*prst**6/r**3.5 + 147.443752990146*nu*prst**4/r**4.5 + prst**8*(-6.0*nu**4 + 3.42857142857143*nu**3 + 3.33842023648322*nu**2 + 1.38977750996128*nu)/r**2 + prst**6*(6.0*nu**3 - 5.4*nu**2 - 2.78300763695006*nu)/r**2 + prst**6*(-14.0*nu**4 + 188.0*nu**3 - 89.5298327361234*nu**2 - 33.9782122170436*nu)/r**3 + prst**4*(-6.0*nu**2 + 8.0*nu)/r**2 + prst**4*(10.0*nu**3 - 131.0*nu**2 + 92.7110442849544*nu)/r**3 + prst**4*(602.318540416564*nu**3 + nu**2*(118.4*log(r) - 1796.13660498019) + nu*(452.542166996693 - 51.6952380952381*log(r)))/r**4
-
+        
         cdef double Qq = QSalign2 + Qpm
-
+        
         cdef double Bnpa = -r*(r + 2.0)/(ap2*r*(r + 2.0) + r**4)
-
+        
         cdef double BnpSalign2 = (0.1875*am2*(4.0*nu - 1.0) + ap2*(3.0*nu + 2.8125) - 2.625*apam*delta)/r**3 + (0.015625*am2*(4.0*nu**2 + 115.0*nu - 37.0) + 0.015625*ap2*(-1171.0*nu - 861.0) + 0.03125*apam*delta*(26.0*nu + 449.0))/r**4
-
+        
         cdef double Bnp = Apm*Dbpm + BnpSalign2 + ap2/r**2 - 1.0
-
+        
         cdef double amz = chi_1*X_1 - chi_2*X_2
-
+        
         cdef double apz = chi_1*X_1 + chi_2*X_2
-
+        
         cdef double napnam = -0.5*amz*apz + 0.5*apam
-
+        
         cdef double amz2 = amz**2
-
+        
         cdef double nam2 = 0.5*am2 - 0.5*amz2
-
+        
         cdef double apz2 = apz**2
-
+        
         cdef double nap2 = 0.5*ap2 - 0.5*apz2
-
+        
         cdef double BpSprec2 = -nap2/r**2 + (nam2*(0.1875 - 0.75*nu) + nap2*(-1.75*nu - 0.9375) + napnam*(0.75 - 1.5*X_2))/r**3 + (-0.125*delta*napnam*(98.0*nu + 43.0) + 0.015625*nam2*(152.0*nu**2 - 1090.0*nu + 219.0) + 0.00520833333333333*nap2*(264.0*nu**2 - 1610.0*nu + 375.0))/r**4
-
+        
         cdef double Bp = BpSprec2 + 1.0
-
+        
         cdef double ASprec2 = 2.0*nap2/r**3 + (4.125*delta*napnam + 0.125*nam2*(-4.0*nu - 3.0) + 0.25*nap2*(7.0*nu - 31.0))/r**4 + (0.25*delta*napnam*(68.0*nu - 1.0) + 0.015625*nam2*(-328.0*nu**2 + 1166.0*nu - 171.0) + 0.00520833333333333*nap2*(-264.0*nu**2 + 2870.0*nu + 561.0))/r**5
-
+        
         cdef double ASalign2 = (0.125*am2*(4.0*nu + 1.0) + 1.125*ap2 - 1.25*apam*delta)/r**4 + (0.046875*am2*(28.0*nu**2 - 27.0*nu - 3.0) - 0.390625*ap2*(7.0*nu + 9.0) - 1.21875*apam*delta*(2.0*nu - 3.0))/r**5
-
+        
         cdef double A = (ASalign2 + ASprec2 + Apm + ap2/r**2)/(ap2*(1.0 + 2.0/r)/r**2 + 1.0)
-
+        
         cdef double ap = X_1*chiL1 + X_2*chiL2
-
+        
         cdef double lap = ap
-
+        
         cdef double Heven = (A*(Bnpa*L**2*lap**2/r**2 + Bp*L**2/r**2 + Qq + prst**2*(Bnp + 1.0)/xi**2 + 1.0))**0.5
-
+        
         cdef double am = X_1*chiL1 - X_2*chiL2
-
+        
         cdef double lam = am
-
+        
         cdef double Ga3 = L*lam*(-0.25*L**2*delta*nap2/r**3 + (0.0416666666666667*ap2*delta + nap2*(0.416666666666667 - 0.833333333333333*X_2))/r**2) + L*lap*(L**2*(-0.25*nap2 + napnam*(0.5 - X_2))/r**3 + (-0.25*ap2 + 0.208333333333333*apam*delta - 1.66666666666667*delta*napnam - 0.75*nap2)/r**2)
-
+        
         cdef double SOcalib = L*nu*dSO*lap/r**3
-
+        
         cdef double gam = L**4*(0.29296875*nu**2 - 0.3515625*nu - 0.41015625)/r**4 + L**2*(0.46875 - 0.28125*nu)/r**2 + L**2*(-0.798177083333333*nu**2 - 0.2734375*nu - 0.23046875)/r**3 + 0.25 + (0.34375*nu + 0.09375)/r + (0.536458333333333*nu**2 - 0.03125*nu + 0.078125)/r**2
-
+        
         cdef double gap = L**4*(1.34765625*nu**2 + 0.5859375*nu + 0.41015625)/r**4 + L**2*(-1.40625*nu - 0.46875)/r**2 + L**2*(-2.07161458333333*nu**2 - 2.0859375*nu + 0.23046875)/r**3 + 1.75 + (0.71875*nu - 0.09375)/r + (0.567708333333333*nu**2 - 5.53125*nu - 0.078125)/r**2
-
+        
         cdef double Hodd = (Ga3 + L*delta*gam*lam + L*gap*lap + SOcalib)/(ap2*(r + 2.0) + r**3)
-
+        
         cdef double pr = prst/xi
-
+        
         cdef double Heff = Heven + Hodd
 
         # Evaluate H_real/nu
         cdef double H = M * sqrt(1+2*nu*(Heff-1)) / nu
-
-        if not verbose:
-            return H, xi
-        else:
-            return H, xi, A, Bnp, Bnpa, Qq, Heven, Hodd,Bp
-
+        return H,xi, A, Bnp, Bnpa, Qq, Heven, Hodd, Bp
+        
 
     cpdef grad(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-
+        
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-
+        
         cdef double r = q[0]
         cdef double phi = q[1]
-
+        
         cdef double prst = p[0]
         cdef double L = p[1]
-
+        
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-
+        
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -320,19 +190,19 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x9 = x3 + x8
         cdef double x10 = x1*x9
         cdef double x11 = x0 + x10
-        cdef double x12 = 1/x11
+        cdef double x12 = x11**(-1)
         cdef double x13 = r**4
-        cdef double x14 = 1/x13
+        cdef double x14 = x13**(-1)
         cdef double x15 = 3.0*nu
         cdef double x16 = X_1*chiL1
         cdef double x17 = X_2*chiL2
         cdef double x18 = x16 + x17
         cdef double x19 = pphi*x18
         cdef double x20 = r**2
-        cdef double x21 = 1/x20
+        cdef double x21 = x20**(-1)
         cdef double x22 = 0.71875*nu - 0.09375
         cdef double x23 = -1.40625*nu - 0.46875
-        cdef double x24 = 1/x0
+        cdef double x24 = x0**(-1)
         cdef double x25 = pphi**2
         cdef double x26 = x24*x25
         cdef double x27 = 2.0*x26
@@ -343,7 +213,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x32 = 0.5859375*nu + 1.34765625*x28 + 0.41015625
         cdef double x33 = pphi**4
         cdef double x34 = r**5
-        cdef double x35 = 1/x34
+        cdef double x35 = x34**(-1)
         cdef double x36 = 4.0*x35
         cdef double x37 = x33*x36
         cdef double x38 = 0.34375*nu + 0.09375
@@ -368,7 +238,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x57 = delta*x56
         cdef double x58 = delta*x54
         cdef double x59 = nu*dSO*x24
-        cdef double x60 = 1/r
+        cdef double x60 = r**(-1)
         cdef double x61 = x21*x25
         cdef double x62 = x14*x33
         cdef double x63 = x18*(x21*(-5.53125*nu + 0.567708333333333*x28 - 0.078125) + x22*x60 + x23*x61 + x26*x29 + x32*x62 + 1.75)
@@ -405,7 +275,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x94 = nu*(452.542166996693 - 51.6952380952381*x93) + x28*(118.4*x93 - 1796.13660498019) + 602.318540416564*x83
         cdef double x95 = x14*x70
         cdef double x96 = r*x10 + x13
-        cdef double x97 = 1/x96
+        cdef double x97 = x96**(-1)
         cdef double x98 = x18**2
         cdef double x99 = x97*x98
         cdef double x100 = x25*x60*x99
@@ -446,7 +316,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x135 = 148.04406601634*r
         cdef double x136 = 113485.217444961*r
         cdef double x137 = nu*(x132*(x13 + x131) + x133*(13218.7851094412*r + 4264.6962773603*x0 - 6852.34813868015*x13 + 8529.39255472061*x20 - 33722.4297811176) + x135*(1926.0*x0 + 349.0*x13 + x134 + 3852.0*x20 + 36400.0) + x136*(-x13 + x131))
-        cdef double x138 = 1/(67645734912.0*x121 + 1120.0*x122 + 7.0*x123 + 32768.0*x129 + 53760.0*x137 + 13212057600.0*x34 + 241555486248.807*x88)
+        cdef double x138 = (67645734912.0*x121 + 1120.0*x122 + 7.0*x123 + 32768.0*x129 + 53760.0*x137 + 13212057600.0*x34 + 241555486248.807*x88)**(-1)
         cdef double x139 = x13*x138
         cdef double x140 = x119*x139
         cdef double x141 = 0.000130208333333333*x116 + x140
@@ -483,7 +353,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x172 = 1822680546449.21*x28
         cdef double x173 = 5787938193408.0*x120
         cdef double x174 = -12049908701745.2*nu + r*x172 - 39476764256925.6*r + 10611661054566.2*x156 + 2589101062873.81*x157 - 326837426.241486*x159 + 133772083200.0*x160 - x163 + x173 + 5107745331375.71*x20 + 80059249540278.2*x28 + 6730497718123.02*x83 + 275059053208689.0
-        cdef double x175 = 1/x174
+        cdef double x175 = x174**(-1)
         cdef double x176 = 4.0*nu
         cdef double x177 = 3.0*x3
         cdef double x178 = 3.0*x6 + 3.0*x7
@@ -493,7 +363,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x182 = x9*(-1171.0*nu - 861.0)
         cdef double x183 = x103*(115.0*nu + x166 - 37.0)
         cdef double x184 = 5787938193408.0*x143 - 9216.0*x145 - 967680.0*x147 + 55296.0*x148 + x150 + x154
-        cdef double x185 = 1/x184
+        cdef double x185 = x184**(-1)
         cdef double x186 = x174*x185
         cdef double x187 = x186*x34
         cdef double x188 = x119*x138
@@ -503,7 +373,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x192 = -x1*x100 + x112*x61 + 1.27277314139085e-19*x113*x168 + 1.69542100694444e-8*x191*x35 + x21*x92 + 147.443752990146*x70*x72 + x70*x82 - 11.3175085791863*x73*x75 + x73*x87 + 1.48275342024365*x76*x78 + x79*x80 + x84*x85 + x89*x90 + x94*x95 + 1.0
         cdef double x193 = 2.0*x60
         cdef double x194 = x116*(x193 + 1.0) + 1.0
-        cdef double x195 = 1/x194
+        cdef double x195 = x194**(-1)
         cdef double x196 = x103*(x176 + 1.0)
         cdef double x197 = x57*(2.0*nu - 3.0)
         cdef double x198 = 7.0*nu
@@ -547,7 +417,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
 
         # Evaluate Hamiltonian
         cdef double H
-        H,_ = evaluate_H(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2,self.EOBpars,a6,dSO)
+        H,_,_,_,_,_,_,_,_ = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
 
         # Heff Jacobian expressions
         cdef double dHeffdr = x12*(-dSO*x14*x15*x19 + x19*(x24*(1.25*x3 - 0.75*x48 - 0.416666666666667*x57 + 1.66666666666667*x58 + 1.25*x6 + 1.25*x7) - x31*x55) + x19*(-x21*x22 - x23*x27 - x24*(-11.0625*nu + 1.13541666666667*x28 - 0.15625) - x29*x31 - x32*x37) + x43*(0.375*x14*x49*x50 - x24*(0.0833333333333333*x51 + x52)) + x44*(-x21*x38 - x24*(-0.0625*nu + 1.07291666666667*x28 + 0.15625) - x27*x39 - x31*x40 - x37*x41)) + 0.5*x205*(x192*x195*(30720.0*x0*x119*x138 + 7680.0*x13*x138*x210 - x14*(x177 + x178 - 3.0*x48) + x206*x24 - x209*(x109*(14350.0*nu - 1320.0*x28 + 2805.0) + x111*(5830.0*nu - 1640.0*x28 - 855.0) + 0.625*x202) - x209*(0.015625*x179*(-135.0*nu + 140.0*x28 - 15.0) - 6.09375*x197 - x199*(35.0*nu + 45.0)) - x215 - x35*(0.5*x200 + 0.25*x201 + 8.25*x58) - x35*(0.5*x196 + x2*x208 - 5.0*x57 + 4.5*x6 + 4.5*x7)) - x192*x203*(x14*x206 - x207*x24*x9)/x194**2 + x204*(-663.496888455656*nu*r**(-5.5)*x70 - nu*x21*x80 + 39.6112800271521*nu*x71*x73 + x1*x21*x25*x97*x98 + x1*x25*x60*x98*(r*x9 + x10 + x212)/x96**2 - x100 - x112*x27 + 7.59859378406358e-45*x113*x115*x142*x165*x167*x184*x220*x70 + 6.78168402777778e-8*x114*x14*x170*x171*x175*x184*x190 + x14*x70*(118.4*x211 - 51.6952380952381*x79) - 9.25454462627843e-34*x142*x218*x219/x164**3 - 2.24091649004576e-37*x165*x169*x171*x184*x218*x221*x35 + 1.69542100694444e-8*x169*x170*x171*x175*x184*x35*(x138*x187*x223 - x14*(x180*(12.0*nu - 3.0) - 7.875*x57 + x9*(9.0*nu + 8.4375)) + 38400.0*x140*x186 + x185*x189*x218*x34 - x187*x214 + x222 - x35*(0.125*x181 + 0.0625*x182 + 0.0625*x183) - 2.29252167428035e-22*x174*x188*x220*x34/x155) + 1.69542100694444e-8*x169*x170*x171*x175*x190*x220*x35 - 8.47710503472222e-8*x191*x209 + x21*x25*(-x14*(x101*(-5.25*nu - 2.8125) + x102*(2.25 - x208) + x105*(0.5625 - 2.25*nu)) + x24*x49 - x35*(0.03125*x104*x110 - 0.25*x106 + 0.0104166666666667*x108*x49)) - x216*x92 - x30*x73*x89 - x36*x70*x94 - 3.70688355060912*x74*x78 - 2.0*x81*x85 - 3.0*x84*x95 - 2.0*x86*x90 - 4.41515887225116e-12*x169*x175*x221*x224*x225/x141**3 - 6.62902677807736e-23*x165*x219*x224/x141**5 + 1.01821851311268e-18*x114**3*x142*x155*x165*x167*x70/r**12 - 1.65460508380811e-18*x168/r**14)) - (3.0*x20 + x9)*(pphi*x63 + pphi*x67 + pphi*x69 + x19*x59 + x43*x64)/x11**2
@@ -566,7 +436,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
 
         return dHdr, dHdphi, dHdpr, dHdpphi
     cpdef hessian(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-
+        
         """
         Toy aligned-spin Hamiltonian
 
@@ -574,17 +444,17 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
 
 
         # Coordinate definitions
-
+        
         cdef double r = q[0]
         cdef double phi = q[1]
-
+        
         cdef double prst = p[0]
         cdef double L = p[1]
-
+        
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-
+        
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -614,19 +484,19 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x9 = x3 + x8
         cdef double x10 = x1*x9
         cdef double x11 = x0 + x10
-        cdef double x12 = 1/x11
+        cdef double x12 = x11**(-1)
         cdef double x13 = r**4
-        cdef double x14 = 1/x13
+        cdef double x14 = x13**(-1)
         cdef double x15 = 3.0*nu
         cdef double x16 = X_1*chiL1
         cdef double x17 = X_2*chiL2
         cdef double x18 = x16 + x17
         cdef double x19 = pphi*x18
         cdef double x20 = r**2
-        cdef double x21 = 1/x20
+        cdef double x21 = x20**(-1)
         cdef double x22 = 0.71875*nu - 0.09375
         cdef double x23 = -1.40625*nu - 0.46875
-        cdef double x24 = 1/x0
+        cdef double x24 = x0**(-1)
         cdef double x25 = pphi**2
         cdef double x26 = x24*x25
         cdef double x27 = 2.0*x26
@@ -637,7 +507,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x32 = 0.5859375*nu + 1.34765625*x28 + 0.41015625
         cdef double x33 = pphi**4
         cdef double x34 = r**5
-        cdef double x35 = 1/x34
+        cdef double x35 = x34**(-1)
         cdef double x36 = 4.0*x35
         cdef double x37 = x33*x36
         cdef double x38 = 0.34375*nu + 0.09375
@@ -662,7 +532,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x57 = delta*x56
         cdef double x58 = delta*x54
         cdef double x59 = nu*dSO*x24
-        cdef double x60 = 1/r
+        cdef double x60 = r**(-1)
         cdef double x61 = x21*x25
         cdef double x62 = x14*x33
         cdef double x63 = x18*(x21*(-5.53125*nu + 0.567708333333333*x28 - 0.078125) + x22*x60 + x23*x61 + x26*x29 + x32*x62 + 1.75)
@@ -699,7 +569,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x94 = nu*(452.542166996693 - 51.6952380952381*x93) + x28*(118.4*x93 - 1796.13660498019) + 602.318540416564*x83
         cdef double x95 = x14*x70
         cdef double x96 = r*x10 + x13
-        cdef double x97 = 1/x96
+        cdef double x97 = x96**(-1)
         cdef double x98 = x18**2
         cdef double x99 = x97*x98
         cdef double x100 = x25*x60*x99
@@ -740,7 +610,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x135 = 148.04406601634*r
         cdef double x136 = 113485.217444961*r
         cdef double x137 = nu*(x132*(x13 + x131) + x133*(13218.7851094412*r + 4264.6962773603*x0 - 6852.34813868015*x13 + 8529.39255472061*x20 - 33722.4297811176) + x135*(1926.0*x0 + 349.0*x13 + x134 + 3852.0*x20 + 36400.0) + x136*(-x13 + x131))
-        cdef double x138 = 1/(67645734912.0*x121 + 1120.0*x122 + 7.0*x123 + 32768.0*x129 + 53760.0*x137 + 13212057600.0*x34 + 241555486248.807*x88)
+        cdef double x138 = (67645734912.0*x121 + 1120.0*x122 + 7.0*x123 + 32768.0*x129 + 53760.0*x137 + 13212057600.0*x34 + 241555486248.807*x88)**(-1)
         cdef double x139 = x13*x138
         cdef double x140 = x119*x139
         cdef double x141 = 0.000130208333333333*x116 + x140
@@ -777,7 +647,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x172 = 1822680546449.21*x28
         cdef double x173 = 5787938193408.0*x120
         cdef double x174 = -12049908701745.2*nu + r*x172 - 39476764256925.6*r + 10611661054566.2*x156 + 2589101062873.81*x157 - 326837426.241486*x159 + 133772083200.0*x160 - x163 + x173 + 5107745331375.71*x20 + 80059249540278.2*x28 + 6730497718123.02*x83 + 275059053208689.0
-        cdef double x175 = 1/x174
+        cdef double x175 = x174**(-1)
         cdef double x176 = 4.0*nu
         cdef double x177 = 3.0*x3
         cdef double x178 = 3.0*x6 + 3.0*x7
@@ -787,7 +657,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x182 = x9*(-1171.0*nu - 861.0)
         cdef double x183 = x103*(115.0*nu + x166 - 37.0)
         cdef double x184 = 5787938193408.0*x143 - 9216.0*x145 - 967680.0*x147 + 55296.0*x148 + x150 + x154
-        cdef double x185 = 1/x184
+        cdef double x185 = x184**(-1)
         cdef double x186 = x174*x185
         cdef double x187 = x186*x34
         cdef double x188 = x119*x138
@@ -797,7 +667,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x192 = -x1*x100 + x112*x61 + 1.27277314139085e-19*x113*x168 + 1.69542100694444e-8*x191*x35 + x21*x92 + 147.443752990146*x70*x72 + x70*x82 - 11.3175085791863*x73*x75 + x73*x87 + 1.48275342024365*x76*x78 + x79*x80 + x84*x85 + x89*x90 + x94*x95 + 1.0
         cdef double x193 = 2.0*x60
         cdef double x194 = x116*(x193 + 1.0) + 1.0
-        cdef double x195 = 1/x194
+        cdef double x195 = x194**(-1)
         cdef double x196 = x103*(x176 + 1.0)
         cdef double x197 = x57*(2.0*nu - 3.0)
         cdef double x198 = 7.0*nu
@@ -860,20 +730,20 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y20 = y19 + y7
         cdef double y21 = y1*y20
         cdef double y22 = y0 + y21
-        cdef double y23 = 1/y22
+        cdef double y23 = y22**(-1)
         cdef double y24 = r**5
-        cdef double y25 = 1/y24
+        cdef double y25 = y24**(-1)
         cdef double y26 = 12.0*nu
         cdef double y27 = X_1*chiL1
         cdef double y28 = X_2*chiL2
         cdef double y29 = y27 + y28
         cdef double y30 = pphi*y29
         cdef double y31 = dSO*y30
-        cdef double y32 = 1/y0
+        cdef double y32 = y0**(-1)
         cdef double y33 = -1.40625*nu - 0.46875
         cdef double y34 = pphi**2
         cdef double y35 = r**4
-        cdef double y36 = 1/y35
+        cdef double y36 = y35**(-1)
         cdef double y37 = 6.0*y36
         cdef double y38 = y34*y37
         cdef double y39 = nu**2
@@ -914,7 +784,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y74 = y22**(-2)
         cdef double y75 = 3.0*nu
         cdef double y76 = y36*y75
-        cdef double y77 = 1/y71
+        cdef double y77 = y71**(-1)
         cdef double y78 = 0.71875*nu - 0.09375
         cdef double y79 = y32*y34
         cdef double y80 = 2.0*y79
@@ -928,7 +798,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y88 = y52*(-y32*(0.0833333333333333*y62 + y87) + 0.375*y36*y61)
         cdef double y89 = y29*(y32*(1.25*y13 + 1.25*y18 - 0.75*y58 - 0.416666666666667*y68 + 1.25*y7 + 1.66666666666667*y70) - y66*y81)
         cdef double y90 = nu*y32
-        cdef double y91 = 1/r
+        cdef double y91 = r**(-1)
         cdef double y92 = y34*y77
         cdef double y93 = y36*y45
         cdef double y94 = y29*(y33*y92 + y40*y79 + y46*y93 + y77*(-5.53125*nu + 0.567708333333333*y39 - 0.078125) + y78*y91 + 1.75)
@@ -964,7 +834,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y124 = nu*(452.542166996693 - 51.6952380952381*y123) + 602.318540416564*y113 + y39*(118.4*y123 - 1796.13660498019)
         cdef double y125 = y100*y36
         cdef double y126 = r*y21 + y35
-        cdef double y127 = 1/y126
+        cdef double y127 = y126**(-1)
         cdef double y128 = y29**2
         cdef double y129 = y127*y128
         cdef double y130 = y129*y91
@@ -1002,7 +872,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y162 = 148.04406601634*r
         cdef double y163 = 113485.217444961*r
         cdef double y164 = nu*(y159*(y158 + y35) + y160*(13218.7851094412*r + 4264.6962773603*y0 - 6852.34813868015*y35 + 8529.39255472061*y71 - 33722.4297811176) + y162*(1926.0*y0 + y161 + 349.0*y35 + 3852.0*y71 + 36400.0) + y163*(y158 - y35))
-        cdef double y165 = 1/(241555486248.807*y118 + 67645734912.0*y147 + 1120.0*y148 + 7.0*y149 + 32768.0*y156 + 53760.0*y164 + 13212057600.0*y24)
+        cdef double y165 = (241555486248.807*y118 + 67645734912.0*y147 + 1120.0*y148 + 7.0*y149 + 32768.0*y156 + 53760.0*y164 + 13212057600.0*y24)**(-1)
         cdef double y166 = 336.0*r + y151 + 407.0
         cdef double y167 = 2048.0*nu*y123*y166 + 28.0*nu*(1920.0*a6 + 733955.307463037) - 7.0*r*(938918.400156317*nu - 185763.092693281*y39 - 245760.0) - 5416406.59541186*y39 - 3440640.0
         cdef double y168 = y165*y167
@@ -1047,7 +917,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y207 = 1822680546449.21*y39
         cdef double y208 = 5787938193408.0*y146
         cdef double y209 = -12049908701745.2*nu + r*y207 - 39476764256925.6*r + 6730497718123.02*y113 + 10611661054566.2*y187 + 2589101062873.81*y188 - 326837426.241486*y190 + 133772083200.0*y191 - y194 + y208 + 80059249540278.2*y39 + 5107745331375.71*y71 + 275059053208689.0
-        cdef double y210 = 1/y209
+        cdef double y210 = y209**(-1)
         cdef double y211 = y205*y206*y210
         cdef double y212 = 4.0*nu
         cdef double y213 = 3.0*y7
@@ -1058,7 +928,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y218 = y20*(-1171.0*nu - 861.0)
         cdef double y219 = y135*(115.0*nu + y197 - 37.0)
         cdef double y220 = 5787938193408.0*y172 - 9216.0*y174 - 967680.0*y176 + 55296.0*y177 + y180 + y184
-        cdef double y221 = 1/y220
+        cdef double y221 = y220**(-1)
         cdef double y222 = y221*y24
         cdef double y223 = y209*y222
         cdef double y224 = 7680.0*y168
@@ -1071,7 +941,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y231 = -y1*y131 + 147.443752990146*y100*y102 - 11.3175085791863*y103*y105 + 1.48275342024365*y106*y108 + y109*y110 + y112*y77 + y115*y32 + y117*y77 + y120*y32 + y122*y77 + y124*y125 + y144*y92 + 1.27277314139085e-19*y200*y204 + y227*y230 + 1.0
         cdef double y232 = 2.0*y91
         cdef double y233 = y145*(y232 + 1.0) + 1.0
-        cdef double y234 = 1/y233
+        cdef double y234 = y233**(-1)
         cdef double y235 = y135*(y212 + 1.0)
         cdef double y236 = y36*(1.125*y13 + 1.125*y18 + 0.125*y235 + y69 + 1.125*y7)
         cdef double y237 = y68*(2.0*nu - 3.0)
@@ -1187,7 +1057,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y347 = y222*y224
         cdef double y348 = y165*y268
         cdef double y349 = y209*y221
-        cdef double y350 = 1/y186
+        cdef double y350 = y186**(-1)
         cdef double y351 = y323*y350
         cdef double y352 = y209*y24
         cdef double y353 = y168*y352
@@ -1262,7 +1132,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double y422 = 4.5850433485607e-22*y351
         cdef double y423 = y167*y223
         cdef double y424 = y249**(-0.5)
-        cdef double y425 = 1/(y145*y252 + 2.0)
+        cdef double y425 = (y145*y252 + 2.0)**(-1)
         cdef double y426 = 12.0*y205
         cdef double y427 = y111*y77
         cdef double y428 = y114*y32
@@ -1317,7 +1187,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
 
         # Evaluate Hamiltonian
         cdef double H
-        H,_ = evaluate_H(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2,self.EOBpars,a6,dSO)
+        H,_,_,_,_,_,_,_,_ = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
 
         # Evaluate Heff Jacobian
         cdef double dHeffdr = x12*(-dSO*x14*x15*x19 + x19*(x24*(1.25*x3 - 0.75*x48 - 0.416666666666667*x57 + 1.66666666666667*x58 + 1.25*x6 + 1.25*x7) - x31*x55) + x19*(-x21*x22 - x23*x27 - x24*(-11.0625*nu + 1.13541666666667*x28 - 0.15625) - x29*x31 - x32*x37) + x43*(0.375*x14*x49*x50 - x24*(0.0833333333333333*x51 + x52)) + x44*(-x21*x38 - x24*(-0.0625*nu + 1.07291666666667*x28 + 0.15625) - x27*x39 - x31*x40 - x37*x41)) + 0.5*x205*(x192*x195*(30720.0*x0*x119*x138 + 7680.0*x13*x138*x210 - x14*(x177 + x178 - 3.0*x48) + x206*x24 - x209*(x109*(14350.0*nu - 1320.0*x28 + 2805.0) + x111*(5830.0*nu - 1640.0*x28 - 855.0) + 0.625*x202) - x209*(0.015625*x179*(-135.0*nu + 140.0*x28 - 15.0) - 6.09375*x197 - x199*(35.0*nu + 45.0)) - x215 - x35*(0.5*x200 + 0.25*x201 + 8.25*x58) - x35*(0.5*x196 + x2*x208 - 5.0*x57 + 4.5*x6 + 4.5*x7)) - x192*x203*(x14*x206 - x207*x24*x9)/x194**2 + x204*(-663.496888455656*nu*r**(-5.5)*x70 - nu*x21*x80 + 39.6112800271521*nu*x71*x73 + x1*x21*x25*x97*x98 + x1*x25*x60*x98*(r*x9 + x10 + x212)/x96**2 - x100 - x112*x27 + 7.59859378406358e-45*x113*x115*x142*x165*x167*x184*x220*x70 + 6.78168402777778e-8*x114*x14*x170*x171*x175*x184*x190 + x14*x70*(118.4*x211 - 51.6952380952381*x79) - 9.25454462627843e-34*x142*x218*x219/x164**3 - 2.24091649004576e-37*x165*x169*x171*x184*x218*x221*x35 + 1.69542100694444e-8*x169*x170*x171*x175*x184*x35*(x138*x187*x223 - x14*(x180*(12.0*nu - 3.0) - 7.875*x57 + x9*(9.0*nu + 8.4375)) + 38400.0*x140*x186 + x185*x189*x218*x34 - x187*x214 + x222 - x35*(0.125*x181 + 0.0625*x182 + 0.0625*x183) - 2.29252167428035e-22*x174*x188*x220*x34/x155) + 1.69542100694444e-8*x169*x170*x171*x175*x190*x220*x35 - 8.47710503472222e-8*x191*x209 + x21*x25*(-x14*(x101*(-5.25*nu - 2.8125) + x102*(2.25 - x208) + x105*(0.5625 - 2.25*nu)) + x24*x49 - x35*(0.03125*x104*x110 - 0.25*x106 + 0.0104166666666667*x108*x49)) - x216*x92 - x30*x73*x89 - x36*x70*x94 - 3.70688355060912*x74*x78 - 2.0*x81*x85 - 3.0*x84*x95 - 2.0*x86*x90 - 4.41515887225116e-12*x169*x175*x221*x224*x225/x141**3 - 6.62902677807736e-23*x165*x219*x224/x141**5 + 1.01821851311268e-18*x114**3*x142*x155*x165*x167*x70/r**12 - 1.65460508380811e-18*x168/r**14)) - (3.0*x20 + x9)*(pphi*x63 + pphi*x67 + pphi*x69 + x19*x59 + x43*x64)/x11**2
@@ -1364,24 +1234,24 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         return np.array([d2Hdr2, d2Hdrdphi, d2Hdrdpr, d2Hdrdpphi, d2Hdrdphi, d2Hdphi2, d2Hdphidpr, d2Hdphidpphi, d2Hdrdpr, d2Hdphidpr, d2Hdpr2, d2Hdprdpphi, d2Hdrdpphi, d2Hdphidpphi, d2Hdprdpphi, d2Hdpphi2]).reshape(4, 4)
 
     cdef double xi(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-
+       
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-
+        
         cdef double r = q[0]
         cdef double phi = q[1]
-
+        
         cdef double prst = p[0]
         cdef double L = p[1]
-
+        
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-
+        
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -1393,6 +1263,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double dSO = c_coeffs['dSO']
 
 
+
         # Extra quantities used in the Jacobian
         cdef double M = self.EOBpars.p_params.M
         cdef double nu = self.EOBpars.p_params.nu
@@ -1402,83 +1273,83 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
 
         # Actual Hamiltonian expressions
         cdef double Dbpm = r*(6730497718123.02*nu**3 + 133772083200.0*nu**2*r**2 + 1822680546449.21*nu**2*r + 80059249540278.2*nu**2 + 2589101062873.81*nu*r**2 + 10611661054566.2*nu*r - 12049908701745.2*nu + 5107745331375.71*r**2 - 326837426.241486*r*(14700.0*nu + 42911.0) - 39476764256925.6*r - (-5041721180160.0*nu**2 - 25392914995744.3*nu - 879923036160.0*r**2 - 283115520.0*r*(14700.0*nu + 42911.0) + 104186110149937.0)*log(r) + 5787938193408.0*log(r)**2 + 275059053208689.0)/(55296.0*nu*(14515200.0*nu**3 - 42636451.6032331*nu**2 - 2510664218.28128*nu + 1002013764.01019) - 967680.0*r**3*(-138240.0*nu**2 - 2675575.66847905*nu - 5278341.3229329) - 9216.0*r**2*(-197773496.793534*nu**2 - 630116198.873299*nu + 5805304367.87913) + r*(5927865218923.02*nu**3 + 43133561885859.3*nu**2 + 43393301259014.8*nu + 86618264430493.3*(1 - 0.496948781616935*nu)**2 + 188440788778196.0) + 5787938193408.0*r*log(r)**2 + (-1698693120.0*nu*(11592.0*nu + 69847.0) + 879923036160.0*r**3 + 283115520.0*r**2*(14700.0*nu + 42911.0) + 49152.0*r*(102574080.0*nu**2 + 409207698.136075*nu - 2119671837.36038))*log(r))
-
+        
         cdef double Apm = 7680.0*r**4*(-5416406.59541186*nu**2 + 28.0*nu*(1920.0*a6 + 733955.307463037) + 2048.0*nu*(756.0*nu + 336.0*r + 407.0)*log(r) - 7.0*r*(-185763.092693281*nu**2 + 938918.400156317*nu - 245760.0) - 3440640.0)/(241555486248.807*nu**4 + 1120.0*nu**3*(-17833256.898555*r**2 - 163683964.822551*r - 1188987459.03162) + 7.0*nu**2*(-39321600.0*a6*(3.0*r + 59.0) + 745857848.115604*a6 + 1426660551.8844*r**5 - 3089250703.76879*r**4 - 6178501407.53758*r**3 + 2064783811.32587*r**2 + 122635399361.987*r + 276057889687.011) + 67645734912.0*nu**2*log(r)**2 + 53760.0*nu*(7680.0*a6*(r**4 + 2.0*r**3 + 4.0*r**2 + 8.0*r + 16.0) + 128.0*r*(-6852.34813868015*r**4 + 4264.6962773603*r**3 + 8529.39255472061*r**2 + 13218.7851094412*r - 33722.4297811176) + 113485.217444961*r*(-r**4 + 2.0*r**3 + 4.0*r**2 + 8.0*r + 16.0) + 148.04406601634*r*(349.0*r**4 + 1926.0*r**3 + 3852.0*r**2 + 7704.0*r + 36400.0)) + 32768.0*nu*(-1882456.23663972*nu**2 - 38842241.4769507*nu + 161280.0*r**5 + 480.0*r**4*(756.0*nu + 1079.0) + 960.0*r**3*(756.0*nu + 1079.0) + 1920.0*r**2*(588.0*nu + 1079.0) + 240.0*r*(-3024.0*nu**2 - 7466.27061066206*nu + 17264.0) + 13447680.0)*log(r) + 13212057600.0*r**5)
-
+        
         cdef double t2 = chix2**2 + chiy2**2 + chiz2**2
-
+        
         cdef double t1 = chix1**2 + chiy1**2 + chiz1**2
-
+        
         cdef double ap2 = X_1**2*t1 + X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-
+        
         cdef double xi = Dbpm**0.5*r**2*(Apm + ap2/r**2)/(ap2 + r**2)
-
+        
         cdef double apam = X_1**2*t1 - X_2**2*t2
-
+        
         cdef double am2 = X_1**2*t1 - X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-
+        
         cdef double QSalign2 = prst**4*(-0.46875*am2*(4.0*nu**2 - 5.0*nu + 1.0) - 0.15625*ap2*(32.0*nu**2 - 33.0*nu - 5.0) + 0.3125*apam*delta*(18.0*nu - 1.0))/(r**3*xi**4)
-
+        
         cdef double Qpm = 1.48275342024365*nu*prst**8/r**2.5 + 0.121954868780449*nu*prst**8/r - 11.3175085791863*nu*prst**6/r**3.5 + 147.443752990146*nu*prst**4/r**4.5 + prst**8*(-6.0*nu**4 + 3.42857142857143*nu**3 + 3.33842023648322*nu**2 + 1.38977750996128*nu)/r**2 + prst**6*(6.0*nu**3 - 5.4*nu**2 - 2.78300763695006*nu)/r**2 + prst**6*(-14.0*nu**4 + 188.0*nu**3 - 89.5298327361234*nu**2 - 33.9782122170436*nu)/r**3 + prst**4*(-6.0*nu**2 + 8.0*nu)/r**2 + prst**4*(10.0*nu**3 - 131.0*nu**2 + 92.7110442849544*nu)/r**3 + prst**4*(602.318540416564*nu**3 + nu**2*(118.4*log(r) - 1796.13660498019) + nu*(452.542166996693 - 51.6952380952381*log(r)))/r**4
-
+        
         cdef double Qq = QSalign2 + Qpm
-
+        
         cdef double Bnpa = -r*(r + 2.0)/(ap2*r*(r + 2.0) + r**4)
-
+        
         cdef double BnpSalign2 = (0.1875*am2*(4.0*nu - 1.0) + ap2*(3.0*nu + 2.8125) - 2.625*apam*delta)/r**3 + (0.015625*am2*(4.0*nu**2 + 115.0*nu - 37.0) + 0.015625*ap2*(-1171.0*nu - 861.0) + 0.03125*apam*delta*(26.0*nu + 449.0))/r**4
-
+        
         cdef double Bnp = Apm*Dbpm + BnpSalign2 + ap2/r**2 - 1.0
-
+        
         cdef double amz = chi_1*X_1 - chi_2*X_2
-
+        
         cdef double apz = chi_1*X_1 + chi_2*X_2
-
+        
         cdef double napnam = -0.5*amz*apz + 0.5*apam
-
+        
         cdef double amz2 = amz**2
-
+        
         cdef double nam2 = 0.5*am2 - 0.5*amz2
-
+        
         cdef double apz2 = apz**2
-
+        
         cdef double nap2 = 0.5*ap2 - 0.5*apz2
-
+        
         cdef double BpSprec2 = -nap2/r**2 + (nam2*(0.1875 - 0.75*nu) + nap2*(-1.75*nu - 0.9375) + napnam*(0.75 - 1.5*X_2))/r**3 + (-0.125*delta*napnam*(98.0*nu + 43.0) + 0.015625*nam2*(152.0*nu**2 - 1090.0*nu + 219.0) + 0.00520833333333333*nap2*(264.0*nu**2 - 1610.0*nu + 375.0))/r**4
-
+        
         cdef double Bp = BpSprec2 + 1.0
-
+        
         cdef double ASprec2 = 2.0*nap2/r**3 + (4.125*delta*napnam + 0.125*nam2*(-4.0*nu - 3.0) + 0.25*nap2*(7.0*nu - 31.0))/r**4 + (0.25*delta*napnam*(68.0*nu - 1.0) + 0.015625*nam2*(-328.0*nu**2 + 1166.0*nu - 171.0) + 0.00520833333333333*nap2*(-264.0*nu**2 + 2870.0*nu + 561.0))/r**5
-
+        
         cdef double ASalign2 = (0.125*am2*(4.0*nu + 1.0) + 1.125*ap2 - 1.25*apam*delta)/r**4 + (0.046875*am2*(28.0*nu**2 - 27.0*nu - 3.0) - 0.390625*ap2*(7.0*nu + 9.0) - 1.21875*apam*delta*(2.0*nu - 3.0))/r**5
-
+        
         cdef double A = (ASalign2 + ASprec2 + Apm + ap2/r**2)/(ap2*(1.0 + 2.0/r)/r**2 + 1.0)
-
+        
         cdef double ap = X_1*chiL1 + X_2*chiL2
-
+        
         cdef double lap = ap
-
+        
         cdef double Heven = (A*(Bnpa*L**2*lap**2/r**2 + Bp*L**2/r**2 + Qq + prst**2*(Bnp + 1.0)/xi**2 + 1.0))**0.5
-
+        
         cdef double am = X_1*chiL1 - X_2*chiL2
-
+        
         cdef double lam = am
-
+        
         cdef double Ga3 = L*lam*(-0.25*L**2*delta*nap2/r**3 + (0.0416666666666667*ap2*delta + nap2*(0.416666666666667 - 0.833333333333333*X_2))/r**2) + L*lap*(L**2*(-0.25*nap2 + napnam*(0.5 - X_2))/r**3 + (-0.25*ap2 + 0.208333333333333*apam*delta - 1.66666666666667*delta*napnam - 0.75*nap2)/r**2)
-
+        
         cdef double SOcalib = L*nu*dSO*lap/r**3
-
+        
         cdef double gam = L**4*(0.29296875*nu**2 - 0.3515625*nu - 0.41015625)/r**4 + L**2*(0.46875 - 0.28125*nu)/r**2 + L**2*(-0.798177083333333*nu**2 - 0.2734375*nu - 0.23046875)/r**3 + 0.25 + (0.34375*nu + 0.09375)/r + (0.536458333333333*nu**2 - 0.03125*nu + 0.078125)/r**2
-
+        
         cdef double gap = L**4*(1.34765625*nu**2 + 0.5859375*nu + 0.41015625)/r**4 + L**2*(-1.40625*nu - 0.46875)/r**2 + L**2*(-2.07161458333333*nu**2 - 2.0859375*nu + 0.23046875)/r**3 + 1.75 + (0.71875*nu - 0.09375)/r + (0.567708333333333*nu**2 - 5.53125*nu - 0.078125)/r**2
-
+        
         cdef double Hodd = (Ga3 + L*delta*gam*lam + L*gap*lap + SOcalib)/(ap2*(r + 2.0) + r**3)
-
+        
         cdef double pr = prst/xi
-
+        
 
         return xi
     cpdef dynamics(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-
+        
         """
         Toy aligned-spin Hamiltonian
 
@@ -1486,17 +1357,17 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         """
 
         # Coordinate definitions
-
+        
         cdef double r = q[0]
         cdef double phi = q[1]
-
+        
         cdef double prst = p[0]
         cdef double L = p[1]
-
+        
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-
+        
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -1526,19 +1397,19 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x9 = x3 + x8
         cdef double x10 = x1*x9
         cdef double x11 = x0 + x10
-        cdef double x12 = 1/x11
+        cdef double x12 = x11**(-1)
         cdef double x13 = r**4
-        cdef double x14 = 1/x13
+        cdef double x14 = x13**(-1)
         cdef double x15 = 3.0*nu
         cdef double x16 = X_1*chiL1
         cdef double x17 = X_2*chiL2
         cdef double x18 = x16 + x17
         cdef double x19 = pphi*x18
         cdef double x20 = r**2
-        cdef double x21 = 1/x20
+        cdef double x21 = x20**(-1)
         cdef double x22 = 0.71875*nu - 0.09375
         cdef double x23 = -1.40625*nu - 0.46875
-        cdef double x24 = 1/x0
+        cdef double x24 = x0**(-1)
         cdef double x25 = pphi**2
         cdef double x26 = x24*x25
         cdef double x27 = 2.0*x26
@@ -1549,7 +1420,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x32 = 0.5859375*nu + 1.34765625*x28 + 0.41015625
         cdef double x33 = pphi**4
         cdef double x34 = r**5
-        cdef double x35 = 1/x34
+        cdef double x35 = x34**(-1)
         cdef double x36 = 4.0*x35
         cdef double x37 = x33*x36
         cdef double x38 = 0.34375*nu + 0.09375
@@ -1574,7 +1445,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x57 = delta*x56
         cdef double x58 = delta*x54
         cdef double x59 = nu*dSO*x24
-        cdef double x60 = 1/r
+        cdef double x60 = r**(-1)
         cdef double x61 = x21*x25
         cdef double x62 = x14*x33
         cdef double x63 = x18*(x21*(-5.53125*nu + 0.567708333333333*x28 - 0.078125) + x22*x60 + x23*x61 + x26*x29 + x32*x62 + 1.75)
@@ -1611,7 +1482,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x94 = nu*(452.542166996693 - 51.6952380952381*x93) + x28*(118.4*x93 - 1796.13660498019) + 602.318540416564*x83
         cdef double x95 = x14*x70
         cdef double x96 = r*x10 + x13
-        cdef double x97 = 1/x96
+        cdef double x97 = x96**(-1)
         cdef double x98 = x18**2
         cdef double x99 = x97*x98
         cdef double x100 = x25*x60*x99
@@ -1652,7 +1523,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x135 = 148.04406601634*r
         cdef double x136 = 113485.217444961*r
         cdef double x137 = nu*(x132*(x13 + x131) + x133*(13218.7851094412*r + 4264.6962773603*x0 - 6852.34813868015*x13 + 8529.39255472061*x20 - 33722.4297811176) + x135*(1926.0*x0 + 349.0*x13 + x134 + 3852.0*x20 + 36400.0) + x136*(-x13 + x131))
-        cdef double x138 = 1/(67645734912.0*x121 + 1120.0*x122 + 7.0*x123 + 32768.0*x129 + 53760.0*x137 + 13212057600.0*x34 + 241555486248.807*x88)
+        cdef double x138 = (67645734912.0*x121 + 1120.0*x122 + 7.0*x123 + 32768.0*x129 + 53760.0*x137 + 13212057600.0*x34 + 241555486248.807*x88)**(-1)
         cdef double x139 = x13*x138
         cdef double x140 = x119*x139
         cdef double x141 = 0.000130208333333333*x116 + x140
@@ -1689,7 +1560,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x172 = 1822680546449.21*x28
         cdef double x173 = 5787938193408.0*x120
         cdef double x174 = -12049908701745.2*nu + r*x172 - 39476764256925.6*r + 10611661054566.2*x156 + 2589101062873.81*x157 - 326837426.241486*x159 + 133772083200.0*x160 - x163 + x173 + 5107745331375.71*x20 + 80059249540278.2*x28 + 6730497718123.02*x83 + 275059053208689.0
-        cdef double x175 = 1/x174
+        cdef double x175 = x174**(-1)
         cdef double x176 = 4.0*nu
         cdef double x177 = 3.0*x3
         cdef double x178 = 3.0*x6 + 3.0*x7
@@ -1699,7 +1570,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x182 = x9*(-1171.0*nu - 861.0)
         cdef double x183 = x103*(115.0*nu + x166 - 37.0)
         cdef double x184 = 5787938193408.0*x143 - 9216.0*x145 - 967680.0*x147 + 55296.0*x148 + x150 + x154
-        cdef double x185 = 1/x184
+        cdef double x185 = x184**(-1)
         cdef double x186 = x174*x185
         cdef double x187 = x186*x34
         cdef double x188 = x119*x138
@@ -1709,7 +1580,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double x192 = -x1*x100 + x112*x61 + 1.27277314139085e-19*x113*x168 + 1.69542100694444e-8*x191*x35 + x21*x92 + 147.443752990146*x70*x72 + x70*x82 - 11.3175085791863*x73*x75 + x73*x87 + 1.48275342024365*x76*x78 + x79*x80 + x84*x85 + x89*x90 + x94*x95 + 1.0
         cdef double x193 = 2.0*x60
         cdef double x194 = x116*(x193 + 1.0) + 1.0
-        cdef double x195 = 1/x194
+        cdef double x195 = x194**(-1)
         cdef double x196 = x103*(x176 + 1.0)
         cdef double x197 = x57*(2.0*nu - 3.0)
         cdef double x198 = 7.0*nu
@@ -1753,7 +1624,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
 
         # Evaluate Hamiltonian
         cdef double H,xi
-        H,xi = evaluate_H(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2,self.EOBpars,a6,dSO)
+        H,xi,_,_,_,_,_,_,_  = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
 
         # Heff Jacobian expressions
         cdef double dHeffdr = x12*(-dSO*x14*x15*x19 + x19*(x24*(1.25*x3 - 0.75*x48 - 0.416666666666667*x57 + 1.66666666666667*x58 + 1.25*x6 + 1.25*x7) - x31*x55) + x19*(-x21*x22 - x23*x27 - x24*(-11.0625*nu + 1.13541666666667*x28 - 0.15625) - x29*x31 - x32*x37) + x43*(0.375*x14*x49*x50 - x24*(0.0833333333333333*x51 + x52)) + x44*(-x21*x38 - x24*(-0.0625*nu + 1.07291666666667*x28 + 0.15625) - x27*x39 - x31*x40 - x37*x41)) + 0.5*x205*(x192*x195*(30720.0*x0*x119*x138 + 7680.0*x13*x138*x210 - x14*(x177 + x178 - 3.0*x48) + x206*x24 - x209*(x109*(14350.0*nu - 1320.0*x28 + 2805.0) + x111*(5830.0*nu - 1640.0*x28 - 855.0) + 0.625*x202) - x209*(0.015625*x179*(-135.0*nu + 140.0*x28 - 15.0) - 6.09375*x197 - x199*(35.0*nu + 45.0)) - x215 - x35*(0.5*x200 + 0.25*x201 + 8.25*x58) - x35*(0.5*x196 + x2*x208 - 5.0*x57 + 4.5*x6 + 4.5*x7)) - x192*x203*(x14*x206 - x207*x24*x9)/x194**2 + x204*(-663.496888455656*nu*r**(-5.5)*x70 - nu*x21*x80 + 39.6112800271521*nu*x71*x73 + x1*x21*x25*x97*x98 + x1*x25*x60*x98*(r*x9 + x10 + x212)/x96**2 - x100 - x112*x27 + 7.59859378406358e-45*x113*x115*x142*x165*x167*x184*x220*x70 + 6.78168402777778e-8*x114*x14*x170*x171*x175*x184*x190 + x14*x70*(118.4*x211 - 51.6952380952381*x79) - 9.25454462627843e-34*x142*x218*x219/x164**3 - 2.24091649004576e-37*x165*x169*x171*x184*x218*x221*x35 + 1.69542100694444e-8*x169*x170*x171*x175*x184*x35*(x138*x187*x223 - x14*(x180*(12.0*nu - 3.0) - 7.875*x57 + x9*(9.0*nu + 8.4375)) + 38400.0*x140*x186 + x185*x189*x218*x34 - x187*x214 + x222 - x35*(0.125*x181 + 0.0625*x182 + 0.0625*x183) - 2.29252167428035e-22*x174*x188*x220*x34/x155) + 1.69542100694444e-8*x169*x170*x171*x175*x190*x220*x35 - 8.47710503472222e-8*x191*x209 + x21*x25*(-x14*(x101*(-5.25*nu - 2.8125) + x102*(2.25 - x208) + x105*(0.5625 - 2.25*nu)) + x24*x49 - x35*(0.03125*x104*x110 - 0.25*x106 + 0.0104166666666667*x108*x49)) - x216*x92 - x30*x73*x89 - x36*x70*x94 - 3.70688355060912*x74*x78 - 2.0*x81*x85 - 3.0*x84*x95 - 2.0*x86*x90 - 4.41515887225116e-12*x169*x175*x221*x224*x225/x141**3 - 6.62902677807736e-23*x165*x219*x224/x141**5 + 1.01821851311268e-18*x114**3*x142*x155*x165*x167*x70/r**12 - 1.65460508380811e-18*x168/r**14)) - (3.0*x20 + x9)*(pphi*x63 + pphi*x67 + pphi*x69 + x19*x59 + x43*x64)/x11**2
@@ -1773,29 +1644,27 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
 
         return dHdr, dHdphi, dHdpr, dHdpphi,H,xi
     cpdef double omega(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-
+        
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-
+        
         cdef double r = q[0]
         cdef double phi = q[1]
-
+        
         cdef double prst = p[0]
         cdef double L = p[1]
-
+        
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-
+        
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
-
-
 
         cdef double pphi = L
 
@@ -1820,13 +1689,13 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double z7 = z5 + z6
         cdef double z8 = z2 + z7
         cdef double z9 = z1*z8
-        cdef double z10 = 1/z0
+        cdef double z10 = z0**(-1)
         cdef double z11 = X_1*chiL1
         cdef double z12 = X_2*chiL2
         cdef double z13 = z11 + z12
         cdef double z14 = -1.40625*nu - 0.46875
         cdef double z15 = r**2
-        cdef double z16 = 1/z15
+        cdef double z16 = z15**(-1)
         cdef double z17 = 2.0*pphi
         cdef double z18 = z16*z17
         cdef double z19 = nu**2
@@ -1834,7 +1703,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double z21 = z10*z17
         cdef double z22 = 0.5859375*nu + 1.34765625*z19 + 0.41015625
         cdef double z23 = r**4
-        cdef double z24 = 1/z23
+        cdef double z24 = z23**(-1)
         cdef double z25 = 4.0*pphi**3*z24
         cdef double z26 = 0.46875 - 0.28125*nu
         cdef double z27 = -0.2734375*nu - 0.798177083333333*z19 - 0.23046875
@@ -1849,7 +1718,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double z36 = -z35 + z8
         cdef double z37 = z10*z36
         cdef double z38 = z31*z37
-        cdef double z39 = 1/r
+        cdef double z39 = r**(-1)
         cdef double z40 = z16*z31
         cdef double z41 = z10*z31
         cdef double z42 = pphi**4*z24
@@ -1871,7 +1740,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double z58 = delta*z47
         cdef double z59 = 4.0*nu
         cdef double z60 = r**5
-        cdef double z61 = 1/z60
+        cdef double z61 = z60**(-1)
         cdef double z62 = 7.0*nu
         cdef double z63 = -3.0*z2 + 3.0*z5 + 3.0*z6
         cdef double z64 = nu**4
@@ -1911,7 +1780,7 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
 
         # Evaluate Hamiltonian
         cdef double H
-        H,_ = evaluate_H(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2,self.EOBpars,a6,dSO)
+        H,_,_,_,_,_,_,_,_ = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
 
         # Heff Jacobian expressions
 
@@ -1922,32 +1791,32 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double omega = M * M * dHeffdpphi / (nu*H)
 
         return omega
-    cpdef auxderivs(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
 
+    cpdef auxderivs(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
+        
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-
+        
         cdef double r = q[0]
         cdef double phi = q[1]
-
+        
         cdef double prst = p[0]
         cdef double L = p[1]
-
+        
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-
+        
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
 
         cdef double pphi = L
-        #print(f"Inside aux derivs, chi1={chix1},{chiy1},{chiz1}")
-        #print(f"Inside aux derivs, chi2={chix2},{chiy2},{chiz2}")
+
         cdef CalibCoeffs c_coeffs = self.calibration_coeffs
         cdef double a6 = c_coeffs['a6']
         cdef double dSO = c_coeffs['dSO']
@@ -2180,7 +2049,6 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double w218 = -1610.0*nu + w29 + 375.0
         cdef double w219 = -1090.0*nu + 152.0*w28 + 219.0
         cdef double w220 = -w14*(w214*(2.25 - w81) + w215*(-5.25*nu - 2.8125) + w216*(0.5625 - 2.25*nu)) + w18*w31 - w20*(-0.25*w217 + 0.0104166666666667*w218*w31 + 0.03125*w219*w34)
-
         cdef double w221 = w189**2
         cdef double w222 = w0*w194*w221
         cdef double w223 = w14*(-0.0625*w217 + w218*w32 + w219*w35) + w18*(w214*(0.75 - 1.5*X_2) + w215*(-1.75*nu - 0.9375) + w216*(0.1875 - 0.75*nu)) - w2*w215 + 1.0
@@ -2201,4 +2069,5 @@ cdef class Ham_AvgS2precess_simple_cython_AD(Hamiltonian_v5PHM_C):
         cdef double dHodddr = (-w14*w186*w191 + w190*(w18*(1.66666666666667*w26 - 0.75*w30 - 0.416666666666667*w37 + 1.25*w4 + 1.25*w7 + 1.25*w8) - w198*w211) + w190*(-w18*(-11.0625*nu + 1.13541666666667*w28 - 0.15625) - w192*w2 - w193*w196 - w197*w198 - w199*w201) + w206*(0.375*w14*w208*w31 - w18*(0.0833333333333333*w209 + w210)) + w207*(-w18*(-0.0625*nu + 1.07291666666667*w28 + 0.15625) - w196*w203 - w198*w204 - w2*w202 - w201*w205))/w185 - (3.0*w1 + w10)*(nu*w18*w191 + w190*(w195*w211 + w2*(0.208333333333333*delta*w36 - 0.833333333333333*w26 + 0.375*w30 - 0.625*w4 - 0.625*w7 - 0.625*w8)) + w190*(w0*w192 + w193*w212 + w195*w197 + w199*w213 + w2*(-5.53125*nu + 0.567708333333333*w28 - 0.078125) + 1.75) + w206*(w2*(0.0416666666666667*w209 + 0.5*w210) - 0.125*w208*w48) + w207*(w0*w202 + w195*w204 + w2*(-0.03125*nu + 0.536458333333333*w28 + 0.078125) + w203*w212 + w205*w213 + 0.25))/w185**2
         cdef double dBpdr = w220
         cdef double dHevendr = 0.5*(w229*w230)**(-0.5)*(-w229*w79 + w229*w90 + w230*(w0*w133*w138*w140*w194*w221 - 2.24091649004576e-37*w109*w117*w144*w168*w20*w224*w225*w227 + 1.69542100694444e-8*w109*w132*w144*w20*w224*w225*w226 + 6.78168402777778e-8*w109*w14*w142*w224*w225*w226*w227 - 4.41515887225116e-12*w109*w144*w145*w20*w224*w226*w227/w165**3 + 1.69542100694444e-8*w130*w144*w20*w224*w225*w226*w227 + w133*w136*w194*w2*w221 - w136*w222 - w174 + w194*w2*w220 - w196*w223 - 8.47710503472222e-8*w228*w82))
-        return dAdr, dBnpdr, dBnpadr, dxidr, dQdr, dQdprst, dHodddr,dBpdr,dHevendr
+
+        return dAdr, dBnpdr, dBnpadr, dxidr, dQdr, dQdprst, dHodddr, dBpdr, dHevendr

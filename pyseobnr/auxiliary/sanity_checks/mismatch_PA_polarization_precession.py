@@ -50,7 +50,7 @@ def ampNRtoPhysicalTD(ampNR, mt:float,distance:float):
     return ampNR*(lal.C_SI*mt*lal.MTSUN_SI)/distance
 
 
-def generate_v5PHM_waveform(q:float, mtotal:float,
+def generate_v5PHM_waveform(m1:float, m2:float,
                             s1x:float, s1y:float, s1z:float,
                             s2x:float, s2y:float, s2z:float,
                             omega_ref:float,
@@ -62,55 +62,60 @@ def generate_v5PHM_waveform(q:float, mtotal:float,
                             initial_conditions_postadiabatic_type = "analytic",
                             ):
 
-
-
-    m1 = q/(1.+q)*mtotal
-    m2 = 1./(1.+q)*mtotal
-
-    # Do not test subsolar mass events
-    if m2 < 1:
-        m2 = 1.
-        m1 = q*m2
-        mtotal = m1+m2
-
-
-    #mtotal = m1+m2
-    #q = m1/m2
-    #omega0 = f_min * (np.pi * mtotal * lal.MTSUN_SI)
+    mtotal = m1+m2
+    q = m1/m2
+    #omega0 = f_min * (np.pi * (m1 + m2) * lal.MTSUN_SI)
 
     chi_1 = [s1x, s1y, s1z]
     chi_2 = [s2x, s2y, s2z]
 
-    settings = {'ell_max':ell_max,'beta_approx':None,'M':mtotal,"dt":delta_t,
+    settings = {
+            'ell_max':ell_max,'beta_approx':None,'M':mtotal,"dt":delta_t,
             "initial_conditions" : initial_conditions,
-            "initial_conditions_postadiabatic_type" : initial_conditions_postadiabatic_type}
+            "initial_conditions_postadiabatic_type" : initial_conditions_postadiabatic_type,
+            }
 
-    if approx == 'SEOBNRv5PHM':
-        settings["postadiabatic"] = False
-        #time, modes, _ = v5P_wrapper.get_EOB_modes(p, ell_max=ell_max)
-        time, modes = generate_modes_opt(q,chi_1,chi_2,omega_start,
-                           omega_ref=omega_ref, approximant="SEOBNRv5PHM",
-                           debug=False,settings=settings)
-        modes_dict = {}
-        for ell in range(2, ell_max + 1):
-            for m in range(-ell, ell + 1):
-                modes_dict["{},{}".format(ell, m)] = modes["{},{}".format(ell, m)]
-
-    elif approx == 'SEOBNRv5PHM_PA':
+    if approx == 'SEOBNRv5PHM_PA':
         settings["postadiabatic"] = True
         settings["postadiabatic_type"] = "analytic"
-        time, modes = generate_modes_opt(q,chi_1,chi_2, omega_start,
-                            omega_ref=omega_ref, approximant="SEOBNRv5PHM",
-                           debug=False,settings=settings)
+
+        #print(f"params = {q,chi_1,chi_2,omega0}")
+        #print(f"settings = {settings}")
+        time, modes, model = generate_modes_opt(q,chi_1,chi_2,omega_start,approximant='SEOBNRv5PHM',
+                           omega_ref= omega_ref, debug=True,settings=settings)
         modes_dict = {}
         for ell in range(2, ell_max + 1):
             for m in range(-ell, ell + 1):
                 modes_dict["{},{}".format(ell, m)] = modes["{},{}".format(ell, m)]
 
+    elif approx == 'SEOBNRv5PHM_PA_num':
+        settings["postadiabatic"] = True
+        settings["postadiabatic_type"] = "numeric"
+
+        #print(f"params = {q,chi_1,chi_2,omega0}")
+        #print(f"settings = {settings}")
+        time, modes, model = generate_modes_opt(q,chi_1,chi_2,omega_start,approximant='SEOBNRv5PHM',
+                                         omega_ref= omega_ref, debug=True,settings=settings)
+        modes_dict = {}
+        for ell in range(2, ell_max + 1):
+            for m in range(-ell, ell + 1):
+                modes_dict["{},{}".format(ell, m)] = modes["{},{}".format(ell, m)]
+
+
+    elif approx == 'SEOBNRv5PHM':
+        settings["postadiabatic"] = False
+
+        time, modes, model = generate_modes_opt(q,chi_1,chi_2,omega_start,approximant=approx,
+                                         omega_ref= omega_ref,
+                                         debug=True,settings=settings)
+        modes_dict = {}
+        for ell in range(2, ell_max + 1):
+            for m in range(-ell, ell + 1):
+                modes_dict["{},{}".format(ell, m)] = modes["{},{}".format(ell, m)]
 
     elif approx == 'SEOBNRv5HM':
 
-        time, modes = generate_modes_opt(q,chi_1[-1],chi_2[-1],omega0,approximant=approx,
+        time, modes = generate_modes_opt(q,chi_1[-1],chi_2[-1],omega_start,approximant=approx,
                                 debug=False,settings=settings)
 
         modes_dict = {}
@@ -140,79 +145,96 @@ def generate_v5PHM_waveform(q:float, mtotal:float,
     hp_td = taper_timeseries(hp_td, tapermethod="startend")
     hc_td = taper_timeseries(hc_td, tapermethod="startend")
 
-    return time, modes_dict, hp_td, hc_td
+    return time, modes_dict, hp_td, hc_td, model
 
 
 
-def perturbation_mismatch_prec(m1:float, m2:float,
-                            s1x:float, s1y:float, s1z:float,
-                            s2x:float, s2y:float, s2z:float,
-                            iota_s:float,
-                            ell_max=5,initial_conditions="adiabatic",omega0 = 0.02):
+def pa_mismatch_prec(m1,m2, s1x,s1y,s1z,s2x,s2y,s2z, iota_s,ell_max=5,initial_conditions="adiabatic",omega0 = 0.02):
 
+
+    chi1 = [s1x,s1y,s1z]
+    chi2 = [s2x,s2y,s2z]
 
     Mt = m1+m2
     q=m1/m2
+
+    # Do not test sub-solar mass binaries
+    if m2 < 1:
+
+        m2 = 1.
+        m1 = q*m2
+        Mt = m1+m2
+
 
     if q<1:
         q=1
 
     phi_s = 0.
-    pert=1e-15
 
-    f_min = omega0 / (np.pi * (m1 + m2) * lal.MTSUN_SI)
+    omega_ref = omega0
+    omega_start = omega_ref
+
     distance = 1e6*lal.PC_SI
     delta_t = 1./16384.
-    approx = 'SEOBNRv5PHM_PA'
+    f_min = omega_start / (Mt * lal.MTSUN_SI * np.pi)
 
-    # Add small perturbation to m1
 
-    # Generate TD polatizations of SEOBNRv5HM
-    time, modes, hp_td, hc_td = generate_v5PHM_waveform(q, Mt,
+    # Generate TD polatizations of SEOBNRv5PHM
+
+    approx = 'SEOBNRv5PHM'
+    # non-PA evolution
+    time, modes, hp_td, hc_td,_ = generate_v5PHM_waveform(m1, m2,
                                                         s1x, s1y, s1z,
                                                         s2x, s2y, s2z,
-                                                        omega0,
-                                                        omega0,
+                                                        omega_ref,
+                                                        omega_start,
                                                         iota_s, phi_s, distance,
                                                         delta_t, approx, ell_max = ell_max,
                                                         initial_conditions = initial_conditions,
                                                         initial_conditions_postadiabatic_type = "analytic",
                                                         )
+
+
+    approx = 'SEOBNRv5PHM_PA'
+    # PA evolution
+    time_pa, modes_pa, hp_td_pa, hc_td_pa,_ = generate_v5PHM_waveform(m1, m2,
+                                                        s1x, s1y, s1z,
+                                                        s2x, s2y, s2z,
+                                                        omega_ref,
+                                                        omega_start,
+                                                        iota_s, phi_s, distance,
+                                                        delta_t, approx, ell_max = ell_max,
+                                                        initial_conditions = "postadiabatic",
+                                                        initial_conditions_postadiabatic_type = "analytic",
+                                                        )
+
     # Pad zeros
-    N = max(len(hp_td), len(hc_td))
+    N = max(len(hp_td_pa), len(hc_td))
     pad = int(2 ** (np.floor(np.log2(N)) + 2))
+    hp_td_pa.resize(pad)
+    hc_td_pa.resize(pad)
     hp_td.resize(pad)
     hc_td.resize(pad)
+
+    # Perform the Fourier Transform
+    hp_pa = make_frequency_series(hp_td_pa)
+    hc_pa = make_frequency_series(hc_td_pa)
 
     # Perform the Fourier Transform
     hp = make_frequency_series(hp_td)
     hc = make_frequency_series(hc_td)
 
 
-    q_pert = m1*(1.+pert)/m2
-    Mt_pert = m1*(1.+pert) + m2
-    # Generate TD polarizations of the perturbed system
-    time_pert, modes_pert, hp_td, hc_td = generate_v5PHM_waveform(q_pert, Mt_pert,
-                                                        s1x, s1y, s1z,
-                                                        s2x, s2y, s2z,
-                                                        omega0,
-                                                        omega0,
-                                                        iota_s, phi_s, distance,
-                                                        delta_t, approx, ell_max = ell_max,
-                                                        initial_conditions = initial_conditions,
-                                                        initial_conditions_postadiabatic_type = "analytic",
-                                                        )
+    amp_strain = abs(hp.data-1j*hc.data)
+    idx_max = np.argmax(amp_strain)
+    fpeak_nonpa = hp.get_sample_frequencies()[idx_max]
 
-    # Pad zeros
-    N = max(len(hp_td), len(hc_td))
-    pad = int(2 ** (np.floor(np.log2(N)) + 2))
-    hp_td.resize(pad)
-    hc_td.resize(pad)
+    amp_pa_strain = abs(hp_pa.data-1j*hc_pa.data)
+    idx_max = np.argmax(amp_pa_strain)
+    fpeak_pa = hp_pa.get_sample_frequencies()[idx_max]
 
-    # Perform the Fourier Transform
-    hp_pert = make_frequency_series(hp_td)
-    hc_pert = make_frequency_series(hc_td)
-
+    fpeak = max([fpeak_nonpa,fpeak_pa])
+    f_min = 2.0*fpeak_pa
 
     # Generate PSD
     if f_min<10:
@@ -220,14 +242,13 @@ def perturbation_mismatch_prec(m1:float, m2:float,
     else:
         f_low_phys = f_min
 
-
     f_high_phys = 2048.
 
     psd = aLIGOZeroDetHighPowerGWINC(len(hp), hp.delta_f, f_low_phys)
 
     # Compute match for hplus
     mm_hp = match(hp,
-          hp_pert,
+          hp_pa,
           psd,
           low_frequency_cutoff=f_low_phys,
           high_frequency_cutoff=f_high_phys
@@ -236,18 +257,26 @@ def perturbation_mismatch_prec(m1:float, m2:float,
 
     # Compute match for hcross
     mm_hc = match(hc,
-          hc_pert,
-          psd,
-          low_frequency_cutoff=f_low_phys,
-          high_frequency_cutoff=f_high_phys
-          )[0]
+        hc_pa,
+        psd,
+        low_frequency_cutoff=f_low_phys,
+        high_frequency_cutoff=f_high_phys
+        )[0]
 
     # Take the mean
+    #print(f"mm_hp = {mm_hp}, mm_hc = {mm_hc}")
     mm_mean  = 1.-np.mean([mm_hp,mm_hc])
     #print(f"mm = {mm_mean}")
+    """except:
 
-    chi1 = [s1x,s1y,s1z]
-    chi2 = [s2x,s2y,s2z]
+        print(
+            f"Error for the following parameters: q = {q}, chi1 = {chi1}, chi2 = {chi2}, Mt = {Mt}, iota_s = {iota_s}"
+        )
+        mm_mean = -1
+        pass
+    """
+
+
 
     if mm_mean>0.001:
 
@@ -260,22 +289,22 @@ def perturbation_mismatch_prec(m1:float, m2:float,
         idx_max = np.argmax(amp22)
         tmax22 = time[idx_max]
 
-        amp22_pert = np.abs(modes['2,2'])
-        idx_max = np.argmax(amp22_pert)
-        tmax22_pert = time_pert[idx_max]
+        amp22_pa = np.abs(modes_pa['2,2'])
+        idx_max = np.argmax(amp22_pa)
+        tmax22_pa = time_pa[idx_max]
 
         for mode in mode_list:
             plt.plot(time-tmax22, np.real(modes[mode]),label=str(mode))
-            plt.plot(time_pert-tmax22_pert, np.real(modes_pert[mode]),ls = '--')
+            plt.plot(time_pa-tmax22_pa, np.real(modes_pa[mode]),ls = '--')
 
 
         plt.xlabel("Time (M)")
         plt.ylabel(r"$\|h_{\ell m}|$")
         plt.xlim(-300,100)
         plt.legend(loc=3)
-        plt.title(f'MM = {np.round(mm_mean,7)} - q{np.round(q,3)}_s{np.round(chi1,3)}_s{np.round(chi2,3)} - iota = {np.round(iota_s,3)}')
+        plt.title(f'MM = {np.round(mm_mean,7)} - q{np.round(q,3)}_s{np.round(chi1,3)}_s{np.round(chi2,3)} - Mt = {np.round(Mt,3)}')
         Path('./plots').mkdir(parents=True, exist_ok=True)
-        plt.savefig(f'./plots/pert_q{np.round(q,3)}_s{np.round(chi1,3)}_s{np.round(chi2,3)}_i{np.round(iota_s,3)}.png', dpi = 200)
+        plt.savefig(f'./plots/pa_q{np.round(q,3)}_s{np.round(chi1,3)}_s{np.round(chi2,3)}_M{np.round(Mt,3)}.png', dpi = 200)
         plt.clf()
 
     res = [m1,m2, *chi1,*chi2, mm_mean,iota_s]
@@ -285,16 +314,16 @@ def perturbation_mismatch_prec(m1:float, m2:float,
 
 
 def process_one_case(input):
-    m1,m2,  s1x,s1y,s1z,s2x,s2y,s2z, iota_s, ell_max, initial_conditions, omega0 = input
+    m1,m2,  s1x,s1y,s1z,s2x,s2y,s2z, iota_s, ell_max,initial_conditions,omega0 = input
 
-    m1,m2,  s1x,s1y,s1z,s2x,s2y,s2z, iota_s, mm = perturbation_mismatch_prec(m1,m2, s1x,s1y,s1z,s2x,s2y,s2z, iota_s, ell_max = ell_max,initial_conditions=initial_conditions,omega0 = omega0)
+    m1,m2,  s1x,s1y,s1z,s2x,s2y,s2z, iota_s, mm = pa_mismatch_prec(m1,m2, s1x,s1y,s1z,s2x,s2y,s2z, iota_s, ell_max =ell_max,initial_conditions=initial_conditions,omega0 = omega0)
     return np.array([m1,m2,s1x,s1y,s1z,s2x,s2y,s2z, iota_s, mm])
 
 
 if __name__ == "__main__":
 
     p = argparse.ArgumentParser(
-        description="Perturbation test for the full polarizations"
+        description="Test post-adiabatic for the full polarizations"
     )
     p.add_argument(
         "--points", type=int, help="Number of points", default="2000"
@@ -323,6 +352,7 @@ if __name__ == "__main__":
     p.add_argument(
         "--omega0", type=float, help="Starting orbital frequeny in geometric units", default="0.02"
     )
+
     p.add_argument(
         "--aligned", type=str, help="If set then run aligned-spin configuration", default="False"
     )
@@ -334,17 +364,16 @@ if __name__ == "__main__":
     ell_max = args.ell_max
     omega0 = args.omega0
     initial_conditions = args.initial_conditions
+    as_case = args.aligned
 
     np.random.seed(seed)
     q = np.random.uniform(1., args.q_max, N)
     #m1 = np.random.uniform(args.M_min,args.M_max,N)
     np.random.seed(seed-1)
     mtotal = np.random.uniform(args.M_min, args.M_max, N)
-    as_case = args.aligned
 
     m1 = q/(1.+q)*mtotal
     m2 = 1./(1.+q)*mtotal
-
 
     if as_case == "True":
 
@@ -386,7 +415,6 @@ if __name__ == "__main__":
     ell_max_arr =  np.full(len(iota_arr), ell_max, dtype=int)
     ic_arr =  np.full(len(iota_arr), initial_conditions)
     omega0_arr = np.full(len(iota_arr), omega0)
-
     lst = [(a, b, c, d,e,f,g,h,i,j,k,l) for a, b, c, d,e,f,g,h,i,j,k,l in zip(m1,m2,chi1x,chi1y,chi1z,chi2x,chi2y,chi2z,iota_arr,ell_max_arr,ic_arr,omega0_arr)]
 
     with Pool(args.ncores) as pool:
@@ -394,7 +422,7 @@ if __name__ == "__main__":
 
     all_means = np.array(all_means)
 
-    np.savetxt(f"perturbation_mismatch.dat", all_means)
+    np.savetxt(f"pa_mismatch.dat", all_means)
 
     ### Plots ###
 
@@ -406,7 +434,7 @@ if __name__ == "__main__":
         plt_dir = './plots'
         Path(plt_dir).mkdir(parents=True, exist_ok=True)
 
-        res_path = f"perturbation_mismatch.dat"
+        res_path = f"pa_mismatch.dat"
         res = np.loadtxt(res_path)
 
         m1 = res[:,0]
@@ -439,18 +467,18 @@ if __name__ == "__main__":
         plt.title('$\mathcal{M}_{\mathrm{median}} = $' + f'{np.round(np.median(mm), 7)}')
         cbar=plt.colorbar()
         cbar.set_label('$\mathcal{M}$')
-        plt.savefig(f'{plt_dir}/mm_pert_apam.png', bbox_inches = 'tight', dpi = 300)
+        plt.savefig(f'{plt_dir}/mm_pa_apam.png', bbox_inches = 'tight', dpi = 300)
         plt.close()
 
 
-
         # Histogram
+
         fig, ax = plt.subplots(figsize=(14,10),dpi=250)
         ax.hist(
             mm,
             bins=np.logspace(start=np.log10(1e-15), stop=np.log10(1.0), num=100),
             alpha=0.4,
-            label='SEOBNRv5PHM - SEOBNRv5PHM pert.',
+            label='SEOBNRv5PHM non-PA - SEOBNRv5PHM PA',
             histtype="step",
             fill=False
         )
@@ -472,5 +500,5 @@ if __name__ == "__main__":
         ax.tick_params(axis='y', which='major', pad=10,width=2,length=5,size=7, labelsize=size,direction='in')
         ax.tick_params(axis='y', which='minor', pad=10,width=2,length=5,size=7, labelsize=size,direction='in')
         plt.tight_layout()
-        plt.savefig(f"{plt_dir}/mm_hist_v5PHM_pert_test.png",bbox_inches="tight",dpi=300,)
+        plt.savefig(f"{plt_dir}/mm_hist_v5PHM_pa_test.png",bbox_inches="tight",dpi=300,)
         plt.close()

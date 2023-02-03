@@ -1,10 +1,23 @@
-# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False, profile=True, linetrace=True,initializedcheck=False
+# cython: language_level=3, boundscheck=False, cdivision=True, profile=True, linetrace=True,initializedcheck=False
 
 cimport cython
 from pyseobnr.eob.utils.containers cimport EOBParams,FluxParams
 from pyseobnr.eob.waveform.waveform cimport RR_force,  RadiationReactionForce
 from pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C cimport Hamiltonian_v5PHM_C
+import numpy as np
+cimport numpy as np
+from pyseobnr.eob.fits.fits_Hamiltonian import dSO as dSO_poly_fit
 
+
+DTYPE = np.float64
+
+# "ctypedef" assigns a corresponding compile-time type to DTYPE_t. For
+# every type in the numpy module there's a corresponding compile-time
+# type with a _t-suffix.
+ctypedef np.float64_t DTYPE_t
+
+cdef extern from "numpy/npy_math.h":
+    bint npy_isnan(double x)
 
 cpdef get_rhs_prec(double t,double[::1] z,Hamiltonian_v5PHM_C H,RadiationReactionForce RR,
     double m_1,double m_2,EOBParams params):
@@ -52,6 +65,9 @@ cpdef get_rhs_prec(double t,double[::1] z,Hamiltonian_v5PHM_C H,RadiationReactio
     xi = dynamics[5]
 
     params.p_params.omega_circ = omega_circ
+    params.p_params.omega = omega
+    params.p_params.H_val = H_val
+
 
 
     cdef (double, double) RR_f = RR.RR(q, p, omega, omega_circ, H_val, params)

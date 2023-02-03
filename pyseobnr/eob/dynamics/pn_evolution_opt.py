@@ -12,7 +12,6 @@ from scipy.interpolate import CubicSpline
 from ..hamiltonian import Hamiltonian
 from .initial_conditions_aligned_precessing import computeIC_augm
 from ..utils.math_ops_opt import *
-from ..utils.utils_precession_opt import project_spins_augment_dynamics_opt
 
 # Test cythonization of PN equations
 from .rhs_precessing import get_rhs_prec
@@ -514,7 +513,7 @@ def rhs_wrapper(t, z, args):
 
 
 def compute_quasiprecessing_PNdynamics_opt(
-    omega0: float,
+    omega_ref: float,
     omega_start: float,
     m_1: float,
     m_2: float,
@@ -526,7 +525,7 @@ def compute_quasiprecessing_PNdynamics_opt(
 ):
     """
     Compute the dynamics starting from omega_start, with spins
-    defined at omega0.
+    defined at omega_ref.
 
     First, PN evolution equations are integrated (including backwards in time)
     to get spin and orbital angular momentum. From that we construct splines
@@ -535,7 +534,7 @@ def compute_quasiprecessing_PNdynamics_opt(
     of the spins onto orbital angular momentum is computed via the splines.
 
     Args:
-        omega0 (float): Reference frequency
+        omega_ref (float): Reference frequency
         omega_start (float): Starting frequency
         m_1 (float): Mass of primary
         m_2 (float): Mass of secondary
@@ -549,14 +548,14 @@ def compute_quasiprecessing_PNdynamics_opt(
         tuple: Aligned-spin EOB dynamics, PN time, PN dynamics, PN splines
     """
 
-    # Step 1,1: Initial conditions, always defined at omega0
+    # Step 1,1: Initial conditions, always defined at omega_ref
     Lhat0 = [0.0, 0.0, 1.0]
     S_1 = chi_1 * m_1**2
     S_2 = chi_2 * m_2**2
 
-    z0 = np.array([*Lhat0, *S_1, *S_2, omega0])
+    z0 = np.array([*Lhat0, *S_1, *S_2, omega_ref])
 
-    # FIXME: check that the initial omega0 is not too high
+    # FIXME: check that the initial omega_ref is not too high
 
     mt = m_1 + m_2
     nu = m_1 * m_2 / mt / mt
@@ -582,7 +581,7 @@ def compute_quasiprecessing_PNdynamics_opt(
         r = omega ** (-2.0 / 3)
 
         omegaEnd = 0.0
-        omegaStart = omega0
+        omegaStart = omega_ref
 
         omegadiff = omega - spinTaylor_stoppingTest.omegas[-1]
 
@@ -611,7 +610,7 @@ def compute_quasiprecessing_PNdynamics_opt(
 
         return yout
 
-    spinTaylor_stoppingTest.omegas = [omega0]
+    spinTaylor_stoppingTest.omegas = [omega_ref]
     spinTaylor_stoppingTest.omegaPeaks = 0
 
     spinTaylor_stoppingTest.terminal = True
@@ -629,8 +628,8 @@ def compute_quasiprecessing_PNdynamics_opt(
     )
 
 
-    if omega_start < omega0:
-        # We want to start at a lower frequency thean omega0
+    if omega_start < omega_ref:
+        # We want to start at a lower frequency than omega_ref
         # Thus we first integrate backwards in time
         def term_backwards(t, y, *args):
             return y[-1] - omega_start

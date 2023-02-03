@@ -3,6 +3,7 @@ from typing import Callable
 from ..hamiltonian import Hamiltonian
 import numpy as np
 from scipy.optimize import root, root_scalar
+from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
 
 def IC_cons_augm(u:np.ndarray,
                  omega:float,
@@ -102,6 +103,7 @@ def IC_diss_augm(u: np.ndarray,
     RR_f = RR.RR(q, p, omega, omega_circ, H_val, params)
     csi = dynamics[5]
 
+
     rdot = 1 / csi * RR_f[1] / dLdr
     dHdpr = dynamics[2]
     return rdot - dHdpr
@@ -152,5 +154,18 @@ def computeIC_augm(omega: float,
 
     # Now do the dissipative bit: solve for pr
     pr0 = res_diss.root
+
+
+    # Evaluate omega_circ and the Hamiltonian at the intial conditions
+    q = np.array([r0, 0.0])
+    p = np.array([pr0, pphi0])
+    p_circ = np.array([0.0, p[1]])
+    dynamics = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
+    H_val = dynamics[4]
+    omega_circ = H.omega(q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
+    params.p_params.omega_circ = omega_circ
+    params.p_params.H_val = H_val
+
+    #print(f"Ad. IC : r0 = {r0}, pphi0 = {pphi0}, pr0 = {pr0}")
 
     return r0, pphi0, pr0

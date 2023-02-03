@@ -18,16 +18,12 @@ cdef class PhysicalParams:
         self.a2 =  dc["a2"]
         self.chi_1 = dc["chi_1"]
         self.chi_2 = dc["chi_2"]
-        self.chi_1x = dc["chi_1x"]
-        self.chi_1y = dc["chi_1y"]
-        self.chi_1z = dc["chi_1z"]
-        self.chi_2x = dc["chi_2x"]
-        self.chi_2y = dc["chi_2y"]
-        self.chi_2z = dc["chi_2z"]
-        self.chi1_v = np.array([self.chi_1x,self.chi_1y,self.chi_1z])
-        self.chi2_v = np.array([self.chi_2x,self.chi_2y,self.chi_2z])
+        self.chi1_v = dc["chi1_v"]
+        self.chi2_v = dc["chi2_v"]
+        self.lN = dc["lN"]
         self.omega = dc["omega"]
         self.omega_circ = dc["omega"]
+        self.H_val = dc["H_val"]
         #self.omega_start = dc["omega_start"]
         self._compute_derived_quants()
 

@@ -14,4 +14,4 @@ export HDF5_USE_FILE_LOCKING='FALSE'
 export OMP_NUM_THREADS=1
 
 
-python /work/aramosbuades/git/pyseobnr_devel_prec/pyseobnr/auxiliary/sanity_checks/aligned_matches_v5PHM.py --n-cpu 64 --points 100000  --M-min 10 --M-max 300 --q-max 100 --points 100000 --plots
+python /work/aramosbuades/git/pyseobnr_update_precessing_v2/pyseobnr/auxiliary/sanity_checks/aligned_matches_v5PHM.py --n-cpu 64 --points 100000  --M-min 10 --M-max 300 --q-max 100 --points 100000 --plots

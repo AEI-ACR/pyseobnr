@@ -140,6 +140,13 @@ def mismatch_v5P_strain(
     if q<1:
         q=1
 
+    if m2 < 1:
+
+        m2 = 1.
+        m1 = q*m2
+        Mt = m1+m2
+
+
     phi_s = 0.0
 
     omega0 = 0.02
@@ -157,15 +164,6 @@ def mismatch_v5P_strain(
 
 
 
-    # Pad zeros
-    N = max(len(hp_td_v5), len(hc_td_v5))
-    pad = int(2 ** (np.floor(np.log2(N)) + 2))
-    hp_td_v5.resize(pad)
-    hc_td_v5.resize(pad)
-
-    # Perform the Fourier Transform
-    hp_v5 = make_frequency_series(hp_td_v5)
-    hc_v5 = make_frequency_series(hc_td_v5)
 
     # Generate TD polatizations of SEOBNRv5PHM
     time_v5p, modes_v5p, hp_td_v5p, hc_td_v5p = generate_v5PHM_waveform(m1, m2,
@@ -176,17 +174,43 @@ def mismatch_v5P_strain(
                                 delta_t, 'SEOBNRv5PHM')
 
     # Pad zeros
-    N = max(len(hp_td_v5p), len(hc_td_v5p))
+    N = max(len(hp_td_v5), len(hc_td_v5p))
     pad = int(2 ** (np.floor(np.log2(N)) + 2))
     hp_td_v5p.resize(pad)
     hc_td_v5p.resize(pad)
+    hp_td_v5.resize(pad)
+    hc_td_v5.resize(pad)
+
 
     # Perform the Fourier Transform
     hp_v5p = make_frequency_series(hp_td_v5p)
     hc_v5p = make_frequency_series(hc_td_v5p)
 
+
+    hp_v5 = make_frequency_series(hp_td_v5)
+    hc_v5 = make_frequency_series(hc_td_v5)
+
+
+    amp_strain = abs(hp_v5p.data-1j*hc_v5p.data)
+    idx_max = np.argmax(amp_strain)
+    fpeak_v5p = hp_v5p.get_sample_frequencies()[idx_max]
+
+
+
+    ampv5_strain = abs(hp_v5.data-1j*hc_v5.data)
+    idx_max = np.argmax(ampv5_strain)
+    fpeak_v5 = hp_v5.get_sample_frequencies()[idx_max]
+
+    fpeak = max([fpeak_v5p,fpeak_v5])
+    f_min = 1.35*fpeak
+
     # Generate PSD
-    f_low_phys = f_min
+    if f_min<10:
+        f_low_phys = 10.
+    else:
+        f_low_phys = f_min
+
+
     f_high_phys = 2048.
 
     try:

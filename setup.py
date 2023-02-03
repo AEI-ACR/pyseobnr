@@ -45,7 +45,6 @@ extensions = [
     Extension("pyseobnr.auxiliary.interpolate._ppoly", ["pyseobnr/auxiliary/interpolate/_ppoly.pyx"],
               include_dirs=[np.get_include()],
               extra_compile_args = ["-flto", "-O3", "-ftree-vectorize"]),
-
     Extension("pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C", ["pyseobnr/eob/hamiltonian/Hamiltonian_v5PHM_C.pyx"],
              include_dirs=[np.get_include(),"pyseobnr/eob/utils","pyseobnr/eob/hamiltonian"],
              extra_compile_args=['-O3']
@@ -56,7 +55,9 @@ extensions = [
 
 
     ),
-
+    Extension("pyseobnr.eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD", ["pyseobnr/eob/hamiltonian/Ham_AvgS2precess_simple_cython_PA_AD.pyx"],
+             include_dirs=[np.get_include(),"pyseobnr/eob/utils","pyseobnr/eob/hamiltonian"],
+    ),
 ]
 
 

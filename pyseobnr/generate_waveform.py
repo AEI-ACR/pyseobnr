@@ -8,13 +8,19 @@ from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_AD import (
     Ham_AvgS2precess_simple_cython_AD as Ham_prec_cy,
 )
 
+
+
+from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
+    Ham_AvgS2precess_simple_cython_PA_AD as Ham_prec_pa_cy,
+)
+
 import lal
 import lalsimulation as lalsim
 import numpy as np
 
 
 def generate_prec_hpc_opt(
-    q, chi1, chi2, omega0, omega_start=None, settings=None, debug=False
+    q, chi1, chi2, omega_start, omega_ref=None, settings=None, debug=False
 ):
     if settings is None:
         settings = {"polarizations_from_coprec": True}
@@ -23,7 +29,7 @@ def generate_prec_hpc_opt(
 
     RR_f = SEOBNRv5RRForce()
     model = SEOBNRv5HM.SEOBNRv5PHM_opt(
-        q, *chi1, *chi2, omega0, Ham_prec_cy, RR_f, settings=settings
+        q, *chi1, *chi2, omega_start, Ham_prec_pa_cy, RR_f,  omega_ref = omega_ref, settings=settings
     )
 
     model()
@@ -37,8 +43,8 @@ def generate_modes_opt(
     q,
     chi1,
     chi2,
-    omega0,
-    omega_start=None,
+    omega_start,
+    omega_ref=None,
     approximant="SEOBNRv5HM",
     settings=None,
     debug=False,
@@ -46,14 +52,14 @@ def generate_modes_opt(
     if approximant == "SEOBNRv5HM":
         RR_f = SEOBNRv5RRForce()
         model = SEOBNRv5HM.SEOBNRv5HM_opt(
-            q, chi1, chi2, omega0, Ham_aligned_opt, RR_f, settings=settings
+            q, chi1, chi2, omega_start, Ham_aligned_opt, RR_f, settings=settings
         )
         model()
     elif approximant == "SEOBNRv5PHM":
 
         RR_f = SEOBNRv5RRForce()
         model = SEOBNRv5HM.SEOBNRv5PHM_opt(
-            q, *chi1, *chi2, omega0, Ham_prec_cy, RR_f, settings=settings
+            q, *chi1, *chi2, omega_start, Ham_prec_pa_cy, RR_f, omega_ref = omega_ref, settings=settings
         )
         model()
     else:
@@ -136,7 +142,11 @@ class GenerateWaveform:
             "mode_array": None,
             "approximant": "SEOBNRv5HM",
             "conditioning": 2,
-            "polarizations_from_coprec": False,
+            "polarizations_from_coprec": True,
+            "initial_conditions": "adiabatic",
+            "initial_conditions_postadiabatic_type": "analytic",
+            "postadiabatic": True,
+            "postadiabatic_type": "analytic",
         }
 
         for param in default_params.keys():
@@ -196,6 +206,15 @@ class GenerateWaveform:
         else:
             self.swap_masses = False
 
+        if parameters["initial_conditions"] not in ["adiabatic", "postadiabatic"]:
+            raise ValueError("Unrecongised setting for initial conditions.")
+
+        if parameters["initial_conditions_postadiabatic_type"] not in ["numeric", "analytic"]:
+            raise ValueError("Unrecongised setting for initial conditions postadiabatic type.")
+
+        if parameters["postadiabatic_type"] not in ["numeric", "analytic"]:
+            raise ValueError("Unrecongised setting for dynamics postadiabatic type.")
+
         # TODO: Implement checking of f_min not too high, and f_nyquist
         self.parameters = parameters
 
@@ -225,16 +244,27 @@ class GenerateWaveform:
                 self.parameters["spin2z"],
             ]
 
-        omega0 = np.pi * fmin * Mtot * lal.MTSUN_SI
+        omega_start = np.pi * fmin * Mtot * lal.MTSUN_SI
+        omega_ref = np.pi * f_ref * Mtot * lal.MTSUN_SI
         q = m1 / m2  # Model convention q=m1/m2>=1
         if q < 1.0:
             q = 1 / q
 
         # Generate internal models, in geometrized units
-        settings = {"dt": dt, "M": Mtot, "beta_approx": None}
+        settings = {"dt": dt, "M": Mtot, "beta_approx": None, "polarizations_from_coprec": False}
         if "postadiabatic" in self.parameters:
             settings.update(postadiabatic=self.parameters["postadiabatic"])
 
+            if "postadiabatic_type" in self.parameters:
+                settings.update(
+                    postadiabatic_type=self.parameters["postadiabatic_type"]
+                )
+
+        if "initial_conditions" in self.parameters:
+            settings.update(initial_conditions=self.parameters["initial_conditions"])
+
+            if "initial_conditions_postadiabatic_type" in self.parameters:
+                settings.update(initial_conditions_postadiabatic_type=self.parameters["initial_conditions_postadiabatic_type"])
         if self.parameters["mode_array"] != None:
             settings["return_modes"] = self.parameters[
                 "mode_array"
@@ -245,9 +275,9 @@ class GenerateWaveform:
             q,
             chi1,
             chi2,
-            omega0,
-            omega_start=None,
+            omega_start,
             approximant=approx,
+            omega_ref=omega_ref,
             settings=settings,
         )
 
@@ -317,12 +347,24 @@ class GenerateWaveform:
                 self.parameters["spin2z"],
             ]
             dist = self.parameters["distance"]
-            omega0 = np.pi * fmin * Mtot * lal.MTSUN_SI
+            omega_start = np.pi * fmin * Mtot * lal.MTSUN_SI
+            omega_ref = np.pi * f_ref * Mtot * lal.MTSUN_SI
             q = m1 / m2
             # Generate internal polarizations, in geometrized units
             settings = {"dt": dt, "M": Mtot, "beta_approx": None}
             if "postadiabatic" in self.parameters:
                 settings.update(postadiabatic=self.parameters["postadiabatic"])
+
+                if "postadiabatic_type" in self.parameters:
+                    settings.update(
+                        postadiabatic_type=self.parameters["postadiabatic_type"]
+                    )
+            if "initial_conditions" in self.parameters:
+                settings.update(initial_conditions=self.parameters["initial_conditions"])
+
+                if "initial_conditions_postadiabatic_type" in self.parameters:
+                    settings.update(initial_conditions_postadiabatic_type=self.parameters["initial_conditions_postadiabatic_type"])
+
 
             if self.parameters["mode_array"] != None:
                 settings["return_modes"] = self.parameters[
@@ -342,7 +384,7 @@ class GenerateWaveform:
                 phi += np.pi
             settings.update(phiref=np.pi / 2 - phi)
             times, hpc = generate_prec_hpc_opt(
-                q, chi1, chi2, omega0, omega_start=None, settings=settings, debug=False
+                q, chi1, chi2, omega_start, omega_ref = omega_ref, settings=settings, debug=False
             )
             hpc *= fac
             times *= Mtot * lal.MTSUN_SI
