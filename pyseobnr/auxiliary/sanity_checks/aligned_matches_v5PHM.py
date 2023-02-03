@@ -70,7 +70,11 @@ def generate_v5PHM_waveform(m1:float, m2:float,
     chi_1 = [s1x, s1y, s1z]
     chi_2 = [s2x, s2y, s2z]
 
-    settings = {'ell_max':ell_max,'beta_approx':None,'M':mtotal,"dt":delta_t}
+    settings = {'ell_max':ell_max,'beta_approx':None,'M':mtotal,"dt":delta_t,
+    "postadiabatic": True,
+    "postadiabatic_type": "analytic",
+    "initial_conditions":"adiabatic",
+    "initial_conditions_postadiabatic_type":"analytic"}
     if approx == 'SEOBNRv5PHM':
         #time, modes, _ = v5P_wrapper.get_EOB_modes(p, ell_max=ell_max)
         time, modes = generate_modes_opt(q,chi_1,chi_2,omega0,approximant=approx,
