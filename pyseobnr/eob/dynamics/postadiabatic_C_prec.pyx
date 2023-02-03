@@ -1268,7 +1268,7 @@ cpdef compute_postadiabatic_solution(
             params.p_params.chi2_L = chi2_L[i]
 
             H.calibration_coeffs['dSO'] = dSO_new[i]
-            """
+
             om = H.omega(
                 q, p,
                 chi1_v[i], chi2_v[i],
@@ -1277,7 +1277,7 @@ cpdef compute_postadiabatic_solution(
                 chi1_L[i], chi2_L[i],
             )
             omega[i] = om
-            """
+
             #if omega[i] < omega_start:
             #  omega[i] = omega_start
 
