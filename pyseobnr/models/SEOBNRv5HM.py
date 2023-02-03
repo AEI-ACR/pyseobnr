@@ -710,7 +710,7 @@ class SEOBNRv5PHM_opt(Model):
             polarizations_from_coprec=False,  # True for computing directly polarizations
             beta_approx=0,
             rd_approx=True,
-            rd_smoothing=True,
+            rd_smoothing=False,
         )
         return settings
 
