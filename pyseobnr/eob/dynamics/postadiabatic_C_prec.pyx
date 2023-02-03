@@ -1187,7 +1187,7 @@ cpdef compute_postadiabatic_solution(
     cdef double X2 = params.p_params.X_2
 
     cdef double omega_start = splines["everything"].x[0]
-    
+
     for n in range(1, order+1):
         tol_current = 1e-3 / 10**n
         parity = n % 2
@@ -1410,15 +1410,16 @@ cpdef compute_postadiabatic_dynamics(
     cdef double r_switch_prefactor = 1.6
     cdef double r_switch = r_switch_prefactor * r_ISCO
 
-    cdef double dr0 = 0.1
+    cdef double dr0 = 0.15
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
     r_range = r0 - r_final
     #print(f"r0 = {r0}, r_final = {r_final}, dr0 = {dr0}, r_switch = {r_switch}, r_size = {r_size}, r_range = {r_range}")
 
     cdef double omega_start_1 = omega_start
 
-    if r_size <= 6 or r0<=11.5:
-        #print(f"r_size = {r_size} <= 4 or r0 = {r0} <= 11.5")
+    # We increased r_size to be 12 instead of 4 in the AS limit
+    if r_size <= 12 or r0<=11.5:
+        #print(f"r_size = {r_size} <= 6 or r0 = {r0} <= 11.5")
         raise ValueError
     elif r_size < window_length + 2:
         r_size = window_length + 2
