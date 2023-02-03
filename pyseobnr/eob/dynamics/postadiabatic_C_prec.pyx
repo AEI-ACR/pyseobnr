@@ -1410,7 +1410,7 @@ cpdef compute_postadiabatic_dynamics(
     cdef double r_switch_prefactor = 1.6
     cdef double r_switch = r_switch_prefactor * r_ISCO
 
-    cdef double dr0 = 0.15
+    cdef double dr0 = 0.1
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
     r_range = r0 - r_final
     #print(f"r0 = {r0}, r_final = {r_final}, dr0 = {dr0}, r_switch = {r_switch}, r_size = {r_size}, r_range = {r_range}")
