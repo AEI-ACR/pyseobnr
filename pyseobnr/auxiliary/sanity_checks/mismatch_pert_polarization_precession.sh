@@ -13,4 +13,4 @@ source /home/aramosbuades/load_LALpyseobnr.sh
 export HDF5_USE_FILE_LOCKING='FALSE'
 export OMP_NUM_THREADS=1
 
-python /work/aramosbuades/git/pyseobnr_devel_prec/pyseobnr/auxiliary/sanity_checks/mismatch_pert_polarization_precession.py --points 100000 --M-min 10 --M-max 300 --q-max 100 --plots --ncores 64
+python /work/aramosbuades/git/pyseobnr_update_precessing_v2/pyseobnr/auxiliary/sanity_checks/mismatch_pert_polarization_precession.py --points 100000 --M-min 10 --M-max 300 --q-max 100 --plots --ncores 64 --ell-max 4 --omega0 0.018

@@ -8,28 +8,28 @@ import numpy as np
 import quaternion
 import scri
 from pygsl import spline
-from pyseobnr.eob.dynamics.integrate_ode import (augment_dynamics,
-                                                 compute_dynamics_opt)
-from pyseobnr.eob.dynamics.integrate_ode_prec import \
-    compute_dynamics_quasiprecessing
-from pyseobnr.eob.dynamics.postadiabatic_C import (Kerr_ISCO,
-                                                   compute_combined_dynamics)
-from pyseobnr.eob.dynamics.postadiabatic_C_fast import \
-    compute_combined_dynamics as compute_combined_dynamics_fast
-from pyseobnr.eob.dynamics.postadiabatic_C_prec import \
-    compute_combined_dynamics as compute_combined_dynamics_qp
-from pyseobnr.eob.fits.fits_Hamiltonian import (NR_deltaT, NR_deltaT_NS, a6_NS,
-                                                dSO)
+from pyseobnr.eob.dynamics.integrate_ode import augment_dynamics, compute_dynamics_opt
+from pyseobnr.eob.dynamics.integrate_ode_prec import compute_dynamics_quasiprecessing
+from pyseobnr.eob.dynamics.postadiabatic_C import Kerr_ISCO, compute_combined_dynamics
+from pyseobnr.eob.dynamics.postadiabatic_C_fast import (
+    compute_combined_dynamics as compute_combined_dynamics_fast,
+)
+from pyseobnr.eob.dynamics.postadiabatic_C_prec import (
+    compute_combined_dynamics_exp_v1,
+    precessing_final_spin
+)
+from pyseobnr.eob.fits.fits_Hamiltonian import NR_deltaT, NR_deltaT_NS, a6_NS, dSO
 from pyseobnr.eob.fits.GSF_fits import GSF_amplitude_fits
 from pyseobnr.eob.fits.IV_fits import InputValueFits
 from pyseobnr.eob.hamiltonian import Hamiltonian
 from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
 from pyseobnr.eob.utils.math_ops_opt import my_dot, my_norm
 from pyseobnr.eob.utils.utils_precession_opt import (
-    SEOBRotatehIlmFromhJlm_opt,
+    SEOBRotatehIlmFromhJlm_opt_v1,
     custom_swsh,
     interpolate_quats,
-    quat_ringdown_approx_opt,
+    inspiral_merger_quaternion_angles,
+    seobnrv4P_quaternionJ2P_postmerger_extension,
 )
 from pyseobnr.eob.utils.waveform_ops import frame_inv_amp
 from pyseobnr.eob.waveform.compute_hlms import (
@@ -50,6 +50,8 @@ from rich.traceback import install
 from scipy.interpolate import CubicSpline
 from scipy.optimize import root
 from spherical_functions import SWSH
+
+from pyseobnr.eob.fits.EOB_fits import compute_QNM
 
 # Setup the logger to work with rich
 logger = logging.getLogger(__name__)
@@ -98,6 +100,9 @@ class SEOBNRv5HM_opt(Model):
 
         self.chi_1 = chi_1
         self.chi_2 = chi_2
+
+        self.chi1_v = np.array([0.0, 0.0, self.chi_1])
+        self.chi2_v = np.array([0.0, 0.0, self.chi_2])
 
         self.NR_deltaT = 0
 
@@ -150,14 +155,12 @@ class SEOBNRv5HM_opt(Model):
             m_2=self.m_2,
             chi_1=self.chi_1,
             chi_2=self.chi_2,
-            chi_1x=0.0,
-            chi_1y=0.0,
-            a1=self.chi_1,
-            a2=self.chi_2,
-            chi_1z=self.chi_1,
-            chi_2x=0.0,
-            chi_2y=0.0,
-            chi_2z=self.chi_2,
+            a1=abs(self.chi_1),
+            a2=abs(self.chi_2),
+            chi1_v=self.chi1_v,
+            chi2_v=self.chi2_v,
+            H_val=0.0,  # Only used in SEOBNRv5PHM
+            lN=np.array([0.0, 0.0, 1.0]),  # Only used in SEOBNRv5PHM
             omega=self.omega0,
             omega_circ=self.omega0,
         )
@@ -493,7 +496,10 @@ class SEOBNRv5HM_opt(Model):
             t_original = dynamics[:, 0]
             phi_orb = dynamics[:, 2]
             hlms_interp = interpolate_modes_fast(
-                t_original, t_new, hlms_joined, phi_orb,
+                t_original,
+                t_new,
+                hlms_joined,
+                phi_orb,
             )
             del hlms_joined
             # Step 9: construct the full IMR waveform
@@ -538,9 +544,10 @@ class SEOBNRv5PHM_opt(Model):
         chi2_x: float,
         chi2_y: float,
         chi2_z: float,
-        omega0: float,
+        omega_start: float,
         H: Hamiltonian,
         RR: Callable,
+        omega_ref: float = None,
         settings: Dict[Any, Any] = None,
     ) -> None:
         """Initialize the SEOBNRv5PHM approximant
@@ -553,9 +560,10 @@ class SEOBNRv5PHM_opt(Model):
             chi2_x (float): x-component of the dimensionless spin of the secondary
             chi2_y (float): y-component of the dimensionless spin of the secondary
             chi2_z (float): z-component of the dimensionless spin of the secondary
-            omega0 (float): Initial orbital frequency, in geomtric units
+            omega_start (float): Initial orbital frequency, in geometric units
             coeffs (Dict[str, Any], optional): Calibration coefficient. Defaults to None.
             settings (Dict[Any, Any], optional): The settings. Defaults to None.
+            omega_ref (float): Reference orbital frequency at which the spins are defined, in geometric units
         """
 
         self.settings = self._default_settings()
@@ -567,11 +575,11 @@ class SEOBNRv5PHM_opt(Model):
         self.q = q
         self.ell_max = self.settings.get("ell_max", 5)
 
-        self.chi_1 = np.array([chi1_x, chi1_y, chi1_z])
-        self.chi_2 = np.array([chi2_x, chi2_y, chi2_z])
+        self.chi1_v = np.array([chi1_x, chi1_y, chi1_z])
+        self.chi2_v = np.array([chi2_x, chi2_y, chi2_z])
 
-        self.a1 = my_norm(self.chi_1)
-        self.a2 = my_norm(self.chi_2)
+        self.a1 = my_norm(self.chi1_v)
+        self.a2 = my_norm(self.chi2_v)
 
         self.NR_deltaT = 0
 
@@ -582,29 +590,33 @@ class SEOBNRv5PHM_opt(Model):
 
         self.nu = self.m_1 * self.m_2 / (self.m_1 + self.m_2) ** 2
 
-        self.omega0 = omega0
+        self.omega_start = omega_start
+        self.f_start = omega_start / (self.M * lal.MTSUN_SI * np.pi)
 
         # Deal with reference and starting frequencies
-        self.f_ref = self.settings.get(
-            "f_ref", omega0 / (self.M * lal.MTSUN_SI * np.pi)
-        )
-        self.omega_ref = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
-        self.f0 = omega0 / (self.M * lal.MTSUN_SI * np.pi)
-        self.omega0 = omega0
+        if omega_ref:
+            self.omega_ref = omega_ref
+            self.f_ref = omega_ref/ (self.M * lal.MTSUN_SI * np.pi)
+        else:
+            self.omega_ref = omega_start
+            self.f_ref = self.f_start
 
-        if np.abs(self.f_ref - self.f0) > 1e-10:
+        if np.abs(self.f_ref - self.f_start) > 1e-10:
             # The reference frequency is not the same as the starting frequency
             # If the starting frequency is smaller than the reference frequency,
             # we don't need to adjust anything here, and will account for this
             # with a phase shift of the dynamics.
             # If the reference frequency is _less_ than the starting frequency
             # then just change the starting frequency to the reference frequency
-            if self.f_ref < self.f0:
-                self.omega0 = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
-                self.f0 = self.omega0 / (self.M * lal.MTSUN_SI * np.pi)
+            if self.f_ref < self.f_start:
+                self.omega_start = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
+                self.f_start = self.omega_start / (self.M * lal.MTSUN_SI * np.pi)
 
         self.step_back = self.settings.get("step_back", 250.0)
-        self.beta_approx = self.settings.get("beta_approx", 0.0)
+        self.beta_approx = self.settings["beta_approx"]
+        self.rd_approx = self.settings["rd_approx"]
+        self.rd_smoothing = self.settings["rd_smoothing"]
+
         self.backend = self.settings.get("backend", "dopri5")
         # z-component because LN_0 = [0,0,1]
         self.chi_S = (chi1_z + chi2_z) / 2.0
@@ -624,16 +636,16 @@ class SEOBNRv5PHM_opt(Model):
             m_2=self.m_2,
             chi_1=chi1_z,
             chi_2=chi2_z,
-            chi_1x=chi1_x,
-            chi_1y=chi1_y,
-            chi_1z=chi1_z,
-            chi_2x=chi2_x,
-            chi_2y=chi2_y,
-            chi_2z=chi2_z,
+            chi1_v=self.chi1_v,
+            chi2_v=self.chi2_v,
             a1=self.a1,
             a2=self.a2,
-            omega=self.omega0,
-            omega_circ=self.omega0,
+            H_val=0.0,  # initialize value of the Hamiltonian to zero
+            lN=np.array(
+                [0.0, 0.0, 1.0]
+            ),  # Initialize the value of the initial Newtonian orbital angular momentum
+            omega=self.omega_start,
+            omega_circ=self.omega_start,
         )
         # Figure out which modes need to be
         # i) computed
@@ -666,18 +678,22 @@ class SEOBNRv5PHM_opt(Model):
         # Uncomment and comment the line above to make the python Hamiltonian work
         # self.H = H()
 
-        #self.modes_list = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
-
+        # self.modes_list = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
 
     def _default_settings(self):
         settings = dict(
             M=50.0,  # Total mass in solar masses
             dt=2.4627455127717882e-05,  # Desired time spacing, *in seconds*
             debug=False,  # Run in debug mode
+            initial_conditions="adiabatic",
+            initial_conditions_postadiabatic_type="analytic",
             postadiabatic=False,  # Use postadiabatic?
+            postadiabatic_type="analytic",
             return_modes=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)],
             polarizations_from_coprec=False,  # True for computing directly polarizations
             beta_approx=0,
+            rd_approx=True,
+            rd_smoothing=True,
         )
         return settings
 
@@ -797,7 +813,7 @@ class SEOBNRv5PHM_opt(Model):
     def _package_modes(self, waveform_modes, ell_min=2, ell_max=5):
         keys = waveform_modes.keys()
         shape = waveform_modes[(2, 2)].shape
-        n_elem = (ell_max+3)*(ell_max-1)
+        n_elem = (ell_max + 3) * (ell_max - 1)
         result = np.zeros((shape[0], n_elem), dtype=np.complex128)
         i = 0
         for ell in range(ell_min, ell_max + 1):
@@ -823,22 +839,27 @@ class SEOBNRv5PHM_opt(Model):
                     tmp_LN_fine,
                     splines,
                     dynamics,
-                    idx_restart
+                    idx_restart,
+                    res,
                 ) = compute_dynamics_quasiprecessing(
                     self.omega_ref,
-                    self.omega0,
+                    self.omega_start,
                     self.H,
                     self.RR,
                     self.m_1,
                     self.m_2,
-                    self.chi_1,
-                    self.chi_2,
+                    self.chi1_v,
+                    self.chi2_v,
                     self.eob_pars,
                     rtol=1e-9,  # 1e-11,
                     atol=1e-9,  # 1e-12,
                     step_back=self.step_back,
+                    initial_conditions=self.settings["initial_conditions"],
+                    initial_conditions_postadiabatic_type=self.settings["initial_conditions_postadiabatic_type"],
                 )
             else:
+                #self.omega_start = 0.019
+
                 (
                     dynamics_low,
                     dynamics_fine,
@@ -846,40 +867,46 @@ class SEOBNRv5PHM_opt(Model):
                     dyn_PN,
                     splines,
                     dynamics,
-                ) = compute_combined_dynamics_qp(
+                    tmp_LN_low,
+                    tmp_LN_fine,
+                    omega_start_pa,
+                ) = compute_combined_dynamics_exp_v1(
                     self.omega_ref,
-                    self.omega0,
+                    self.omega_start,
                     self.H,
                     self.RR,
                     self.m_1,
                     self.m_2,
-                    self.chi_1,
-                    self.chi_2,
+                    self.chi1_v,
+                    self.chi2_v,
                     tol=1e-12,
                     backend=self.backend,
                     params=self.eob_pars,
                     step_back=self.step_back,
+                    postadiabatic_type=self.settings["postadiabatic_type"],
                 )
+                res = None
+                idx_restart = len(dynamics_low)
+                #print(f"f_start = {self.f_start}, omega_start = {self.omega_start}, omega_start = {omega_start_pa}")
+                self.omega_start = omega_start_pa
+                self.f_start = omega_start_pa / (self.M * lal.MTSUN_SI * np.pi)
+                #print(f"f_start = {self.f_start}, omega_start = {self.omega_start}")
+
 
             tmp_LN = dyn_PN[:, :3]
             self.LNhat = tmp_LN
-
+            self.res = res
+            self.idx_restart = idx_restart
             self.pn_dynamics = np.c_[t_PN, dyn_PN]
-            self.dynamics = dynamics_low
+            self.dynamics_fine = dynamics_fine
+            self.dynamics_low = dynamics_low
 
             omega_orb_fine = dynamics_fine[:, 6]
             omega_EOB_low = dynamics_low[:, 6]
 
-            if self.settings["postadiabatic"]:
-                tmp = splines["everything"](omega_EOB_low)
-                tmp_LN_low = tmp[:,10:13]
-
-                tmp = splines["everything"](omega_orb_fine)
-                tmp_LN_fine = tmp[:,10:13]
-
             self.dynamics = dynamics
-
-            if np.abs(self.f_ref - self.f0) > 1e-10:
+            t_correct = None
+            if np.abs(self.f_ref - self.f_start) > 1e-10:
                 # Reference frequency is not the same as starting frequency
                 # To account for the LAL conventions, shift things so that
                 # the orbital phase is 0 at f_ref
@@ -899,6 +926,7 @@ class SEOBNRv5PHM_opt(Model):
                 res = root(rhs, guess)
 
                 t_correct = res.x
+                self.t_ref = t_correct
                 if not res.success:
                     logger.error(
                         "Failed to find the time corresponding to requested f_ref."
@@ -907,6 +935,7 @@ class SEOBNRv5PHM_opt(Model):
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
                 phase_shift = intrp_phase(t_correct)
+                #print(f"phase_shift = {phase_shift}, t_correct = {t_correct}")
                 # Shift the phase for all dynamics arrays
                 self.dynamics[:, 2] -= phase_shift
                 dynamics_low[:, 2] -= phase_shift
@@ -920,19 +949,18 @@ class SEOBNRv5PHM_opt(Model):
 
             t_fine = dynamics_fine[:, 0]
 
-            #print(f"r_restart = {dynamics[:,1][idx_restart]}, rISCO = {r_ISCO}")
+            # print(f"r_restart = {dynamics[:,1][idx_restart]}, rISCO = {r_ISCO}")
             # Use restart index to interpolate only in the region typically r>6
             # This avoids interpolation errors at close separations where drdt can be > 0
-            idx_restart=-1
-            u_rlow = 1./dynamics[:,1][:idx_restart]
-            t_rlow = dynamics[:, 0][:idx_restart]
+            u_rlow = 1.0 / dynamics_low[:, 1]  # [:idx_restart]
+            t_rlow = dynamics_low[:, 0]  # [:idx_restart]
             irt = CubicSpline(u_rlow, t_rlow)
             r_ref = 1.0 / 10.0
             t_r10M = irt(r_ref)
 
-            t_dyn = dynamics[:,0]
-            omega_dyn = dynamics[:,6]
-            iom = CubicSpline(t_dyn,omega_dyn)
+            t_dyn = dynamics[:, 0]
+            omega_dyn = dynamics[:, 6]
+            iom = CubicSpline(t_dyn, omega_dyn)
             om_r10M = iom(t_r10M)
             tmp = splines["everything"](om_r10M)
             chi1LN_om_r10M = tmp[0]
@@ -951,7 +979,7 @@ class SEOBNRv5PHM_opt(Model):
             )
 
             self.r_ISCO = r_ISCO
-
+            #print(f"r_ISCO = {r_ISCO}")
             r_fine = dynamics_fine[:, 1]
 
             if r_ISCO < r_fine[-1]:
@@ -987,7 +1015,7 @@ class SEOBNRv5PHM_opt(Model):
 
             # Compute the timeshift from the reference point
             self.NR_deltaT = NR_deltaT_NS(self.nu) + NR_deltaT(self.nu, ap, am)
-
+            #print(f"NR_deltaT = {self.NR_deltaT}")
             self.t_ISCO = t_ISCO
             self.omega_rISCO = om_rISCO
             t_attach = t_ISCO - self.NR_deltaT
@@ -1005,12 +1033,12 @@ class SEOBNRv5PHM_opt(Model):
                 )
 
             self.t_attach = t_attach
-
+            #print(f"t_attach = {t_attach}")
             # For the following steps, we also need spins at the attachment point
             # First compute the orbital frequency at that point
-            iom_orb_fine = CubicSpline(dynamics_fine[:, 0], dynamics_fine[:, 6])
+            # iom_orb_fine = CubicSpline(dynamics_fine[:, 0], dynamics_fine[:, 6])
 
-            omega_orb_attach = iom_orb_fine(t_attach)
+            omega_orb_attach = iom(t_attach)  # iom_orb_fine(t_attach)
             self.omega_attach = omega_orb_attach
 
             # Now find the spins at attachment
@@ -1018,6 +1046,7 @@ class SEOBNRv5PHM_opt(Model):
 
             chi1LN_attach = tmp[0]
             chi2LN_attach = tmp[1]
+
             chi1_attach = tmp[4:7]
             chi2_attach = tmp[7:10]
             LN_attach = tmp[10:13]
@@ -1031,6 +1060,9 @@ class SEOBNRv5PHM_opt(Model):
 
             Lvec_hat_attach = Lvec_attach / my_norm(Lvec_attach)
             Jfhat_attach = Jf_attach / my_norm(Jf_attach)
+
+            self.Lvec_hat_attach = Lvec_hat_attach
+            self.Jfhat_attach = Jfhat_attach
 
             # print(f"tattach : Lvec = {Lvec_attach}, s1 = {chi1_attach*self.m_1*self.m_1}, s2 = {chi2_attach*self.m_2*self.m_2}, Jf bo = {Jf}")
 
@@ -1095,62 +1127,16 @@ class SEOBNRv5PHM_opt(Model):
             # evaluate the final state formulas using the spins at
             # r=10 M
 
-            # Spin magnitudes
-            a1 = my_norm(chi1_om_r10M)
-            a2 = my_norm(chi2_om_r10M)
-
-            # Tilt angles w.r.t L_N
-            if a1 != 0:
-                angle = chi1LN_om_r10M / a1
-                if angle < -1:
-                    tilt1 = np.pi
-                elif angle > 1:
-                    tilt1 = 0.0
-                else:
-                    tilt1 = np.arccos(angle)
-            else:
-                tilt1 = 0.0
-
-            if a2 != 0:
-                angle = chi2LN_om_r10M / a2
-                if angle < -1:
-                    tilt2 = np.pi
-                elif angle > 1:
-                    tilt2 = 0.0
-                else:
-                    tilt2 = np.arccos(angle)
-            else:
-                tilt2 = 0.0
-
-            # Angle between the inplane spin components
-            chi1_perp_r10M = chi1_om_r10M - chi1LN_om_r10M * LN_om_r10M
-            chi2_perp_r10M = chi2_om_r10M - chi2LN_om_r10M * LN_om_r10M
-
-            if a1 == 0 or a2 == 0:
-                phi12 = np.pi / 2.0
-
-            else:
-                phi12 = np.arccos(np.dot(chi1_perp_r10M / a1, chi2_perp_r10M / a2))
-
             # Get the final mass
             final_mass = nrutils.bbh_final_mass_non_precessing_UIB2016(
                 self.m_1, self.m_2, chi1LN_om_r10M, chi2LN_om_r10M
             )
 
-            # Call non-precessing HBR fit to get the *sign* of the final spin
-            final_spin_nonprecessing = nrutils.bbh_final_spin_non_precessing_HBR2016(
-                self.m_1, self.m_2, chi1LN_om_r10M, chi2LN_om_r10M, version="M3J4"
-            )
-            sign_final_spin = final_spin_nonprecessing / np.linalg.norm(
-                final_spin_nonprecessing
+            # Get the final spin
+            final_spin = precessing_final_spin(
+                chi1LN_om_r10M, chi2LN_om_r10M, chi1_om_r10M, chi2_om_r10M, LN_om_r10M, self.m_1, self.m_2
             )
 
-            # Compute the magnitude of the final spin using the precessing fit
-            final_spin = nrutils.bbh_final_spin_precessing_HBR2016(
-                self.m_1, self.m_2, a1, a2, tilt1, tilt2, phi12, version="M3J4"
-            )
-            # Flip sign if needed
-            final_spin *= sign_final_spin
 
             # Double check all is well
             if np.isnan(dynamics_low[:, 1:]).any():
@@ -1173,8 +1159,49 @@ class SEOBNRv5PHM_opt(Model):
             t_new = np.arange(dynamics[0, 0], dynamics[-1, 0], self.delta_T)
             # Step 8: interpolate the modes onto the desired spacing
             hlms_interp = interpolate_modes_fast(
-                dynamics[:, 0], t_new, hlms_joined, dynamics[:, 2],
+                dynamics[:, 0],
+                t_new,
+                hlms_joined,
+                dynamics[:, 2],
             )
+
+            idx = np.argmin(np.abs(t_new - t_attach))
+
+            # Sep 8.9) Compute the quaternions necessary to rotate the inspiral part of the waveform
+            #          as well as the Euler angles at the attachment point
+
+            (
+                t_dyn,
+                quatJ2P_dyn,
+                quatI2J,
+                euler_angles_attach,
+                euler_angles_derivative_attach,
+                flip,
+            ) = inspiral_merger_quaternion_angles(
+                dynamics[:,0],
+                dynamics[:,6],
+                final_spin,
+                t_attach,
+                Lvec_hat_attach,
+                Jfhat_attach,
+                splines,
+                t_ref = t_correct
+            )
+
+            # Evaluate the term necessary to rotate the QNM consistently
+            # in the co-precessing frame as described in arXiv:2301.06558
+            betaJ2P_attach = euler_angles_attach[1]
+            cosbetaJ2P_attach = np.cos(betaJ2P_attach)
+
+            sigmaQNM220 = compute_QNM(2, 2, 0, final_spin, final_mass).conjugate()
+            sigmaQNM210 = compute_QNM(2, 1, 0, final_spin, final_mass).conjugate()
+
+            omegaQNM220 = sigmaQNM220.real
+            omegaQNM210 = sigmaQNM210.real
+            precRate = omegaQNM220 - omegaQNM210
+            precRate *= flip
+
+            qnm_rotation = (1.0 - abs(cosbetaJ2P_attach)) * precRate
 
             # Step 9: construct the full IMR waveform
             t_full, imr_full = compute_IMR_modes(
@@ -1189,6 +1216,7 @@ class SEOBNRv5PHM_opt(Model):
                 t_attach,
                 mixed_modes=self.mixed_modes,
                 final_state=[final_mass, final_spin],
+                qnm_rotation=qnm_rotation,
             )
 
             t_full -= t_full[0]
@@ -1224,30 +1252,18 @@ class SEOBNRv5PHM_opt(Model):
             # 1) Compute the time-dependent quaternions from the P-frame to the J-frame using LN_hat
             # 2) Compute the time-dependent quaternions at ringdown in the J-frame assuming simple precession around the final J
             # 3) Compute the time-independent Euler angles from the J-frame to the I-frame
-            (
-                t_dyn,
-                quatJ2P_dyn,
-                quat_postMerger,
-                alphaI2J,
-                betaI2J,
-                gammaI2J,
-            ) = quat_ringdown_approx_opt(
-                self.nu,
-                self.m_1,
-                self.m_2,
-                idx,
+            self.euler_angles_attach = euler_angles_attach
+            # Compute ringdown approximation of the Euler angles in the J-frame
+            quat_postMerger = seobnrv4P_quaternionJ2P_postmerger_extension(
                 t_full,
-                t_low,
-                t_fine,
-                tmp_LN_low,
-                tmp_LN_fine,
-                final_spin,
-                final_mass,
+                precRate,
+                euler_angles_attach,
+                euler_angles_derivative_attach,
                 t_attach,
-                Lvec_hat_attach,
-                Jfhat_attach,
-                splines,
-                self.settings.get("rd_approx", True),
+                idx,
+                flip,
+                self.rd_approx,
+                self.rd_smoothing,
                 beta_approx=self.beta_approx,
             )
 
@@ -1256,11 +1272,12 @@ class SEOBNRv5PHM_opt(Model):
             self.quatJ2P_dyn = quatJ2P_dyn
             self.t_intrp = t_dyn
             self.t_forres = t_full[idx]
-            #qt[idx] = quaternion.squad(quatJ2P_dyn, t_dyn, t_full[idx])
+            # qt[idx] = quaternion.squad(quatJ2P_dyn, t_dyn, t_full[idx])
 
             # Interpolate the quaternions from P to J-frame to the finer time grid of the waveform modes
             qt[idx] = interpolate_quats(quatJ2P_dyn, t_dyn, t_full[idx])
-            qt[idx[-1] :] = quat_postMerger
+
+            qt[idx[-1]+1 :] = quat_postMerger
 
             if self.settings["polarizations_from_coprec"] == False:
 
@@ -1285,6 +1302,7 @@ class SEOBNRv5PHM_opt(Model):
                 # Rotate to the P->J. This is a time-dependent rotation
                 w.frame = qt
                 w_modes = w.to_inertial_frame()
+                self.wavefom_modesJ = self._unpack_scri(deepcopy(w_modes))
 
                 # Store the time array
 
@@ -1295,18 +1313,17 @@ class SEOBNRv5PHM_opt(Model):
                 # Store all the angles
                 # For posterity store the rotation as Euler angles
                 anglesJ2P = quaternion.as_euler_angles(qt).T
-                self.anglesI2J = [alphaI2J, betaI2J, gammaI2J]
+                # self.anglesI2J = [alphaI2J, betaI2J, gammaI2J]
+                self.quatI2J = quatI2J
                 self.anglesJ2P = anglesJ2P
 
                 modes_lmax = self.ell_max
 
                 # Rotate J->I. This is a rotation by constant angles
-                w_I = SEOBRotatehIlmFromhJlm_opt(
+                w_I = SEOBRotatehIlmFromhJlm_opt_v1(
                     w_modes,  # hJlm time series, complex values on fixed sampling
                     modes_lmax,  # Input: maximum value of l in modes (l,m)
-                    alphaI2J,  # Input: Euler angle alpha I->J
-                    betaI2J,  # Input: Euler angle beta I->J
-                    gammaI2J,  # Input: Euler angle gamma I->J
+                    quatI2J,
                 )
 
                 # Unpack the modes
@@ -1317,12 +1334,11 @@ class SEOBNRv5PHM_opt(Model):
             else:
                 # Construct full rotation
                 qJ2P = qt.conj()
-                qI2J = quaternion.from_euler_angles(-gammaI2J, -betaI2J, -alphaI2J)
                 qI02I = quaternion.from_euler_angles(
                     self.settings["phiref"], self.settings["inclination"], 0.0
                 )
 
-                qTot = qJ2P * qI2J * qI02I
+                qTot = qJ2P * np.conjugate(quatI2J) * qI02I
 
                 alphaTot, betaTot, gammaTot = quaternion.as_euler_angles(qTot).T
 
@@ -1347,6 +1363,6 @@ class SEOBNRv5PHM_opt(Model):
         except Exception as e:
 
             logger.error(
-                f"Waveform generation failed for q={self.q},chi_1={self.chi_1},chi_2={self.chi_2},omega_ref={self.omega_ref},omega0 = {self.omega0}"
+                f"Waveform generation failed for q={self.q},chi_1={self.chi1_v},chi_2={self.chi2_v},omega_ref={self.omega_ref}, omega_start = {self.omega_start}, Mt = {self.M}"
             )
             raise e

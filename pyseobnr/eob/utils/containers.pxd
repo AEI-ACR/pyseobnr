@@ -7,9 +7,10 @@ cdef extern from "eob_parameters.h":
 
 cdef class PhysicalParams:
     cdef public double m_1,m_2,nu,M,X_1,X_2,delta,chi_1,chi_2,chi_S,chi_A,a,ap,am
-    cdef public double chi_1x, chi_1y, chi_1z, chi_2x, chi_2y, chi_2z, chi1_L, chi2_L,a1,a2
+    cdef public double chi1_L, chi2_L,a1,a2, H_val
     cdef public double[:] chi1_v
     cdef public double[:] chi2_v
+    cdef public double[:] lN
     cdef public double omega,omega_circ #,omega_start
     cpdef update_spins(self,double chi_1,double chi_2)
     cdef _compute_derived_quants(self)

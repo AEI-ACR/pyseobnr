@@ -18,3 +18,5 @@ cdef class Hamiltonian_v5PHM_C:
         pass
     cpdef double omega(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL_1,double chiL_2):
         pass
+    cpdef aux_derivs(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL_1,double chiL_2):
+        pass
