@@ -1784,15 +1784,17 @@ cpdef compute_combined_dynamics_exp_v1(
         # Estimate initial delta_t from the starting orbital frequency (this should correspond to the maximum timestep in the PA dynamics)
         dt0 = 2.*np.pi/omega_start_0
 
-        #print(f"dt_pa_first = {dt_pa_first}, t_pa[0] = {t_pa[0]}, t_pa[1] = {t_pa[1]}, dt0 = {dt0}")
+        #print(f"0: dt_pa_first = {dt_pa_first}, t_pa[0] = {t_pa[0]}, t_pa[1] = {t_pa[1]}, dt0 = {dt0}")
 
         while dt_pa_first>500:
             if  dt_pa_first > dt0:
               dt_pa_first = dt0/5.
             else:
               dt_pa_first = dt0/10.
+            dt0 = dt_pa_first
+            #print(f"dt_pa_first = {dt_pa_first}")
 
-        #print(f"dt_pa_first = {dt_pa_first}")
+        #print(f"final: dt_pa_first = {dt_pa_first}")
         t_pa_first = t_pa[0]
         t_ode_init = t_ode_low[0]
 
