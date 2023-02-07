@@ -115,6 +115,7 @@ def compute_dynamics_prec_opt(
     y_init=None,
     initial_conditions: str = 'adiabatic',
     initial_conditions_postadiabatic_type: str = 'analytic',
+    r_size_input: int=12,
     ):
     """
     Function to perform a non-precessing EOB evolution with the spins modified
@@ -202,6 +203,7 @@ def compute_dynamics_prec_opt(
                 splines,
                 params=params,
                 postadiabatic_type=initial_conditions_postadiabatic_type,
+                r_size_input =r_size_input,
             )
         y0 = np.array([r0, 0.0, pr0, pphi0])
 
@@ -626,6 +628,7 @@ def compute_dynamics_quasiprecessing(
     y_init=None,
     initial_conditions=None,
     initial_conditions_postadiabatic_type=None,
+    r_size_input: int=12,
 ):
     """
     Compute the dynamics starting from omega_start, with spins
@@ -702,6 +705,7 @@ def compute_dynamics_quasiprecessing(
         y_init=y_init,
         initial_conditions=initial_conditions,
         initial_conditions_postadiabatic_type=initial_conditions_postadiabatic_type,
+        r_size_input=r_size_input,
     )
 
     return (

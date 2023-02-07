@@ -136,7 +136,7 @@ class SEOBNRv5HM_opt(Model):
                 self.omega0 = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
                 self.f0 = self.omega0 / (self.M * lal.MTSUN_SI * np.pi)
 
-        # The choice of step-back is determined by the range of 
+        # The choice of step-back is determined by the range of
         # NR_deltaT in the parameter space of application.
         # The largest value is reached for maximum q and
         # maximum negative spins. The default choice of 250
@@ -149,7 +149,7 @@ class SEOBNRv5HM_opt(Model):
         self.dt = self.settings["dt"]
         self.delta_T = self.dt / (self.M * lal.MTSUN_SI)
         self.f_nyquist = 0.5/self.delta_T
-        
+
         # print(f"In SI units, dt = {self.dt}. In geometric units, with M={self.M}, delta_T={self.delta_T}")
         self.prefixes = compute_newtonian_prefixes(self.m_1, self.m_2)
 
@@ -711,6 +711,7 @@ class SEOBNRv5PHM_opt(Model):
             beta_approx=0,
             rd_approx=True,
             rd_smoothing=False,
+            r_size_input=12,
         )
         return settings
 
@@ -844,9 +845,11 @@ class SEOBNRv5PHM_opt(Model):
     def _evaluate_model(self):
         try:
             # TODO: implement PA dynamics
-
+            #print(f"m1 ={self.m_1}, m2 = {self.m_2}, chi1 = {self.chi1_v}, chi2 = {self.chi2_v}, omega_ref = {self.omega_ref}, omega_start = {self.omega_start}")
             # Generate PN and EOB dynamics
             if not self.settings["postadiabatic"]:
+                #print(f"Not using PA")
+
                 (
                     dynamics_low,
                     dynamics_fine,
@@ -872,13 +875,12 @@ class SEOBNRv5PHM_opt(Model):
                     atol=1e-9,  # 1e-12,
                     step_back=self.step_back,
                     initial_conditions=self.settings["initial_conditions"],
-                    initial_conditions_postadiabatic_type=self.settings[
-                        "initial_conditions_postadiabatic_type"
-                    ],
+                    initial_conditions_postadiabatic_type=self.settings["initial_conditions_postadiabatic_type"],
+                    r_size_input=self.settings['r_size_input'],
                 )
             else:
-                # self.omega_start = 0.019
-
+                #self.omega_start = 0.019
+                #print(f"Using PA, self.settings['r_size_input'] = {self.settings['r_size_input']}")
                 (
                     dynamics_low,
                     dynamics_fine,
@@ -903,6 +905,7 @@ class SEOBNRv5PHM_opt(Model):
                     params=self.eob_pars,
                     step_back=self.step_back,
                     postadiabatic_type=self.settings["postadiabatic_type"],
+                    r_size_input=self.settings['r_size_input'],
                 )
                 res = None
                 idx_restart = len(dynamics_low)

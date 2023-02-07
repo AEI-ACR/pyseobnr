@@ -21,6 +21,7 @@ def compute_IC_PA(
     m_1: float,
     m_2: float,
     splines: dict,
+    r_size_input: int=12,
     **kwargs,
 ):
     """Compute the postadiabatic initial conditions for an aligned-spin BBH binary
@@ -56,6 +57,7 @@ def compute_IC_PA(
             order=8,
             postadiabatic_type=postadiabatic_type,
             window_length=10,
+            r_size_input=r_size_input,
             #only_first_n=9,
         )
 
