@@ -1431,7 +1431,7 @@ cpdef compute_postadiabatic_dynamics(
 
     #print(f"r_final_prefactor = {r_final_prefactor}, r_final_prefactor = {r_final_prefactor_test}, chi_eff = {chi_eff}, chi_perp_eff = {chi_perp_eff}")
     #print(f"r_final_old = {r_final_prefactor*r_ISCO}, r_final_new = {r_final_prefactor_test*r_ISCO}")
-    cdef double r_final = max(12.0, r_final_prefactor_test * r_ISCO)
+    cdef double r_final = max(11.0, r_final_prefactor_test * r_ISCO)
 
     cdef double r_switch_prefactor = 1.6
     cdef double r_switch = r_switch_prefactor * r_ISCO
