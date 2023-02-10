@@ -1,3 +1,7 @@
+"""
+Contains the PN precession equations and their integration, as well as some auxiliary functions
+"""
+
 from math import log
 from typing import Callable
 

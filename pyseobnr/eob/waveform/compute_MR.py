@@ -1,3 +1,8 @@
+"""
+Contains functions to evaluate the MR ansatze. 
+See Eq. (56) and following in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
+"""
+
 import numpy as np
 from ..fits.EOB_fits import *
 from ..utils.utils_precession_opt import compute_omegalm_P_frame
@@ -7,7 +12,7 @@ def compute_MR_mode_free(
     t, m1, m2, chi1, chi2, attach_params, ell, m, fits_dict,t_match=0, phi_match=0, qnm_rotation=0.
 ):
     """
-    Evaluate the MR ansatze. See Eqs.(56, 57, 58) in v5HM doc.
+    Evaluate the MR ansatze. See Eqs.(56, 57, 58) in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
 
     Args:
         t (np.ndarray): ringdown time array
@@ -27,7 +32,7 @@ def compute_MR_mode_free(
 
     Returns:
         np.ndarray: the merger-ringdown waveform
-        np.ndarray: the phase the merger-ringdown ansatz (see Eq.58 of v5HM doc)
+        np.ndarray: the phase the merger-ringdown ansatz (see Eq.58 of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf)
 
     """
     # Step 1 - use the NR fits for amplitude and frequency at attachment time

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Computes the aligned-spin initial conditions in polar coordinates. 
+"""
+
 import logging
 import numpy as np
 from scipy.optimize import root, root_scalar

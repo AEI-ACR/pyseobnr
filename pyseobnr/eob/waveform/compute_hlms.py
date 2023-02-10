@@ -1,3 +1,7 @@
+"""
+Contains functions associated with waveform construction, mostly for merger-ringdown.
+"""
+
 from copy import deepcopy
 from typing import Any, Dict
 
@@ -318,7 +322,7 @@ def compute_mixed_mode(
 ):
     """
     Computes the (3,2) and (4,3) modes, including mode-mixing in the ringdown.
-    See Sec. II C of the v5HM doc, especially Eqs.(71, 72)
+    See Sec. II C of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf, especially Eqs.(71, 72)
 
     Args:
         m1 (float): mass of the primary

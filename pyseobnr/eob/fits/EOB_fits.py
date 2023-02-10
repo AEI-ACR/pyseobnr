@@ -1,3 +1,7 @@
+"""
+Contains functions that are used in evaluating different waveform fits. Also includes computation of NQCs
+"""
+
 from typing import Any, Dict
 
 import numpy as np
@@ -41,7 +45,7 @@ def EOBCalculateRDAmplitudeConstraintedCoefficient1(
     c1f: float, c2f: float, sigmaR: float, amp: float, damp: float, eta: float
 ):
     """
-    Computes c1c coefficient in MR ansatze (Eq 59 in v5HM doc).
+    Computes c1c coefficient in MR ansatze (Eq 59 in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf).
 
     Args:
         c1f (float): value of c1f
@@ -62,7 +66,7 @@ def EOBCalculateRDAmplitudeConstraintedCoefficient2(
     c1f: float, c2f: float, sigmaR: float, amp: float, damp: float, eta: float
 ):
     """
-    Computes c2c coefficient in MR ansatze (Eq 60 in v5HM doc).
+    Computes c2c coefficient in MR ansatze (Eq 60 in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf).
 
     Args:
         c1f (float): value of c1f
@@ -85,7 +89,7 @@ def EOBCalculateRDPhaseConstraintedCoefficient1(
     d1f: float, d2f: float, sigmaI: float, omega: float
 ):
     """
-    Computes d1c coefficient in MR ansatze (Eq 61 in v5HM doc).
+    Computes d1c coefficient in MR ansatze (Eq 61 in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf).
 
     Args:
         d1f (float): value of d1f
@@ -118,7 +122,7 @@ def EOBCalculateNQCCoefficients_freeattach(
     fits_dict: Dict[str, Any],
 ):
     """
-    Computes the NQC coefficients (see discussion in Sec. II A, around Eq(35), in v5HM doc)
+    Computes the NQC coefficients (see discussion in Sec. II A, around Eq(35), in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf)
     This is just like the SEOBNRv4HM function but allows nrDeltaT to be passed in, instead of
     internally calculated.
 
@@ -131,7 +135,7 @@ def EOBCalculateNQCCoefficients_freeattach(
         ell (int): ell index of the relevant mode
         m (int): m index of the relevant mode
         time_peak (float): "reference" time with respect to which the attachment 
-            is defined, corresponding to t_ISCO for SEOBRNRv5HM (see Eq. 41 of v5HM doc)
+            is defined, corresponding to t_ISCO for SEOBRNRv5HM (see Eq. 41 of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf)
         time (np.ndarray): time array
         m1 (float): primary mass
         m2 (float): secondary mass
@@ -163,7 +167,7 @@ def EOBCalculateNQCCoefficients_freeattach(
     q3LM = q3 * amplitude
 
     # Compute the attachment time
-    # This is given by Eq.(41) of v5HM doc
+    # This is given by Eq.(41) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf
     # with time_peak <-> t_ISCO and nrDeltaT <-> - DeltaT_22
     # i.e. nrDeltaT > 0 means the attachment time is before t_ISCO
     nrTimePeak = time_peak - nrDeltaT

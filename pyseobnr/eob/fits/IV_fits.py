@@ -1,3 +1,7 @@
+"""
+Contains the fits for the so-called waveform input values.
+"""
+
 import numpy as np
 
 
@@ -8,7 +12,7 @@ class InputValueFits:
     These are used in several places in the model, including NQC construction, 
     merger-ringdown attachment and special calibration coefficients in some odd-m modes.
     This class wraps all necessary fits as methods. Each method returns a dict with keys being the desired mode. 
-    See also Appendix A of the v5HM doc.
+    See also Appendix A of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
 
     Args:
         m1 (float): mass of the primary
@@ -43,7 +47,7 @@ class InputValueFits:
 
     def hsign(self):
         """
-        Fits for the unsigned waveform amplitude at the attachment point. See Appendix A1 of the v5HM doc.
+        Fits for the unsigned waveform amplitude at the attachment point. See Appendix A1 of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
         This enters in the special calibration coefficients for the (2,1), (5,5) and (4,3) modes and is 
         needed to ensure the correct behaviour for cases with a minium in the amplitude close to the attachment point.
 
@@ -204,7 +208,7 @@ class InputValueFits:
     def habs(self):
         """
         Fits for the waveform amplitude at the attachment point.
-        See Appendix A1 of the v5HM doc.
+        See Appendix A1 of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
 
         Returns:
             dict: dictionary of habs values with keys being the desired mode
@@ -369,7 +373,7 @@ class InputValueFits:
     def hdot(self):
         """
         Fits for the waveform amplitude first derivative at the attachment point.
-        See Appendix A2 of the v5HM doc.
+        See Appendix A2 of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
 
         Returns:
             dict: dictionary of hdot values with keys being the desired mode
@@ -507,7 +511,7 @@ class InputValueFits:
     def hdotdot(self):
         """
         Fits for the waveform amplitude second derivative at the attachment point.
-        See Appendix A3 of the v5HM doc.
+        See Appendix A3 of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
 
         Returns:
             dict: dictionary of hdotdot values with keys being the desired mode
@@ -651,7 +655,7 @@ class InputValueFits:
     def omega(self):
         """
         Fits for the waveform frequency at the attachment point.
-        See Appendix A4 of the v5HM doc.
+        See Appendix A4 of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
 
         Returns:
             dict: dictionary of omega values with keys being the desired mode
@@ -747,7 +751,7 @@ class InputValueFits:
     def omegadot(self):
         """
         Fits for the waveform frequency first derivative at the attachment point.
-        See Appendix A4 of the v5HM doc.
+        See Appendix A4 of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
 
         Returns:
             dict: dictionary of omegadot values with keys being the desired mode

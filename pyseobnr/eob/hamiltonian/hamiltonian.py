@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+"""
+Abstract Hamiltonian classes
+"""
 from abc import ABC, abstractmethod
 import jax.numpy as jnp
 from jax import grad, jit, vmap
 
 
 class Hamiltonian:
+    """Aligned-spin Hamiltonian class"""
     def __init__(self):
         pass
 
@@ -25,6 +29,7 @@ class Hamiltonian:
 
 
 class Hamiltonian_v5PHM:
+    """Precessing-spin Hamiltonian class"""
     def __init__(self):
         pass
 

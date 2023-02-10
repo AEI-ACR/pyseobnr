@@ -1,3 +1,7 @@
+"""
+Additional utility functions to manipulate various aspects of precession dynamics.
+"""
+
 from math import cos, sqrt
 from typing import Any, Dict
 

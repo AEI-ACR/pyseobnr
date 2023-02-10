@@ -1,4 +1,8 @@
 # cython: language_level=3
+"""
+Contains the functions needed for computing the precessing post-adiabatic dynamics
+"""
+
 cimport cython
 from typing import Dict
 import numpy as np

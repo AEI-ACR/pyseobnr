@@ -1,3 +1,9 @@
+"""
+Contains hand-written vector operations wrapped in numba for speed. 
+For small operations, i.e. involving just 2 vectors these are faster 
+than NumPy since they do not incur overheads.
+"""
+
 import numpy as np
 from numba import jit
 from numba import float64
