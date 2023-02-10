@@ -366,18 +366,18 @@ cpdef compute_adiabatic_solution(
     cdef double[:] j0 = Newtonian_j0(r)
 
     cdef double omega_start = splines["everything"].x[0]
-    #if omega[0] < omega_start:
-    #    omega[0] = omega_start
 
     tmp = splines["everything"](omega)
+
     cdef double[:] chi1_LN = tmp[:,0]
     cdef double[:] chi2_LN = tmp[:,1]
+
+    cdef double[:] chi1_L = tmp[:,2]
+    cdef double[:] chi2_L = tmp[:,3]
 
     chi1_v = tmp[:,4:7]
     chi2_v = tmp[:,7:10]
 
-    cdef double[:] chi1_L = tmp[:,2]
-    cdef double[:] chi2_L = tmp[:,3]
 
     for i in range(r.shape[0]):
 
@@ -472,35 +472,28 @@ cpdef double pr_eqn(
         chi1_LN, chi2_LN,
         chi1_L, chi2_L,
     )
-    #cdef (double,double,double,double)  dH_dx = dynamics[:4]
 
     dH_dpr = dynamics[2]
+    omega = dynamics[3]
     H_val = dynamics[4]
     csi = dynamics[5]
-
 
     params.dynamics.p_circ[1] = pphi
     omega_circ = H.omega(q,params.dynamics.p_circ,chi1_v,chi2_v,m_1,m_2,chi1_LN, chi2_LN,
         chi1_L, chi2_L
     )
 
-    omega = dynamics[3]
-    #if omega < omega_start:
-    #  omega = omega_start
-
     if omega < 0.9*omega_start:
       print(f"problem: omega ={omega}< 0.9*omega_start {omega_start}")
 
     params.p_params.update_spins(chi1_LN, chi2_LN)
-    cdef (double,double) flux = RR.RR(q, p, omega,omega_circ,H_val,params)
+    cdef (double,double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
 
     params.p_params.omega_circ = omega_circ
     params.p_params.omega = omega
     params.p_params.H_val = H_val
 
-
     result = dpphi_dr * dH_dpr * csi - flux[1]
-
 
     return result
 
@@ -618,8 +611,7 @@ cpdef double pr_eqn_analytic(
         chi1_LN, chi2_LN,
         chi1_L, chi2_L,
     )
-    #if omega < omega_start:
-    #  omega = omega_start
+
     if omega < 0.9*omega_start:
       print(f"problem: omega ={omega}< 0.9*omega_start {omega_start}")
 
@@ -638,7 +630,7 @@ cpdef double pr_eqn_analytic(
     params.p_params.H_val = H_val
 
     cdef (double,double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
-    #print(f"r={r}")
+
     cdef double result = (
         xi / (2 * (1 + Bnp)) * (
             flux[1] / dpphi_dr * 2 * nu * H_val * Heven / A - xi * dQdprst
@@ -696,31 +688,19 @@ cpdef compute_pr(
         (np.array) Value of prstar at a given postadiabatic order for the whole radial grid.
     """
 
-    #print(f"r= {np.array(r)}, pphi = {np.array(pphi)}")
-    #cdef double[:] u = 1./r
-    #cdef double[:] dudr = - u*u
-    #cdef double[:] dpphi_dr = - fin_diff_derivative_tests(r, pphi)
-    #cdef double[:] dpphi_du = - fin_diff_derivative_v1(r, pphi)
-    #cdef double[:] dpphi_dr = dpphi_du*dudr
+    # Use spline derivative to compute dpphi_dr. Use u=1/r as it is a monotonically increasing variable
     r_arr  = np.array(r)
     pphi_arr = np.array(pphi)
     u = 1./r_arr
     dudr = -u*u
-    #cdef double[:]
     dpphi_du = - fin_diff_derivative_v1(u, pphi_arr)
     cdef double[:] dpphi_dr = - dpphi_du*dudr
 
     #cdef double[:] dpphi_dr = - fin_diff_derivative_tests(r, pphi)
-    #print(f"dpphi_dr1 = {np.array(dpphi_dr1)}, ddphi_dr = {np.array(dpphi_dr)}")
 
     cdef int i
 
-    #if omega[0] < omega_start:
-    #    omega[0] = omega_start
-
     tmp = splines["everything"](omega)
-
-
     chi1_v = tmp[:,4:7]
     chi2_v = tmp[:,7:10]
 
@@ -737,8 +717,7 @@ cpdef compute_pr(
         else:
             x0 = pr[i]*0.7
             x1 = pr[i]*1.3
-        #if i == 1:
-        #print(f"pr : i = {i}, pr = {pr[i]}, omega = {omega[i]} r = {r[i]}, pphi = {pphi[i]}, dpphi_dr = {dpphi_dr[i]}, params.omega = {params.p_params.omega}")
+
         if postadiabatic_type == "analytic":
             pr_val = pr_eqn_analytic(
                 pr[i], r[i], pphi[i], dpphi_dr[i],
@@ -769,7 +748,9 @@ cpdef compute_pr(
             )
             pr_val = pr_solution.x
         pr[i] = pr_val
+
         omega[i] = params.p_params.omega
+
         if omega[i] < 0.9*omega_start:
           print(f"problem: omega ={omega[i]}< 0.9*omega_start {omega_start}")
 
@@ -848,24 +829,22 @@ cpdef double pphi_eqn(
     cdef double dynamics[6]
 
     dynamics[:] = H.dynamics(q,p, chi1_v, chi2_v, m_1, m_2,chi1_LN,chi2_LN,chi1_L,chi2_L)
-    #cdef (double,double,double,double) dH_dx = dynamics[:4]
     dH_dr = dynamics[0]
     dH_dpr = dynamics[2]
+
+    omega = dynamics[3]
     H_val = dynamics[4]
     csi = dynamics[5]
 
     params.dynamics.p_circ[1] =  pphi_sol[0]
     omega_circ = H.omega(q,params.dynamics.p_circ,chi1_v,chi2_v,m_1,m_2,chi1_LN, chi2_LN, chi1_L, chi2_L)
 
-    omega = dynamics[3]
     if omega < 0.9*omega_start:
       print(f"problem: omega ={omega}< 0.9*omega_start {omega_start}")
-      #omega = omega_start
 
     params.p_params.update_spins(chi1_LN, chi2_LN)
 
     cdef (double,double) flux = RR.RR(q, p, omega,omega_circ,H_val,params)
-
 
     params.p_params.omega_circ = omega_circ
     params.p_params.omega = omega
@@ -989,13 +968,8 @@ cpdef double pphi_eqn_analytic(
         chi1_L, chi2_L,
     )
 
-    #if omega < omega_start:
-    #    omega = omega_start
-
     if omega < 0.9*omega_start:
       print(f"problem: omega ={omega}< 0.9*omega_start {omega_start}")
-
-
 
     params.dynamics.p_circ[1] = pphi_sol
     omega_circ = H.omega(
@@ -1098,9 +1072,6 @@ cpdef compute_pphi(
     Returns:
         (np.array) Value of pphi at a given postadiabatic order for the whole radial grid.
     """
-    #u = 1./r
-    #dudr = -1.*u*u
-    #cdef double[:] dpr_dr = - fin_diff_derivative_tests(r, pr)
 
     r_arr  = np.array(r)
     pr_arr  = np.array(pr)
@@ -1109,10 +1080,8 @@ cpdef compute_pphi(
     dpr_du = - fin_diff_derivative_v1(u, pr_arr)
     cdef double[:] dpr_dr = - dpr_du*dudr
     #cdef double[:] dpr_dr = - fin_diff_derivative_tests(r, pr)
-    #print(f"dpr_dr1 = {np.array(dpr_dr1)}, dpr_dr = {np.array(dpr_dr)}")
 
     cdef int i
-
     tmp = splines["everything"](omega)
     chi1_v = tmp[:,4:7]
     chi2_v = tmp[:,7:10]
@@ -1156,9 +1125,7 @@ cpdef compute_pphi(
             pphi_val = pphi_solution.x
 
         omega[i] = params.p_params.omega
-
         pphi[i] = pphi_val
-        #print(f"pphi : i = {i}, pr = {pr[i]}, omega = {omega[i]} r = {r[i]}, pphi = {pphi[i]}, dpr_dr = {dpr_dr[i]}, params.omega = {params.p_params.omega}")
 
     return pphi, omega
 
@@ -1219,7 +1186,7 @@ cpdef compute_postadiabatic_solution(
         if n>=7:
             tol_current=tol
         if parity:
-            pr, omega = compute_pr(
+            pr, _ = compute_pr(
                 r,
                 pr,
                 pphi,
@@ -1237,7 +1204,7 @@ cpdef compute_postadiabatic_solution(
                 params=params,
             )
         else:
-            pphi, omega = compute_pphi(
+            pphi, _ = compute_pphi(
                 r,
                 pr,
                 pphi,
@@ -1255,11 +1222,6 @@ cpdef compute_postadiabatic_solution(
                 params=params,
             )
 
-        """
-        #if i ==0:
-        #print(f"PA sol. : n = {n}, i = {0}, r[0] = {np.round(r[0],2)}, pphi[0] = {pphi[0]}, pr[0] = {pr[0]}, omega[0] = {omega[0]}")
-
-        #print(f"n = {n}, i = {0}, r = {np.round(r[0],2)}, pphi = {np.round(pphi[0],6)}, pr = {np.round(pr[0],6)}, omega = {omega[0]}")
         tmp = splines["everything"](omega)
         chi1_v = tmp[:,4:7]
         chi2_v = tmp[:,7:10]
@@ -1274,8 +1236,6 @@ cpdef compute_postadiabatic_solution(
         ap = chi1_LN * X1 + chi2_LN * X2
         am = chi1_LN * X1 - chi2_LN * X2
         dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
-
-        #print(f"Before update Omega : n = {n}, omega = {np.array(omega)}, chi1_LN = {chi1_LN}, chi2_LN = {chi2_LN}")
 
         for i in range(r.size):
             q[0] = r[i]
@@ -1303,20 +1263,6 @@ cpdef compute_postadiabatic_solution(
             )
             omega[i] = om
 
-            #if omega[i] < omega_start:
-            #  omega[i] = omega_start
-
-
-            params.p_params.chi_1 = chi1_LN[i]
-            params.p_params.chi_2 = chi2_LN[i]
-
-            #if n==order:
-            #if i ==0:
-            #if i<2:
-            #  print(f"After PA iter. : i = {i}, n ={n}, r = {np.round(r[i],2)}, pphi = {np.round(pphi[i],5)}, pr = {np.round(pr[i],5)}, omega = {omega[i]}")
-            #  #omega[i] = omega_start
-            #print(f"PA sol: n = {n}, i = {i}, r[i] = {np.round(r[i],2)}, om = {om}, pr = {pr[i]}, pphi = {pphi[i]}")
-        """
     return pr, pphi, omega
 
 @cython.profile(True)
@@ -1415,7 +1361,6 @@ cpdef compute_postadiabatic_dynamics(
     r_ISCO, _ = Kerr_ISCO(chi1_LN, chi2_LN, X1, X2)
     #print(f"r_ISCO = {r_ISCO}, chi1_LN = {chi1_LN}, chi2_LN = {chi2_LN}, chi_perp_eff = {chi_perp_eff}")
 
-
     cdef double a_f = precessing_final_spin(chi1_LN, chi2_LN, chi1_v, chi2_v, LNhat, X1,X2)
     cdef double sign_final_spin = a_f/np.linalg.norm(a_f)
 
@@ -1425,7 +1370,6 @@ cpdef compute_postadiabatic_dynamics(
 
     chi_perp = chi_total - chi_parallel*LNhat
     cdef double chi_perp_norm = np.linalg.norm(chi_perp)
-
 
     cdef double r_final_prefactor_test = 2.7 + (chi_eff - 0.5*chi_perp_eff)*(1-4.*nu)
 
@@ -1450,10 +1394,13 @@ cpdef compute_postadiabatic_dynamics(
     elif r_size < window_length + 2:
         r_size = window_length + 2
 
-    #print(f"r_size_input  = {r_size_input}")
+    #print(f"r0 = {r0}, r_final = {r_final}, r_range = {r_range}, r_size  = {r_size}, dr0 = {dr0}")
+    if r_size <= 25:
+      r_size = 25
+      
     r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
     #r, _ = np.linspace(r0, r_final, num=r_size_input, endpoint=True, retstep=True)
-    #print(f"Radial grid : r = {r}")
+
 
     if only_first_n is not None:
       r = r[:only_first_n]
@@ -1461,29 +1408,16 @@ cpdef compute_postadiabatic_dynamics(
     # First guess at circular omega, from Kepler's law
     omega = r**(-3./2)
 
-    #print(f"r0 = {r0}")
-    #print(f"First guess omega = {np.array(omega)}, r = {r}")
     cdef double[::1] q = np.zeros(2)
     cdef double[::1] p = np.zeros(2)
 
-    #print(f"0pa: omega[0] = {omega[0]}")
-
     # Compute the adiabatic solution
     pphi = compute_adiabatic_solution(r, omega, H, splines, m_1, m_2, q, p, params, tol=tol,)
-
-    #print(f"Adiabatic pphi = {np.array(pphi)}")
-    #print(f"omega_start = {omega_start}, omega[0] = {omega[0]}")
 
     # Update the circular omega with the adiabatic solution
     for i in range(r.size):
         q[0] = r[i]
         p[1] = pphi[i]
-
-
-        # omega[0] = omega_start
-        # print(f"Ad. sol: i = {i}, omega[i] = {omega[i]}, omega_start = {omega_start}, r[i] = {r[i]}")
-        #if i == 0:
-        #print(f"Ad. sol: i = {i}, omega[i] = {omega[i]}, r[i] = {r[i]}")
 
         tmp = splines["everything"](omega[i])
 
@@ -1513,14 +1447,6 @@ cpdef compute_postadiabatic_dynamics(
         omega[i] = om
         if omega[i]< 0.9*omega_start :
           print(f"PROBLEM WE ARE EXTRAPOLATING!")
-        #  omega[i] = om
-
-        #omega[i] = omega_start
-
-        #if i ==0:
-        #  omega[i] = omega_start
-        #print(f"Ad. sol: om = {om}")
-        #print("---------------------------")
 
 
     # Compute the PA solution
@@ -1540,32 +1466,21 @@ cpdef compute_postadiabatic_dynamics(
         postadiabatic_type=postadiabatic_type,
         params=params,
     )
-    #print(f"PA sol. : omega[0]  = {omega[0]}, omega_start = {omega_start}")
-    #for i in range(r.size):
-    #if i == 0:
-    #  print(f"PA sol. : i = {i}, r = {r[i]}, pphi = {pphi[i]}, pr = {pr[i]}, omega = {omega[i]}")
 
-    #    print(f"PA sol. : i = {i}, r = {r[i]}, pphi = {pphi[i]}, pr = {pr[i]}, omega = {omega[i]}")
     dt_dr = np.zeros(r.shape[0])
     dphi_dr = np.zeros(r.shape[0])
     cdef double dH_dpr,dH_dpphi,csi
     cdef double dyn[6]
     cdef double[::1] p_circ = np.zeros(2)
-
     cdef double[::1] tmp_LN = np.zeros(3)
 
     dyn_augm = []
     lN_dyn = []
 
-
     for i in range(r.shape[0]):
         q = np.array([r[i], 0])
         p = np.array([pr[i], pphi[i]])
 
-
-        #if i <3:
-        #  omega[i] = omega_start
-        #  print(f"i = {i}, omega[i] = {omega[i]}, omega_start = {omega_start}, r[i] = {np.round(r[i],2)}")
         tmp = splines["everything"](omega[i])
 
         chi1_LN = tmp[0]
@@ -1583,41 +1498,30 @@ cpdef compute_postadiabatic_dynamics(
 
         dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
         H.calibration_coeffs['dSO'] = dSO_new
-        #print(f"i = {i}, dSO = {dSO_new}, chi1_v = {chi1_v}, chi2_v = {chi2_v}, m1 = {m_1}, m2 = {m_2}")
-        #if i < 2:
-        #print(f"i = {i}, q[0] = {float(q[0])},  p[0] = {float(p[0])}, p[1] = {float(p[1])}, omega[i] = {omega[i]}")
+
         dyn[:] = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2,chi1_LN, chi2_LN, chi1_L, chi2_L)
         dH_dpr = dyn[2]
         dH_dpphi = dyn[3]
+        H_val = dyn[4]
         csi = dyn[5]
+
         dt_dr[i] = 1 / (dH_dpr * csi)
         dphi_dr[i] = dH_dpphi / (dH_dpr * csi)
-
-
-
         omega[i] = dH_dpphi
-        #if i ==0:
-        #  print(f"After iteration. i = {i}, omega[i] = {omega[i]}, omega_start = {omega_start}, r[i] = {np.round(r[i],2)}")
 
-        #print(f"i = {i}, chi1_LN = {chi1_LN}, chi2_LN = {chi2_LN}, chi1_L = {chi1_L}, chi2_L = {chi2_L}")
-        #if i < 2:
-        #print(f"After PA: i = {i}, omega[i] = {omega[i]}, r[i] = {r[i]}, dt_dr[i] = {dt_dr[i]}, dH_dpr = {dH_dpr}")
-        #print(f"After PA: i = {i}, omega[i] = {omega[i]}, r[i] = {r[i]}, pphi[i] = {pphi[i]}, pr[i] = {pr[i]}")
-        #print("====================================")
-        H_val = dyn[4]
         p_circ[1] = p[1]
         omega_circ = H.omega(q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
         dyn_augm.append([H_val,omega[i],omega_circ,chi1_LN,chi2_LN])
         lN_dyn.append(tmp_LN)
 
 
-    t = cumulative_integral(r, dt_dr)
-    #print(f"t = {t}, omega = {np.array(omega)}, r = {r}, dt_dr = {dt_dr}")
-    phi = cumulative_integral(r, dphi_dr)
-    #print(f"phi = {phi}")
-    postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi, dyn_augm]
+    #t = cumulative_integral(r, dt_dr, order = 3)
+    t = univariate_spline_integral(r,dt_dr)
 
-    #print(f"pa_dyn =  {postadiabatic_dynamics}")
+    #phi = cumulative_integral(r, dphi_dr, order=3)
+    phi = univariate_spline_integral(r,dphi_dr)
+
+    postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi, dyn_augm]
     lN_dyn = np.array(lN_dyn)
 
     return postadiabatic_dynamics, omega, lN_dyn, splines, omega_start_1
@@ -1714,18 +1618,10 @@ cpdef compute_combined_dynamics_exp_v1(
             r_size_input=r_size_input,
         )
 
-        #print(f"postadiabatic_dynamics[:,0] = {postadiabatic_dynamics[:,0]}")
-
-        #print(f"postadiabatic_dynamics[0,0] = {postadiabatic_dynamics[0,0]}, postadiabatic_dynamics[-1,0] = {postadiabatic_dynamics[-1,0]}, len(pa_dyn) = {len(postadiabatic_dynamics)}")
-        #print(f"postadiabatic_dynamics[0] = {postadiabatic_dynamics[0]}")
-        #print(f"postadiabatic_dynamics[-1] = {postadiabatic_dynamics[-1]}")
         PA_success = True
         e_id = -1
-        omega_pa = omega_pa[:e_id]
-        postadiabatic_dynamics = postadiabatic_dynamics[:e_id]
-        tmp_LN_pa = tmp_LN_pa[:e_id]
-        e_id = -1
         ode_y_init = postadiabatic_dynamics[e_id, 1:5]
+
     except ValueError as e:
         PA_success = False
         ode_y_init = None
@@ -1733,10 +1629,12 @@ cpdef compute_combined_dynamics_exp_v1(
         omega_start_pa = omega_start
 
     omega_start = omega_pa[-1]
+
+    #"""
     tmp = splines["everything"](omega_start)
 
     #print(f"PA_success = {PA_success}, omega_start = {omega_start}, omega_pa[-1] = {omega_pa[-1]}, omegaPN_f = {omegaPN_f}")
-    #print(f"ode_y_init = {ode_y_init}")
+
     cdef double X1 = params.p_params.X_1
     cdef double X2 = params.p_params.X_2
     cdef double chi1_LN_start = tmp[0]
@@ -1762,10 +1660,7 @@ cpdef compute_combined_dynamics_exp_v1(
 
     dSO_start = dSO_poly_fit(params.p_params.nu, ap_start, am_start)
     H.calibration_coeffs["dSO"] = dSO_start
-    #print(f"PA: chi1LN = {chi1_LN_start}, chi2LN = {chi2_LN_start}, chi1L = {chi1_L_start}, chi2L = {chi2_L_start}, chi1_v = {chi1_v_start}, chi2_v = {chi2_v_start}, dSO_start = {dSO_start}")
-
-    #print(f"ode_y_init = {ode_y_init}")
-    #print(f"PA_success = {PA_success}, omega_start = {omega_start}, omega_pa[-1] = {omega_pa[-1]}, omegaPN_f = {omegaPN_f}")
+    #"""
     (
         ode_dynamics_low,
         ode_dynamics_high,
@@ -1788,7 +1683,7 @@ cpdef compute_combined_dynamics_exp_v1(
         step_back=step_back,
         y_init=ode_y_init,
     )
-    #print(f"t_low[-1] = {ode_dynamics_low[-1,0]}, r_low[-1] = {ode_dynamics_low[-1,1]}")
+
     if PA_success is True:
 
         # Interpolate the PA dynamics in its full range. Note that for the AS model this is only
@@ -1798,19 +1693,13 @@ cpdef compute_combined_dynamics_exp_v1(
         # accurately interpolated into the finer waveform grid
 
         t_pa = postadiabatic_dynamics[:, 0]
-        #print(f"e_id = {e_id}, t_pa = {t_pa[e_id]}")
 
         ode_dynamics_low[:, 0] += t_pa[e_id]
         ode_dynamics_high[:, 0] += t_pa[e_id]
 
-        #print(f"t_low = {ode_dynamics_low[:,0]}, r_low = {ode_dynamics_low[:,1]}")
-
-
         # This is the part of the PA dynamics which is smoothed in
         # timestep until it reaches the one obtained solving ODEs
         t_ode_low = ode_dynamics_low[:, 0]
-
-        #print(f"t_ode_low[0] = {t_ode_low[0]}, t_ode_low[-1] = {t_ode_low[-1]}, r_low[0] = {ode_dynamics_low[0,1]}, r_low[-1] = {ode_dynamics_low[-1,1]}")
 
         dt_pa_first = t_pa[1] - t_pa[0]
         dt_ode_init = t_ode_low[1] - t_ode_low[0]
@@ -1818,29 +1707,21 @@ cpdef compute_combined_dynamics_exp_v1(
         # Estimate initial delta_t from the starting orbital frequency (this should correspond to the maximum timestep in the PA dynamics)
         dt0 = 2.*np.pi/omega_start_0
 
-        #print(f"0: dt_pa_first = {dt_pa_first}, t_pa[0] = {t_pa[0]}, t_pa[1] = {t_pa[1]}, dt0 = {dt0}")
-
         while dt_pa_first>500:
             if  dt_pa_first > dt0:
               dt_pa_first = dt0/5.
             else:
               dt_pa_first = dt0/10.
             dt0 = dt_pa_first
-            #print(f"dt_pa_first = {dt_pa_first}")
-
-        #print(f"final: dt_pa_first = {dt_pa_first}")
 
         t_pa_first = t_pa[0]
         t_ode_init = t_ode_low[0]
-
-        #print(f"dt_ode_init = {dt_ode_init}, t_pa_first = {t_pa_first}, t_ode_init = {t_ode_init}, dt_pa_first = {dt_pa_first}")
 
         dt = dt_ode_init
         t = t_ode_init - dt
         t_new = []
 
         step_multiplier = 1.3
-        #dt_pa_first = 50.
 
         while True:
             t_new.append(t)
@@ -1851,27 +1732,16 @@ cpdef compute_combined_dynamics_exp_v1(
             t -= dt
 
             if t < t_pa_first:
-                #print(f"t = {t}, t_pa_first = {t_pa_first}.")
-                #print(f"t_new = {t_new[::-1]}. Breaking loop.")
                 break
 
         # Add the initial time
         t_new.append(t_pa[0])
 
         t_new = t_new[::-1]
-        #iom = CubicSpline(t_pa,omega_pa)
-        #omega_new = iom(t_new)
-        #print(f"t_pa = {t_pa}")
-        #print(f"t_new = {t_new}")
+
         # Interpolate window dynamics except the spins projections (otherwise bad things may happen due to the large timesteps of the PA dynamics)
         window_dynamics_interp = CubicSpline(t_pa, np.c_[postadiabatic_dynamics[:,:-2], omega_pa])
-        #window_dynamics_interp = CubicSpline(omega_pa, np.c_[postadiabatic_dynamics[:,:-2]])
-
-        #print(f"t_pa = {t_pa}, r_pa = {postadiabatic_dynamics[:,1]}")
-        #ir = CubicSpline(omega_pa, postadiabatic_dynamics[:,1])
-        #print(f"r_new = {ir(t_new)}")
         tmp_window = window_dynamics_interp(t_new)
-        #tmp_window = window_dynamics_interp(omega_new)
 
         window_dynamics = tmp_window[:,:-1]
         omega_new = tmp_window[:,-1]
@@ -1880,33 +1750,14 @@ cpdef compute_combined_dynamics_exp_v1(
         chi1_LN_window = tmp[:,0]
         chi2_LN_window = tmp[:,1]
         lN_window = tmp[:,10:13]
-
-        #postadiabatic_dynamics_v1 = np.c_[window_dynamics, omega_new, chi1_LN_window,chi2_LN_window]
         postadiabatic_dynamics_v1 = np.c_[window_dynamics, chi1_LN_window,chi2_LN_window]
 
-        #print(f"t_pa[0] = {t_pa[0]}, postadiabatic_dynamics[0,0] = {postadiabatic_dynamics[0,0]}")
-        #print(f"postadiabatic_dynamics[:,1] = {postadiabatic_dynamics[:,1]}")
-        #print(f"postadiabatic_dynamics_v1[:,1] = {postadiabatic_dynamics_v1[:,1]}")
-        #print(f"ode_dynamics_low[:,1] = {ode_dynamics_low[:,1]}")
-        #print(f"postadiabatic_dynamics[0,1] = {postadiabatic_dynamics[0,1]}, postadiabatic_dynamics_v1[0,1] = {postadiabatic_dynamics_v1[0,1]}, ode_dynamics_low[0,1] = {ode_dynamics_low[0,1]}")
-        #print(f"postadiabatic_dynamics[-1,1] = {postadiabatic_dynamics[-1,1]}, postadiabatic_dynamics_v1[-1,1] = {postadiabatic_dynamics_v1[-1,1]}, ode_dynamics_low[-1,1] = {ode_dynamics_low[-1,1]}")
-        combined_dynamics = np.vstack((postadiabatic_dynamics_v1[:e_id], ode_dynamics_low)  )
+        combined_dynamics = np.vstack((postadiabatic_dynamics_v1[:e_id], ode_dynamics_low))
         tmp_LN = np.vstack((lN_window[:e_id],  tmp_LN_low, tmp_LN_fine))
 
         len_window = len(lN_window[:e_id])
-        #combined_low = combined_dynamics[:idx_restart+len_window]
-        #combined_high = combined_dynamics[idx_restart+len_window:]
-
-        #print(f"combined_low[:,1] = {combined_low[:,1]}")
-        #print(f"combined_high[:,1] = {combined_high[:,1]}")
-        #print(f"ode_dynamics_high[:,1] = {ode_dynamics_high[:,1]}")
-
         tmp_LN_low = tmp_LN[:idx_restart+len_window]
         tmp_LN_fine = tmp_LN[idx_restart+len_window:]
-
-        #window_dynamics_interp = CubicSpline(t_pa, postadiabatic_dynamics_v1)
-        #postadiabatic_dynamics_v1 = window_dynamics_interp(t_new)
-        #combined_dynamics = np.vstack((postadiabatic_dynamics_v1[:e_id], ode_dynamics_low))
 
     else:
         combined_dynamics = ode_dynamics_low
@@ -2009,61 +1860,8 @@ def univariate_spline_integral(
         (np.array) integral
     """
     y_x_interp = InterpolatedUnivariateSpline(x[::-1], y[::-1])
+    #y_x_interp = CubicSpline(x[::-1], y[::-1])
     y_x_integral = y_x_interp.antiderivative()(x[::-1])[::-1]
     integral = y_x_integral - y_x_integral[0]
 
     return integral
-
-@cython.profile(True)
-@cython.linetrace(True)
-def compute_adiabatic_parameter(
-    dynamics,
-    H,
-    chi_1,
-    chi_2,
-    m_1,
-    m_2,
-    params,
-):
-    """
-    Compute the adiabatic parameter \dot{\Omega}/2\Omega^{2}.
-
-    Args:
-        dynamics (tuple): Dynamics array [t,r,phi,pr,pphi].
-        H (Hamiltonian_v5PHM_C): Hamiltonian.
-        chi_1 : Primary dimensionless spin vector.
-        chi_2 : Secondary dimensionless spin vector.
-        m_1 (double): Mass of the primary
-        m_2 (double): Mass of the secondary
-        params (EOBParams): Container with useful EOB parameters
-
-    Returns:
-        (np.array): Adiabatic parameter
-
-    """
-    omega = np.zeros(dynamics.shape[0])
-    dr_dt = np.zeros(dynamics.shape[0])
-
-    for i in range(dynamics.shape[0]):
-        q = dynamics[i, 1:3]
-        p = dynamics[i, 3:]
-
-        dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
-        dH_dpr = dyn[2]
-
-
-        csi = dyn[5]
-        dr_dt[i] = dH_dpr * csi
-
-        omega[i] = dyn[-1]
-
-    r = dynamics[:,1]
-    u = 1/r
-    dudr = -u*u
-    domega_du = fin_diff_derivative_v1(u, omega)
-    domega_dr = domega_du*dudr
-
-
-    adiabatic_param = dr_dt * domega_dr / (2 * omega * omega)
-
-    return adiabatic_param

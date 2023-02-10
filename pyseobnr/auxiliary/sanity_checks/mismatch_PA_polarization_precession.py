@@ -58,6 +58,7 @@ def generate_v5PHM_waveform(m1:float, m2:float,
                             iota:float, phi:float, distance:float,
                             delta_t:float, approx:str,
                             ell_max: int = 5,
+                            r_size_input: int=12,
                             initial_conditions = "adiabatic",
                             initial_conditions_postadiabatic_type = "analytic",
                             ):
@@ -73,6 +74,7 @@ def generate_v5PHM_waveform(m1:float, m2:float,
             'ell_max':ell_max,'beta_approx':None,'M':mtotal,"dt":delta_t,
             "initial_conditions" : initial_conditions,
             "initial_conditions_postadiabatic_type" : initial_conditions_postadiabatic_type,
+            'r_size_input':r_size_input
             }
 
     if approx == 'SEOBNRv5PHM_PA':

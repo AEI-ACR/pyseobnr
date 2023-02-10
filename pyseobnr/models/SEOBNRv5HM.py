@@ -904,6 +904,7 @@ class SEOBNRv5PHM_opt(Model):
                     backend=self.backend,
                     params=self.eob_pars,
                     step_back=self.step_back,
+                    #PA_order=4,
                     postadiabatic_type=self.settings["postadiabatic_type"],
                     r_size_input=self.settings['r_size_input'],
                 )
