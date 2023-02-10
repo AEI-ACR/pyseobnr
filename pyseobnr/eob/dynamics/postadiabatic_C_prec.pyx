@@ -1678,8 +1678,8 @@ cpdef compute_combined_dynamics_exp_v1(
         m_2,
         splines,
         params,
-        rtol=1e-9,
-        atol=1e-9,
+        rtol=1e-8,
+        atol=1e-8,
         step_back=step_back,
         y_init=ode_y_init,
     )
