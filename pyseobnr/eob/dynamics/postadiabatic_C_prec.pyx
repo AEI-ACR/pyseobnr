@@ -1395,9 +1395,9 @@ cpdef compute_postadiabatic_dynamics(
         r_size = window_length + 2
 
     #print(f"r0 = {r0}, r_final = {r_final}, r_range = {r_range}, r_size  = {r_size}, dr0 = {dr0}")
-    if r_size <= 25:
-      r_size = 25
-      
+    #if r_size <= 25:
+    #  r_size = 25
+
     r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
     #r, _ = np.linspace(r0, r_final, num=r_size_input, endpoint=True, retstep=True)
 
