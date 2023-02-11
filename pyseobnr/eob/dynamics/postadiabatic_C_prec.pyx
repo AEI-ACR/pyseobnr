@@ -6,6 +6,7 @@ Contains the functions needed for computing the precessing post-adiabatic dynami
 cimport cython
 from typing import Dict
 import numpy as np
+import  quaternion
 from libc.math cimport log, sqrt, exp, abs,fabs, tgamma,sin,cos, tanh, sinh, asinh
 
 from .initial_conditions_aligned_opt import computeIC_opt as computeIC
@@ -1277,6 +1278,8 @@ cpdef compute_postadiabatic_dynamics(
     double m_1,
     double m_2,
     dict splines,
+    t_pn,
+    dynamics_pn,
     double tol=1e-12,
     EOBParams params=None,
     int order=1,
@@ -1357,6 +1360,7 @@ cpdef compute_postadiabatic_dynamics(
     cdef double r_final_prefactor = 2.7 + chi_eff*(1-4.*nu) + chi_perp_eff
     #print(f"chi1_v = {chi1_v}, chi2_v = {chi2_v}, LNhat = {LNhat}")
 
+
     #print(f"r_final_prefactor = {r_final_prefactor}, chi_eff = {chi_eff}, chi_perp_eff = {chi_perp_eff}")
     r_ISCO, _ = Kerr_ISCO(chi1_LN, chi2_LN, X1, X2)
     #print(f"r_ISCO = {r_ISCO}, chi1_LN = {chi1_LN}, chi2_LN = {chi2_LN}, chi_perp_eff = {chi_perp_eff}")
@@ -1382,7 +1386,14 @@ cpdef compute_postadiabatic_dynamics(
 
     cdef double dr0 = 0.1#5
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
-    r_range = r0 - r_final
+    cdef double r_range = r0 - r_final
+
+    omega_pn = dynamics_pn[:,-1]
+    lN_pn = dynamics_pn[:,:3]
+    cdef double precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
+    cdef int r_size_new = int(np.ceil(precession_cycles*10))
+    #print(f"previous r_size = {r_size}, r_size_10_points = {r_size_new}")
+
     #print(f"r0 = {r0}, r_final = {r_final}, dr0 = {dr0}, r_switch = {r_switch}, r_size = {r_size}, r_range = {r_range}")
 
     cdef double omega_start_1 = omega_start
@@ -1395,10 +1406,12 @@ cpdef compute_postadiabatic_dynamics(
         r_size = window_length + 2
 
     #print(f"r0 = {r0}, r_final = {r_final}, r_range = {r_range}, r_size  = {r_size}, dr0 = {dr0}")
-    #if r_size <= 25:
-    #  r_size = 25
+    if r_size <= 30:
+      #print(f"r_size<30, setting r_size = 30")
+      r_size_new = 30
+    r, _ = np.linspace(r0, r_final, num=r_size_new, endpoint=True, retstep=True)
 
-    r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
+    #r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
     #r, _ = np.linspace(r0, r_final, num=r_size_input, endpoint=True, retstep=True)
 
 
@@ -1610,6 +1623,8 @@ cpdef compute_combined_dynamics_exp_v1(
             m_1,
             m_2,
             splines,
+            combined_t,
+            combined_y,
             tol=tol,
             params=params,
             order=PA_order,
@@ -1630,37 +1645,6 @@ cpdef compute_combined_dynamics_exp_v1(
 
     omega_start = omega_pa[-1]
 
-    #"""
-    tmp = splines["everything"](omega_start)
-
-    #print(f"PA_success = {PA_success}, omega_start = {omega_start}, omega_pa[-1] = {omega_pa[-1]}, omegaPN_f = {omegaPN_f}")
-
-    cdef double X1 = params.p_params.X_1
-    cdef double X2 = params.p_params.X_2
-    cdef double chi1_LN_start = tmp[0]
-    cdef double chi2_LN_start = tmp[1]
-    cdef double chi1_L_start = tmp[2]
-    cdef double chi2_L_start = tmp[3]
-    chi1_v_start = tmp[4:7]
-    chi2_v_start = tmp[7:10]
-    lN_start = tmp[10:13]
-
-    params.p_params.omega = omega_start
-    params.p_params.chi1_v = chi1_v_start
-    params.p_params.chi2_v = chi2_v_start
-
-    params.p_params.chi_1, params.p_params.chi_2 = chi1_LN_start, chi2_LN_start
-    params.p_params.chi1_L, params.p_params.chi2_L = chi1_L_start, chi2_L_start
-    params.p_params.lN = lN_start
-
-    params.p_params.update_spins(chi1_LN_start, chi2_LN_start)
-
-    ap_start = chi1_LN_start * X1 + chi2_LN_start * X2
-    am_start = chi1_LN_start * X1 - chi2_LN_start * X2
-
-    dSO_start = dSO_poly_fit(params.p_params.nu, ap_start, am_start)
-    H.calibration_coeffs["dSO"] = dSO_start
-    #"""
     (
         ode_dynamics_low,
         ode_dynamics_high,
@@ -1670,7 +1654,7 @@ cpdef compute_combined_dynamics_exp_v1(
         idx_restart,_,_
     ) = compute_dynamics_prec_opt(
         omega_ref,
-        omega_pa[-1],
+        omega_start,
         omegaPN_f,
         H,
         RR,
@@ -1842,6 +1826,34 @@ cpdef cumulative_integral(
             integral[i+1] = integral[i] + z * h
 
     return integral
+
+
+@cython.profile(True)
+@cython.linetrace(True)
+def compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn:np.array):
+
+    # Compute the precession frequency from LNhat
+    lN_quat = quaternion.as_quat_array(np.c_[np.zeros(len(lN_pn)), lN_pn])
+    dlNdt_arr = CubicSpline(t_pn, lN_pn).derivative()(t_pn)
+    dlNdt_quat = quaternion.as_quat_array(np.c_[np.zeros(len(dlNdt_arr)), dlNdt_arr])
+
+    omega_prec = 2.0*dlNdt_quat*lN_quat.conjugate()
+    omega_prec_arr = quaternion.angular_velocity(omega_prec,t_pn)
+    om_prec_norm = np.sqrt(np.einsum("ij,ij->i", omega_prec_arr, omega_prec_arr))
+
+    # Compute the value of the precession frequency at r_final
+    r_pn = omega_pn**(-3./2.)
+    iut = CubicSpline(1./r_pn,t_pn)
+    iom_prec = CubicSpline(t_pn,om_prec_norm)
+
+    ph_om_prec = iom_prec.antiderivative()(t_pn)
+    iph_prec = CubicSpline(t_pn,ph_om_prec)
+    cdef double t_final = iut(1./r_final)
+
+    cdef double prec_cycles = iph_prec(t_final)/(2*np.pi)
+
+    return prec_cycles
+
 
 @cython.profile(True)
 @cython.linetrace(True)
