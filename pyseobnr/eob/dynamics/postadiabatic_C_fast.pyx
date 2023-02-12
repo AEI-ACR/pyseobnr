@@ -52,6 +52,11 @@ cpdef double pr_eqn(
     double[::1] q,
     double[::1] p
 ):
+    """
+    Compute the value of pr at odd PA orders.
+    This is done by evaluating Eq.(C7) of SEOBNRv5 theory doc
+    at a given radial grid point. See  DCC:T2300060
+    """
     q[0] = r
     p[0] = pr_sol
     p[1] = pphi
@@ -100,7 +105,12 @@ cpdef compute_pr(
     double[::1] p,
     EOBParams params=None,
 ):
-
+    """
+    Compute the value to pr at odd PA orders.
+    This is done by evaluating  Eq(C7) of
+    SEOBNRv5 theory doc at every radial grid point.
+    See DCC:T2300060
+    """
     cdef double[:] dpphi_dr = - fin_diff_derivative(r, pphi)
     cdef int i
     for i in range(r.shape[0]):
@@ -133,6 +143,11 @@ cpdef double pphi_eqn(
     double[::1] q,
     double[::1] p
 ):
+    """
+    Compute value of pphi at a given radial grid point.
+    This is done by solving Eq.(C8) from SEOBNRv5
+    theory doc. See DCC:T2300060.
+    """
     q[0] = r
     p[0] = pr
     p[1] =  pphi_sol
@@ -205,7 +220,12 @@ cpdef compute_pphi(
     double[::1] p,
     EOBParams params=None
 ):
-
+    """
+    Compute value of pphi at even PA orders.
+    This is done by solving Eq.(C8) from SEOBNRv5
+    theory doc at every radial grid point.
+    See DCC:T2300060
+    """
 
     cdef double[:] dpr_dr = - fin_diff_derivative(r, pr)
     cdef int i
@@ -232,6 +252,10 @@ cpdef compute_postadiabatic_solution(
     int order=8,
     EOBParams params=None,
 ):
+    """
+    Compute the post-adiabatic values
+    of pr and pphi iteratively up to the given PA order.
+    """
     pr = np.zeros(r.size)
     cdef int n
     cdef double tol_current
@@ -284,7 +308,7 @@ cpdef compute_postadiabatic_dynamics(
     EOBParams params=None,
     int order=8
 ):
-    """Compute the dynamics starting from omega0
+    """Compute the dynamics using PA procedure starting from omega0
 
     Args:
         omega0 (float): The starting *orbital* frequency in geomtric units
@@ -398,6 +422,12 @@ cpdef compute_combined_dynamics(
     int PA_order=8,
     double r_stop = -1
 ):
+    """
+    Compute the full inspiral dynamics by combining PA + ODE
+    integration. If the PA procedure fails (e.g. because the
+    inspiral is too short), the code falls back to ODE
+    integration.
+    """
     try:
         postadiabatic_dynamics = compute_postadiabatic_dynamics(
             omega0,

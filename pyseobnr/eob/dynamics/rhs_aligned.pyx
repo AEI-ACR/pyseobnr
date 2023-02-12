@@ -1,6 +1,6 @@
 # cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False, profile=True, linetrace=True, binding=True,initializedcheck=False
 """
-Contains the actual RHS of the EOM, wrapped in cython. 
+Contains the actual RHS of the EOM, wrapped in cython.
 This allows some of the cython functions used in the RHS to be called more efficiently.
 """
 
@@ -17,6 +17,11 @@ cpdef get_rhs(double t,double[::1] z,Hamiltonian_C H,RadiationReactionForce RR,
     Compute the RHS of the EOB evolution equations.
     In particular this function returns
     \dot{r},\dot{\phi},\dot{p}_{r},\dot{p}_{\phi}
+    See for example Eq(2) of arXiv:2112.06952.
+    The Hamiltonian is given by Eq(14) in v5HM doc
+    and explicitly spelled out in Section I.C of v5 theory doc.
+    and the RR force is descibed in Eq(43) of v5HM doc, both
+    contained in DCC:T2300060
     """
     cdef double[::1] q = z[:2]
     cdef double[::1] p = z[2:]
