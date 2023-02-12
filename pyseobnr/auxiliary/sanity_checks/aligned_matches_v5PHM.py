@@ -17,7 +17,7 @@ from pyseobnr.auxiliary.sanity_checks.single_waveform_tests import amplitude_hie
 from pycbc.psd.analytical import aLIGOZeroDetHighPower, aLIGOZeroDetHighPowerGWINC
 from pycbc.types import TimeSeries
 from pycbc.filter import make_frequency_series
-from pycbc.filter.matchedfilter import match
+from pycbc.filter.matchedfilter import optimized_match
 from pycbc.waveform.utils import taper_timeseries
 
 
@@ -222,7 +222,7 @@ def mismatch_v5P_strain(
         psd = aLIGOZeroDetHighPowerGWINC(len(hp_v5), hp_v5.delta_f, f_low_phys)
 
         # Compute match for hplus
-        mm_hp = match(hp_v5,
+        mm_hp = optimized_match(hp_v5,
               hp_v5p,
               psd,
               low_frequency_cutoff=f_low_phys,
@@ -231,7 +231,7 @@ def mismatch_v5P_strain(
 
 
         # Compute match for hcross
-        mm_hc = match(hc_v5,
+        mm_hc = optimized_match(hc_v5,
               hc_v5p,
               psd,
               low_frequency_cutoff=f_low_phys,

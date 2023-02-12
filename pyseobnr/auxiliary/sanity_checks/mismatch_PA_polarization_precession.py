@@ -14,7 +14,7 @@ from pyseobnr.generate_waveform import generate_modes_opt
 from pycbc.psd.analytical import aLIGOZeroDetHighPower, aLIGOZeroDetHighPowerGWINC
 from pycbc.types import TimeSeries
 from pycbc.filter import make_frequency_series
-from pycbc.filter.matchedfilter import match
+from pycbc.filter.matchedfilter import optimized_match
 from pycbc.waveform.utils import taper_timeseries
 
 from typing import Dict, Union, Tuple
@@ -249,7 +249,7 @@ def pa_mismatch_prec(m1,m2, s1x,s1y,s1z,s2x,s2y,s2z, iota_s,ell_max=5,initial_co
     psd = aLIGOZeroDetHighPowerGWINC(len(hp), hp.delta_f, f_low_phys)
 
     # Compute match for hplus
-    mm_hp = match(hp,
+    mm_hp = optimized_match(hp,
           hp_pa,
           psd,
           low_frequency_cutoff=f_low_phys,
@@ -258,7 +258,7 @@ def pa_mismatch_prec(m1,m2, s1x,s1y,s1z,s2x,s2y,s2z, iota_s,ell_max=5,initial_co
 
 
     # Compute match for hcross
-    mm_hc = match(hc,
+    mm_hc = optimized_match(hc,
         hc_pa,
         psd,
         low_frequency_cutoff=f_low_phys,
