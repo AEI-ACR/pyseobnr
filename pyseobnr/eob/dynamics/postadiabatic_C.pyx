@@ -83,6 +83,12 @@ cpdef fin_diff_derivative(
     y,
     n: int = 8,
 ):
+    """
+    Compute 8th order finite difference derivative,
+    assuming an equally spaced grid. Correctly uses
+    asymmetric stencils at the end points.
+    """
+
     dy_dx = np.zeros(x.size)
     cdef double h = fabs(x[1] - x[0])
     cdef int size = x.shape[0]
@@ -117,7 +123,10 @@ cpdef Kerr_ISCO(
     double m1,
     double m2,
 ):
-
+    """
+    Compute the Kerr ISCO radius and angular momentum
+    from the remnant spin predicted by NR fits
+    """
     a = nrutils.bbh_final_spin_non_precessing_HBR2016(
             m1, m2, chi1, chi2, version="M3J4"
     )
@@ -133,6 +142,10 @@ cpdef Kerr_ISCO(
 @cython.profile(True)
 @cython.linetrace(True)
 def Newtonian_j0(r):
+    """
+    Newtonian expression for orbital angular momentum using
+    consistent normalization.
+    """
     return np.sqrt(r)
 
 @cython.profile(True)
@@ -157,6 +170,10 @@ cpdef compute_adiabatic_solution(
     double[::1] p,
     double tol=1e-12,
 ):
+    """
+    Compute the adiabatic solution for the orbital angular momentum.
+    Corresponds to Eq.(2.5) of arXiv:2105.06983
+    """
     cdef int i
     cdef double[:] j0 = Newtonian_j0(r)
 
@@ -193,6 +210,10 @@ cpdef double pr_eqn(
     double[::1] q,
     double[::1] p
 ):
+    """
+    Evaluate the equation for odd-PA orders, corresponding to corrections to pr.
+    See Eq. (2.6) of arXiv:2105.06983
+    """
     q[0] = r
     p[0] = pr_sol
     p[1] = pphi
@@ -219,63 +240,6 @@ cpdef double pr_eqn(
 
     return result
 
-'''
-@cython.profile(True)
-@cython.linetrace(True)
-cpdef compute_pr(
-    double[:] r,
-    double[:] pr,
-    double[:] pphi,
-    Hamiltonian_C H,
-    RadiationReactionForce RR,
-    double chi_1,
-    double chi_2,
-    double m_1,
-    double m_2,
-    double[:] q,
-    double[:] p,
-    double tol=1e-12,
-    EOBParams params=None,
-):
-    # pphi_interp = CubicSpline(r[::-1], pphi[::-1])
-    # dpphi_dr = pphi_interp.derivative()(r)
-
-    # dr = np.abs(r[1]-r[0])
-    # d_dr = findiff.FinDiff(0, dr, 1, acc=8)
-    # dpphi_dr = - d_dr(pphi)
-
-    cdef double[:] dpphi_dr = - fin_diff_derivative(r, pphi)
-
-    # print(dpphi_dr)
-    # print(dpphi_dr_new)
-    # raise KeyboardInterrupt
-    cdef int i
-    for i in range(r.shape[0]):
-        if np.abs(pr[i])<1e-14:
-            x0 = 0.0
-            x1 = -3e-2
-        else:
-            x0 = pr[i]*0.98
-            x1 = pr[i]
-        pr_solution = optimize.root_scalar(
-            pr_eqn,
-            x0=x0,
-            x1=x1,
-            args=(
-                r[i], pphi[i], dpphi_dr[i],
-                H, RR, chi_1, chi_2, m_1, m_2,
-                params,q,p
-            ),
-            rtol=tol,
-            xtol=tol,
-            method="secant"
-        )
-        pr[i] = pr_solution.root
-
-
-    return pr
-'''
-
 cpdef double pr_eqn_wrapper(pr_sol,args):
     return pr_eqn(pr_sol,*args)
 
@@ -296,18 +260,15 @@ cpdef compute_pr(
     double tol=1e-12,
     EOBParams params=None,
 ):
-    # pphi_interp = CubicSpline(r[::-1], pphi[::-1])
-    # dpphi_dr = pphi_interp.derivative()(r)
-
-    # dr = np.abs(r[1]-r[0])
-    # d_dr = findiff.FinDiff(0, dr, 1, acc=8)
-    # dpphi_dr = - d_dr(pphi)
+    """
+    Compute the value to pr at odd PA orders.
+    This is done by numericall solving Eq(2.6) of
+    arXiv:2105.06983 at every radial grid point
+    """
 
     cdef double[:] dpphi_dr = - fin_diff_derivative(r, pphi)
 
-    # print(dpphi_dr)
-    # print(dpphi_dr_new)
-    # raise KeyboardInterrupt
+
     cdef int i
     for i in range(r.shape[0]):
         if np.abs(pr[i])<1e-14:
@@ -316,22 +277,7 @@ cpdef compute_pr(
         else:
             x0 = pr[i]*0.95
             x1 = pr[i]*1.05
-        '''
-        pr_solution = optimize.root_scalar(
-            pr_eqn,
-            x0=x0,
-            x1=x1,
-            args=(
-                r[i], pphi[i], dpphi_dr[i],
-                H, RR, chi_1, chi_2, m_1, m_2,
-                params,q,p
-            ),
-            rtol=tol,
-            xtol=tol,
-            method="secant"
-        )
-        pr[i] = pr_solution.root
-        '''
+
         mysys = roots.gsl_function(pr_eqn_wrapper, (
                 r[i], pphi[i], dpphi_dr[i],
                 H, RR, chi_1, chi_2, m_1, m_2,
@@ -372,6 +318,10 @@ cpdef double pphi_eqn(
     double[::1] q,
     double[::1] p
 ):
+    """
+    Evaluate the equation for even-PA orders, corresponding to corrections to pphi.
+    See Eq. (2.7) of arXiv:2105.06983
+    """
     cdef double dH_dr,dH_dpr,H_val,csi,omega,omega_circ,result
     q[0] = r
     p[0] = pr
@@ -418,24 +368,16 @@ cpdef compute_pphi(
     double tol=1e-12,
     EOBParams params=None
 ):
-    # pr_interp = CubicSpline(r[::-1], pr[::-1])
-    # dpr_dr = pr_interp.derivative()(r)
+    """
+    Compute the correction to pphi at even PA orders.
+    This is done by numericall solving Eq(2.7) of
+    arXiv:2105.06983 at every radial grid point
+    """
 
     cdef double[:] dpr_dr = - fin_diff_derivative(r, pr)
     cdef int i
     for i in range(r.shape[0]):
-        '''
-        pphi_solution = optimize.root_scalar(
-            pphi_eqn,
-            x0=pphi[i],
-            x1=0.98*pphi[i],
-            args=(r[i], pr[i], dpr_dr[i], H, RR, chi_1, chi_2, m_1, m_2, params,q,p),
-            rtol=tol,
-            xtol=tol,
-            method="secant"
-        )
-        pphi[i] = pphi_solution.root
-        '''
+
         x0 = 0.95*pphi[i]
         x1 = 1.05*pphi[i]
         mysys = roots.gsl_function(pphi_eqn_wrapper, (
@@ -471,6 +413,9 @@ cpdef compute_postadiabatic_solution(
     int order=8,
     EOBParams params=None,
 ):
+    """
+    Compute the postadiabatic solution iteratively
+    """
     pr = np.zeros(r.size)
     cdef int n
     cdef double tol_current
@@ -529,7 +474,7 @@ cpdef compute_postadiabatic_dynamics(
     EOBParams params=None,
     order=8
 ):
-    """Compute the dynamics starting from omega0
+    """Compute the dynamics using PA procedure starting from omega0
 
     Args:
         omega0 (float): The starting *orbital* frequency in geomtric units
@@ -565,22 +510,16 @@ cpdef compute_postadiabatic_dynamics(
     cdef double dr0 = 0.3
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
 
-    '''
-    print(f"r0={r0}")
-    print(f"r_ISCO={r_ISCO}")
-    print(f"r_final={r_final}")
-    print(f"r_size={r_size}")
-    '''
     if r_size <= 4 or r0<=11.5:
         raise ValueError
     elif r_size < 10:
         r_size = 10
-    #print("Here2")
+
     r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
     cdef double[::1] q = np.zeros(2)
     cdef double[::1] p = np.zeros(2)
     pphi = compute_adiabatic_solution(r, H, chi_1, chi_2, m_1, m_2,q,p, tol=tol,)
-    #print("Here3")
+
     pr, pphi = compute_postadiabatic_solution(
         r,
         pphi,
@@ -596,7 +535,6 @@ cpdef compute_postadiabatic_dynamics(
         order=order,
         params=params,
     )
-    #print("Here4")
     dt_dr = np.zeros(r.shape[0])
     dphi_dr = np.zeros(r.shape[0])
     cdef int i
@@ -617,31 +555,12 @@ cpdef compute_postadiabatic_dynamics(
 
 
     t = cumulative_integral(r, dt_dr)
-    # t = univariate_spline_integral(r, dt_dr)
 
     phi = cumulative_integral(r, dphi_dr)
-    # phi = univariate_spline_integral(r, dphi_dr)
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi]
 
-    '''
-    adiabatic_param = compute_adiabatic_parameter(
-        postadiabatic_dynamics,
-        H,
-        chi_1,
-        chi_2,
-        m_1,
-        m_2,
-        params,
-    )
-    '''
-    ap_threshold = 6e-3
 
-    # postadiabatic_dynamics = postadiabatic_dynamics[
-    #     np.where(np.abs(adiabatic_param) < ap_threshold)
-    # ]
-    # postadiabatic_dynamics = postadiabatic_dynamics[postadiabatic_dynamics[:, 1] >= r_switch]
-    # postadiabatic_dynamics = postadiabatic_dynamics[:-2]
     return postadiabatic_dynamics
 
 
@@ -665,6 +584,12 @@ cpdef compute_combined_dynamics(
     int PA_order=8,
     double r_stop=-1
 ):
+    """
+    Compute the full inspiral dynamics by combining PA + ODE
+    integration. If the PA procedure fails (e.g. because the
+    inspiral is too short), the code falls back to ODE
+    integration.
+    """
     try:
         postadiabatic_dynamics = compute_postadiabatic_dynamics(
             omega0,
@@ -681,13 +606,11 @@ cpdef compute_combined_dynamics(
         PA_success = True
         ode_y_init = postadiabatic_dynamics[-1, 1:]
     except ValueError as e:
-        #print(str(e))
         PA_success = False
         ode_y_init = None
 
 
-    #print("PA_success: ", PA_success)
-    #print("ode_y_init: ", ode_y_init)
+
     ode_dynamics_low, ode_dynamics_high = compute_dynamics(
         omega0,
         H,
@@ -719,48 +642,6 @@ cpdef compute_combined_dynamics(
 
     return combined_dynamics, ode_dynamics_high
 
-# def cumulative_integral_old(
-#     x: np.array,
-#     y: np.array,
-# ) -> np.array:
-#     oo12 = 1. / 12.
-
-#     x_ext = np.r_[x[3], x, x[-4]]
-#     y_ext = np.r_[y[3], y, y[-4]]
-
-#     X0 = x_ext[0:]
-#     X1 = x_ext[1:]
-#     X2 = x_ext[2:]
-#     X3 = x_ext[3:]
-
-#     Y0 = y_ext[0:]
-#     Y1 = y_ext[1:]
-#     Y2 = y_ext[2:]
-#     Y3 = y_ext[3:]
-
-#     integral = np.zeros(x.size)
-
-#     for i in range(x.size - 1):
-#         a = X1[i] - X0[i]
-#         b = X2[i] - X1[i]
-#         c = X3[i] - X2[i]
-#         d = Y1[i] - Y0[i]
-#         e = Y2[i] - Y1[i]
-#         h = Y3[i] - Y2[i]
-#         g = 0.5 * (Y1[i] + Y2[i])
-
-#         z = (
-#             b * g
-#             + oo12 * b * b * (
-#                 c * b * (2 * c + b) * (c + b) * d
-#                 - a * c * (c - a) * (2 * c + 2 * a + 3 * b) * e
-#                 - a * b * (2 * a + b) * (a + b) * h
-#             ) / (a * c * (a + b) * (c + b) * (c + a + b))
-#         )
-
-#         integral[i+1] = integral[i] + z
-
-#     return integral
 
 @cython.profile(True)
 @cython.linetrace(True)
@@ -769,6 +650,10 @@ cpdef cumulative_integral(
     y: np.array,
     order: int = 7,
 ):
+    """
+    Compute a cumulative integral numerically using sampled data
+    to a given order in accuracy. Assumes an equally spaced grid
+    """
     cdef double h = x[1] - x[0]
 
     integral = np.zeros(x.size)

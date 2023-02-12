@@ -99,7 +99,9 @@ def compute_dynamics_opt(
 ):
     """
     Main function to integrate the dynamics
-
+    The RHS of the equations are given in Eq(2) of arXiv:2112.06952.
+    See rhs_aligned.pyx for more details.
+    Uses GSL Dormand-Prince 8th order integrator.
     Args:
         omega0 (float): initial orbital frequency
         H (Hamiltonian): The Hamiltonian object to use
@@ -116,7 +118,7 @@ def compute_dynamics_opt(
     Returns:
         np.array, np.array: coarse and fine dynamics arrays
     """
-    
+
     sys = odeiv2.system(
         ODE_system_RHS_opt, None, 4, [H, RR, chi_1, chi_2, m_1, m_2, params]
     )
@@ -260,7 +262,7 @@ def compute_dynamics_opt(
 
 def iterative_refinement(f, interval, levels=2, dt_initial=0.1, pr = False):
     """
-    Attempts to find the peak of Omega/pr iteratively. 
+    Attempts to find the peak of Omega/pr iteratively.
     Needed to ensure accurate attachment when the attachment point is the last point of the dynamics.
 
     Args:
@@ -297,14 +299,14 @@ def iterative_refinement(f, interval, levels=2, dt_initial=0.1, pr = False):
 
 def interpolate_dynamics(dyn_fine, dt=0.1, peak_omega=None, step_back=250.0):
     """
-    Interpolate the dynamics to a finer grid. 
+    Interpolate the dynamics to a finer grid.
     This replaces stepping back that was used in older EOB models.
 
     Args:
         dyn_fine (np.array): dynamics array
         dt (float): time step to which to interpolate
         peak_omega (float): position of the peak (stopping condition for the dynamics)
-        step_back (float): step back relative to the end of the dynamics 
+        step_back (float): step back relative to the end of the dynamics
 
     Returns:
         np.array: interpolated dynamics array
