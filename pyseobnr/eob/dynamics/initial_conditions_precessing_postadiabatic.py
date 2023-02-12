@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Computes post-adiabatic initial conditions in polar coordinates. 
+"""
+
 from typing import Callable
 from ..hamiltonian import Hamiltonian
 import numpy as np

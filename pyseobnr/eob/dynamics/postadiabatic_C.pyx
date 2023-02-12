@@ -1,4 +1,10 @@
 # cython: language_level=3
+
+"""
+Contains the functions needed for computing the post-adiabatic dynamics as well as the combined dynamics 
+(post-adiabatic + final part of the inspiral evolved using the usual EOB dynamics)
+"""
+
 cimport cython
 from typing import Dict
 import numpy as np

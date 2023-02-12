@@ -1,5 +1,9 @@
 # cython: language_level=3, profile=True, linetrace=True, binding=True
 
+"""
+Contains the functions needed for computing the "analytic" post-adiabatic dynamics
+"""
+
 cimport cython
 from typing import Dict
 import numpy as np

@@ -1,4 +1,8 @@
 # cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False, profile=True, linetrace=True, binding=True,initializedcheck=False
+"""
+Contains the actual RHS of the EOM, wrapped in cython. 
+This allows some of the cython functions used in the RHS to be called more efficiently.
+"""
 
 cimport cython
 from pyseobnr.eob.utils.containers cimport EOBParams,FluxParams

@@ -136,6 +136,11 @@ class SEOBNRv5HM_opt(Model):
                 self.omega0 = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
                 self.f0 = self.omega0 / (self.M * lal.MTSUN_SI * np.pi)
 
+        # The choice of step-back is determined by the range of 
+        # NR_deltaT in the parameter space of application.
+        # The largest value is reached for maximum q and
+        # maximum negative spins. The default choice of 250
+        # is valid for q<=100 and spins between -1 and 1
         self.step_back = self.settings.get("step_back", 250.0)
         self.chi_S = (self.chi_1 + self.chi_2) / 2
         self.chi_A = (self.chi_1 - self.chi_2) / 2

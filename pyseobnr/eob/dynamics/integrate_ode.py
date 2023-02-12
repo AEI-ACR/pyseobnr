@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Contains functions associated with evolving the equations of motion
+"""
+
 import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.signal import argrelmin
@@ -93,6 +97,26 @@ def compute_dynamics_opt(
     y_init=None,
     r_stop = None
 ):
+    """
+    Main function to integrate the dynamics
+
+    Args:
+        omega0 (float): initial orbital frequency
+        H (Hamiltonian): The Hamiltonian object to use
+        RR (function): The RR force to use. Must have same signature as Hamiltonian
+        chi_1 (float): z-component of the primary spin
+        chi_2 (float): z-component of the secondary spin
+        m_1 (float): mass of the primary
+        m_2 (float): mass of the secondary
+        rtol (float): relative tolerance
+        atol (float): absolute tolerance
+        step_back (float): step back for the start of the fine dynamics
+        r_stop (float): minimum final separation for the dynamics
+
+    Returns:
+        np.array, np.array: coarse and fine dynamics arrays
+    """
+    
     sys = odeiv2.system(
         ODE_system_RHS_opt, None, 4, [H, RR, chi_1, chi_2, m_1, m_2, params]
     )
@@ -235,6 +259,21 @@ def compute_dynamics_opt(
 
 
 def iterative_refinement(f, interval, levels=2, dt_initial=0.1, pr = False):
+    """
+    Attempts to find the peak of Omega/pr iteratively. 
+    Needed to ensure accurate attachment when the attachment point is the last point of the dynamics.
+
+    Args:
+        f (PPoly): derivative of the splined dynamics
+        interval (list): interval where to look for the peak
+        levels (int): number of iterations
+        dt_initial (float): initial time step
+        pr (bool): whether the end of the dynamics is due to a peak of pr instead of Omega
+
+    Returns:
+        np.array: interpolated dynamics array
+
+    """
     left = interval[0]
     right = interval[1]
     for n in range(1, levels + 1):
@@ -257,6 +296,20 @@ def iterative_refinement(f, interval, levels=2, dt_initial=0.1, pr = False):
 
 
 def interpolate_dynamics(dyn_fine, dt=0.1, peak_omega=None, step_back=250.0):
+    """
+    Interpolate the dynamics to a finer grid. 
+    This replaces stepping back that was used in older EOB models.
+
+    Args:
+        dyn_fine (np.array): dynamics array
+        dt (float): time step to which to interpolate
+        peak_omega (float): position of the peak (stopping condition for the dynamics)
+        step_back (float): step back relative to the end of the dynamics 
+
+    Returns:
+        np.array: interpolated dynamics array
+
+    """
 
     res = []
     n = len(dyn_fine)

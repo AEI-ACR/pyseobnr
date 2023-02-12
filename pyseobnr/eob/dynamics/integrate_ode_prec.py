@@ -1,3 +1,7 @@
+"""
+Contains functions associated with evolving the equations of motion.
+"""
+
 from typing import Callable
 
 import numpy as np

@@ -1,6 +1,10 @@
 import numpy as np
 from numba import jit
-# Mode mixing fitting function and coefficients from Berti, Klein https://arxiv.org/abs/1408.1860. Used to model mode mixing in the (3,2) and (4,3) modes.
+
+"""
+Mode mixing fitting function and coefficients from Berti, Klein https://arxiv.org/abs/1408.1860. 
+Used to model mode mixing in the (3,2) and (4,3) modes.
+"""
 
 @jit(nopython=True)
 def mu_fit(j: float, p1: float, p2: float, p3: float, p4: float) -> float:
@@ -85,11 +89,11 @@ def mu(m: int, l: int, lp: int, j: float) -> float:
 
 
 # Auxiliary functions to obtain the spheroidal mode input values 
-# See Eq. 73 to Eq. 80 of https://git.ligo.org/waveforms/reviews/seobnrv5/-/blob/main/aligned/docs/SEOBNRv5HM.pdf
+# See Eq. 73 to Eq. 80 of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf
 
 def rho(ell, m, j, h_ellm, h_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(73) of v5HM doc 
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(73) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
     
     Args:
         ell (int): l index of the relevant mode
@@ -106,7 +110,7 @@ def rho(ell, m, j, h_ellm, h_mm):
 
 def dphi(ell, m, j, phi_ellm, phi_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(74) of v5HM doc 
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(74) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
     
     Args:
         ell (int): l index of the relevant mode
@@ -123,7 +127,7 @@ def dphi(ell, m, j, phi_ellm, phi_mm):
 
 def F(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(75) of v5HM doc 
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(75) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
     
     Args:
         ell (int): l index of the relevant mode
@@ -146,7 +150,7 @@ def F(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
 
 def alpha(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(76) of v5HM doc 
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(76) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
     
     Args:
         ell (int): l index of the relevant mode
@@ -168,7 +172,7 @@ def alpha(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
 @jit(nopython=True)
 def rho_dot(ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(77) of v5HM doc 
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(77) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
     
     Args:
         ell (int): l index of the relevant mode
@@ -187,7 +191,7 @@ def rho_dot(ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm):
 @jit(nopython=True)
 def dphi_dot(omega_ellm, omega_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(78) of v5HM doc 
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(78) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
     
     Args:
         omega_ellm (float): frequency of the (ell,m) mode at attachment time
@@ -202,7 +206,7 @@ def F_dot(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
 ):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(79) of v5HM doc 
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(79) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
     
     Args:
         ell (int): l index of the relevant mode
@@ -234,7 +238,7 @@ def alpha_dot(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
 ):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(80) of v5HM doc 
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(80) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
     
     Args:
         ell (int): l index of the relevant mode

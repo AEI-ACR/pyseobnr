@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""
+Computes the quasi-precessing initial conditions in polar coordinates. 
+These have the same equations as the aligned-spin, however:
+- the Hamiltonian is different because it depends on several spin degrees of freedom
+- appropriate spin projections (and spins themselves) are passed to the Hamiltonian and the RR forces
+"""
+
 from typing import Callable
 from ..hamiltonian import Hamiltonian
 import numpy as np
