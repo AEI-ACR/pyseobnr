@@ -1397,7 +1397,6 @@ cpdef compute_postadiabatic_dynamics(
     r_size_new = int(np.ceil(precession_cycles*20))
 
     #print(f"previous r_size = {r_size}, r_size_20_points = {r_size_new}, precession_cycles = {precession_cycles}")
-
     #print(f"r0 = {r0}, r_final = {r_final}, dr0 = {dr0}, r_switch = {r_switch}, r_size = {r_size}, r_range = {r_range}")
 
     cdef double omega_start_1 = omega_start
@@ -1417,7 +1416,11 @@ cpdef compute_postadiabatic_dynamics(
     #  r_size_new = 200
 
     #cdef double dr0_new = r_range/r_size_new
-    dr0_new = r_range/r_size_new
+
+    if r_size_new ==0:
+      dr0_new = 0.1
+    else:
+      dr0_new = r_range/r_size_new
     #print(f"r0 = {r0}, r_final = {r_final}, r_range = {r_range}, r_size  = {r_size}, dr0_new = {dr0_new}, r_size_new = {r_size_new}")
 
     if dr0_new < 0.05:
@@ -1872,7 +1875,8 @@ def compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn
     #cdef double prec_cycles = iph_prec(t_final)/(2.*np.pi)
     t_final = iut(1./r_final)
     prec_cycles = iph_prec(t_final)/(2.*np.pi)
-    
+
+
     return prec_cycles
 
 
