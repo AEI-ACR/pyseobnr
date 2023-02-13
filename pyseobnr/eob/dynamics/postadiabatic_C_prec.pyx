@@ -1391,7 +1391,7 @@ cpdef compute_postadiabatic_dynamics(
     omega_pn = dynamics_pn[:,-1]
     lN_pn = dynamics_pn[:,:3]
     #cdef double precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
-    #cdef int r_size_new = int(np.ceil(precession_cycles*10))
+    #cdef int r_size_new = int(np.ceil(precession_cycles*20))
 
     precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
     r_size_new = int(np.ceil(precession_cycles*20))
@@ -1409,9 +1409,9 @@ cpdef compute_postadiabatic_dynamics(
     elif r_size < window_length + 2:
         r_size = window_length + 2
 
-    if r_size_new <= 50:
-      #print(f"r_size<30, setting r_size = 30")
-      r_size_new = 50
+    #if r_size_new <= 50:
+    #  #print(f"r_size<30, setting r_size = 30")
+    #  r_size_new = 50
     #if r_size_new > 200:
     #  #print(f"r_size>200, setting r_size = 200")
     #  r_size_new = 200
@@ -1420,10 +1420,14 @@ cpdef compute_postadiabatic_dynamics(
     dr0_new = r_range/r_size_new
     #print(f"r0 = {r0}, r_final = {r_final}, r_range = {r_range}, r_size  = {r_size}, dr0_new = {dr0_new}, r_size_new = {r_size_new}")
 
-    if dr0_new < 0.01:
-      dr0_new = 0.01
+    if dr0_new < 0.05:
+      dr0_new = 0.05
       r_size_new = int(np.ceil(r_range/dr0_new))
       #print(f"r_size_new = {r_size_new}")
+
+    if dr0_new > 0.1:
+      dr0_new = 0.1
+      r_size_new = int(np.ceil(r_range/dr0_new))
 
     r, _ = np.linspace(r0, r_final, num=r_size_new, endpoint=True, retstep=True)
     #r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
