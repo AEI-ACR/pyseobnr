@@ -1867,10 +1867,12 @@ def compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn
 
     ph_om_prec = iom_prec.antiderivative()(t_pn)
     iph_prec = CubicSpline(t_pn,ph_om_prec)
-    cdef double t_final = iut(1./r_final)
 
-    cdef double prec_cycles = iph_prec(t_final)/(2.*np.pi)
-
+    #cdef double t_final = iut(1./r_final)
+    #cdef double prec_cycles = iph_prec(t_final)/(2.*np.pi)
+    t_final = iut(1./r_final)
+    prec_cycles = iph_prec(t_final)/(2.*np.pi)
+    
     return prec_cycles
 
 
