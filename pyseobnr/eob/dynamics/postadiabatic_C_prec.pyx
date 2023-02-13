@@ -1849,12 +1849,12 @@ def compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn
 
     # Compute the precession frequency from LNhat
     lN_quat = quaternion.as_quat_array(np.c_[np.zeros(len(lN_pn)), lN_pn])
-    dlNdt_arr = CubicSpline(t_pn, lN_pn).derivative()(t_pn)
-    dlNdt_quat = quaternion.as_quat_array(np.c_[np.zeros(len(dlNdt_arr)), dlNdt_arr])
+    #dlNdt_arr = CubicSpline(t_pn, lN_pn).derivative()(t_pn)
+    #dlNdt_quat = quaternion.as_quat_array(np.c_[np.zeros(len(dlNdt_arr)), dlNdt_arr])
 
-    omega_prec = 2.0*dlNdt_quat*lN_quat.conjugate()
-    omega_prec_arr = quaternion.angular_velocity(omega_prec,t_pn)
-    om_prec_norm = np.sqrt(np.einsum("ij,ij->i", omega_prec_arr, omega_prec_arr))/2.0
+    #omega_prec = 2.0*dlNdt_quat*lN_quat.conjugate()
+    omega_prec_arr = quaternion.angular_velocity(lN_quat,t_pn)/2.0
+    om_prec_norm = np.sqrt(np.einsum("ij,ij->i", omega_prec_arr, omega_prec_arr))
 
     # Compute the value of the precession frequency at r_final
     r_pn = omega_pn**(-3./2.)
