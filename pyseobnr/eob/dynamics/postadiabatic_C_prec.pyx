@@ -1390,9 +1390,13 @@ cpdef compute_postadiabatic_dynamics(
 
     omega_pn = dynamics_pn[:,-1]
     lN_pn = dynamics_pn[:,:3]
-    cdef double precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
-    cdef int r_size_new = int(np.ceil(precession_cycles*10))
-    #print(f"previous r_size = {r_size}, r_size_15_points = {r_size_new}, precession_cycles = {precession_cycles}")
+    #cdef double precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
+    #cdef int r_size_new = int(np.ceil(precession_cycles*10))
+
+    precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
+    r_size_new = int(np.ceil(precession_cycles*20))
+
+    #print(f"previous r_size = {r_size}, r_size_20_points = {r_size_new}, precession_cycles = {precession_cycles}")
 
     #print(f"r0 = {r0}, r_final = {r_final}, dr0 = {dr0}, r_switch = {r_switch}, r_size = {r_size}, r_range = {r_range}")
 
@@ -1405,14 +1409,15 @@ cpdef compute_postadiabatic_dynamics(
     elif r_size < window_length + 2:
         r_size = window_length + 2
 
-    if r_size_new <= 30:
+    if r_size_new <= 50:
       #print(f"r_size<30, setting r_size = 30")
-      r_size_new = 30
-    if r_size_new > 200:
-      #print(f"r_size>200, setting r_size = 200")
-      r_size_new = 200
+      r_size_new = 50
+    #if r_size_new > 200:
+    #  #print(f"r_size>200, setting r_size = 200")
+    #  r_size_new = 200
 
-    cdef double dr0_new = r_range/r_size_new
+    #cdef double dr0_new = r_range/r_size_new
+    dr0_new = r_range/r_size_new
     #print(f"r0 = {r0}, r_final = {r_final}, r_range = {r_range}, r_size  = {r_size}, dr0_new = {dr0_new}, r_size_new = {r_size_new}")
 
     if dr0_new < 0.01:
@@ -1421,7 +1426,6 @@ cpdef compute_postadiabatic_dynamics(
       #print(f"r_size_new = {r_size_new}")
 
     r, _ = np.linspace(r0, r_final, num=r_size_new, endpoint=True, retstep=True)
-
     #r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
     #r, _ = np.linspace(r0, r_final, num=r_size_input, endpoint=True, retstep=True)
 
@@ -1850,7 +1854,7 @@ def compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn
 
     omega_prec = 2.0*dlNdt_quat*lN_quat.conjugate()
     omega_prec_arr = quaternion.angular_velocity(omega_prec,t_pn)
-    om_prec_norm = np.sqrt(np.einsum("ij,ij->i", omega_prec_arr, omega_prec_arr))
+    om_prec_norm = np.sqrt(np.einsum("ij,ij->i", omega_prec_arr, omega_prec_arr))/2.0
 
     # Compute the value of the precession frequency at r_final
     r_pn = omega_pn**(-3./2.)
@@ -1861,7 +1865,7 @@ def compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn
     iph_prec = CubicSpline(t_pn,ph_om_prec)
     cdef double t_final = iut(1./r_final)
 
-    cdef double prec_cycles = iph_prec(t_final)/(2*np.pi)
+    cdef double prec_cycles = iph_prec(t_final)/(2.*np.pi)
 
     return prec_cycles
 
