@@ -1851,14 +1851,15 @@ cpdef cumulative_integral(
 
 @cython.profile(True)
 @cython.linetrace(True)
-def compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn:np.array):
+@cython.cdivision(True)
+cpdef double compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn:np.array):
 
     # Compute the precession frequency from LNhat
     lN_quat = quaternion.as_quat_array(np.c_[np.zeros(len(lN_pn)), lN_pn])
     #dlNdt_arr = CubicSpline(t_pn, lN_pn).derivative()(t_pn)
     #dlNdt_quat = quaternion.as_quat_array(np.c_[np.zeros(len(dlNdt_arr)), dlNdt_arr])
-
     #omega_prec = 2.0*dlNdt_quat*lN_quat.conjugate()
+
     omega_prec_arr = quaternion.angular_velocity(lN_quat,t_pn)/2.0
     om_prec_norm = np.sqrt(np.einsum("ij,ij->i", omega_prec_arr, omega_prec_arr))
 
