@@ -10,7 +10,7 @@ include:
 stages:
   - build
   - docs
-
+  - test
 # -- EOB code itself
 
 python:build:
@@ -53,3 +53,27 @@ docs:
     - PYTHON="$(which python)"
     # configure sphinx
     - !reference [".python:sphinx", before_script]
+
+test:
+  stage: test
+  extends:
+    - .conda:base
+  image: igwn/base:conda
+  variables:
+    SRCDIR: "./"
+  before_script:
+   # configure conda
+    - !reference [".conda:base", before_script]
+    - mamba create -n tests
+          python=3.9
+          gcc
+          swig
+          gsl
+          make
+          pytest
+          lalsuite
+  script:
+    - conda activate tests
+    - pip install .
+    - pytest -vvv
+    
