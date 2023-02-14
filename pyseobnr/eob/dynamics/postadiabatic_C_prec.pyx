@@ -1390,11 +1390,16 @@ cpdef compute_postadiabatic_dynamics(
 
     omega_pn = dynamics_pn[:,-1]
     lN_pn = dynamics_pn[:,:3]
-    #cdef double precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
-    #cdef int r_size_new = int(np.ceil(precession_cycles*r_size_input))
 
-    precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
-    r_size_new = int(np.ceil(precession_cycles*20))
+    cdef double chi_in_plane = chi1_v[0]**2.+chi1_v[1]**2. + chi2_v[0]**2.+chi2_v[1]**2.
+
+    #print(f"chi_in_plane = {chi_in_plane}")
+    if chi_in_plane > 0 :
+      precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
+      r_size_new = int(np.ceil(precession_cycles*20))
+    else:
+      precession_cycles = 0
+      r_size_new = 0
 
     #print(f"previous r_size = {r_size}, r_size_20_points = {r_size_new}, precession_cycles = {precession_cycles}")
     #print(f"r0 = {r0}, r_final = {r_final}, dr0 = {dr0}, r_switch = {r_switch}, r_size = {r_size}, r_range = {r_range}")
@@ -1402,12 +1407,13 @@ cpdef compute_postadiabatic_dynamics(
     cdef double omega_start_1 = omega_start
 
     # We increased r_size to be 10 instead of 4 in the AS limit
-    if r_size <= 10 or r0<=11.5:
+    if r_size <= 10 or r0<=11.5 or r_final >= r0:
         #print(f"r_size = {r_size} <= 6 or r0 = {r0} <= 11.5")
         raise ValueError
     elif r_size < window_length + 2:
         r_size = window_length + 2
 
+    # Close to the AS limit the number of precessing cycles is zero, and we use 0.1 as the default step size of the radial grid
     if r_size_new ==0:
       dr0_new = 0.1
       r_size_new = int(np.ceil(r_range/dr0_new))
@@ -1682,7 +1688,7 @@ cpdef compute_combined_dynamics_exp_v1(
         step_back=step_back,
         y_init=ode_y_init,
     )
-
+    #print(f"PA_success =  {PA_success}, ode_y_init = {ode_y_init}, omega_start = {omega_start}")
     if PA_success is True:
 
         # Interpolate the PA dynamics in its full range. Note that for the AS model this is only
