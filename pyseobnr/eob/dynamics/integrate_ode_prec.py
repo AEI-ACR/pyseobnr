@@ -291,10 +291,18 @@ def compute_dynamics_prec_opt(
             drdt = deriv[0]
             omega = deriv[1]
             omega_previous = omegas[-1]
-            omegas.append(omega)
-            dprdt = deriv[2]
+            if np.isnan(omega):
+                res_gsl = res_gsl[:-1]
+                ts = ts[:-1]
+                lN_dyn = lN_dyn[:-1]
+                augm_dyn = augm_dyn[:-1]
+                break
 
-            omega_circ = params.p_params.omega_circ
+            else:
+
+                omegas.append(omega)
+                dprdt = deriv[2]
+                omega_circ = params.p_params.omega_circ
 
             # check termination conditions
             termination = check_terminal(r, omega, drdt, dprdt, omega_circ, omega_previous, r_previous, omegaPN_f)
