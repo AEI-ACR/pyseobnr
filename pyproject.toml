@@ -55,8 +55,8 @@
 		"jax",
 		"jaxlib",
 		"rich",
-		#"pygsl @ git+https://github.com/pygsl/pygsl.git",
-		"pygsl @ git+https://github.com/SergeiOssokine/pygsl.git",
+		"pygsl @ git+https://github.com/pygsl/pygsl.git",
+		#"pygsl @ git+https://github.com/SergeiOssokine/pygsl.git",
 		"lalsuite",
 	]
 
