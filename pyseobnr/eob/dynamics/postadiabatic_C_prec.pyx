@@ -1772,6 +1772,9 @@ cpdef compute_combined_dynamics_exp_v1(
     return combined_dynamics, ode_dynamics_high,combined_t,combined_y,splines,dynamics, tmp_LN_low, tmp_LN_fine, omega_start_pa
 
 
+@cython.boundscheck(False)
+@cython.nonecheck(False)
+@cython.initializedcheck(False)
 @cython.profile(True)
 @cython.linetrace(True)
 @cython.cdivision(True)
@@ -1879,9 +1882,12 @@ cpdef double compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.arr
 
     return prec_cycles
 
-
+@cython.boundscheck(False)
+@cython.nonecheck(False)
+@cython.initializedcheck(False)
 @cython.profile(True)
 @cython.linetrace(True)
+@cython.cdivision(True)
 def univariate_spline_integral(
     x: np.array,
     y: np.array,
