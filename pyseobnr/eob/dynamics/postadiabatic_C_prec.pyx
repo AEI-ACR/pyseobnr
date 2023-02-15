@@ -1366,21 +1366,18 @@ cpdef compute_postadiabatic_dynamics(
     lN_pn = dynamics_pn[:,:3]
 
     cdef double chi_in_plane = chi1_v[0]**2.+chi1_v[1]**2. + chi2_v[0]**2.+chi2_v[1]**2.
+    cdef int r_size_new = 0
+    cdef double precessiong_cycles = 0.0
+    cdef double dr0_new = 0.1
 
-    #print(f"chi_in_plane = {chi_in_plane}")
     if chi_in_plane > 0 :
       precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
       r_size_new = int(np.ceil(precession_cycles*20))
-    else:
-      print(f"Setting precession cycles to 0")
-      precession_cycles = 0
-      r_size_new = 0
 
     #print(f"previous r_size = {r_size}, r_size_20_points = {r_size_new}, precession_cycles = {precession_cycles}")
 
     # We increased r_size to be 10 instead of 4 in the AS limit
     if r_size <= 10 or r0<=11.5 or r_final >= r0:
-        #print(f"r_size = {r_size} <= 6 or r0 = {r0} <= 11.5, r_final = {r_final}")
         raise ValueError
     elif r_size < window_length + 2:
         r_size = window_length + 2
@@ -1397,16 +1394,12 @@ cpdef compute_postadiabatic_dynamics(
     if dr0_new < 0.05:
       dr0_new = 0.05
       r_size_new = int(np.ceil(r_range/dr0_new))
-      #print(f"r_size_new = {r_size_new}")
-
+      
     if dr0_new > 0.1:
       dr0_new = 0.1
       r_size_new = int(np.ceil(r_range/dr0_new))
-    #print(f"r_size_new (final) = {r_size_new}")
 
     r, _ = np.linspace(r0, r_final, num=r_size_new, endpoint=True, retstep=True)
-    #r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
-    #r, _ = np.linspace(r0, r_final, num=r_size_input, endpoint=True, retstep=True)
 
 
     if only_first_n is not None:
