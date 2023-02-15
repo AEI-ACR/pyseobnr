@@ -240,7 +240,11 @@ cpdef precessing_final_spin(
         m1, m2, chi1_LN, chi2_LN, version="M3J4"
     )
     final_spin_noprec = final_spin_nonprecessing
-    cdef double sign_final_spin = final_spin_nonprecessing / np.linalg.norm( final_spin_nonprecessing)
+    cdef double sign_final_spin = +1
+
+    cdef double norm_final_spin_nonprecessing = np.linalg.norm( final_spin_nonprecessing)
+    if norm_final_spin_nonprecessing !=0:
+      sign_final_spin = final_spin_nonprecessing / norm_final_spin_nonprecessing
 
     # Compute the magnitude of the final spin using the precessing fit
     final_spin = nrutils.bbh_final_spin_precessing_HBR2016(
@@ -689,16 +693,11 @@ cpdef compute_pr(
         (np.array) Value of prstar at a given postadiabatic order for the whole radial grid.
     """
 
-    # Use spline derivative to compute dpphi_dr. Use u=1/r as it is a monotonically increasing variable
-    r_arr  = np.array(r)
-    pphi_arr = np.array(pphi)
-    u = 1./r_arr
-    dudr = -u*u
-    dpphi_du = - fin_diff_derivative_v1(u, pphi_arr)
-    #cdef double[:] dpphi_dr = - dpphi_du*dudr
-    dpphi_dr = - dpphi_du*dudr
 
     #cdef double[:] dpphi_dr = - fin_diff_derivative_tests(r, pphi)
+
+    cdef double[:] dpphi_dr = fin_diff_derivative_v1(r, pphi)
+
 
     cdef int i
 
@@ -1075,14 +1074,7 @@ cpdef compute_pphi(
         (np.array) Value of pphi at a given postadiabatic order for the whole radial grid.
     """
 
-    r_arr  = np.array(r)
-    pr_arr  = np.array(pr)
-    u = 1./r_arr
-    dudr = -u*u
-    dpr_du = - fin_diff_derivative_v1(u, pr_arr)
-    #cdef double[:] dpr_dr = - dpr_du*dudr
-    dpr_dr = - dpr_du*dudr
-    #cdef double[:] dpr_dr = - fin_diff_derivative_tests(r, pr)
+    cdef double[:] dpr_dr = fin_diff_derivative_v1(r, pr)
 
     cdef int i
     tmp = splines["everything"](omega)
@@ -1356,34 +1348,20 @@ cpdef compute_postadiabatic_dynamics(
     r0, _, _ =computeIC_augm(omega_start, H, RR, chi1_v, chi2_v, m_1, m_2, params=params)
     cdef double chi_eff = ap
 
-    cdef double r_final_prefactor = 2.7 + chi_eff*(1-4.*nu) + chi_perp_eff
     #print(f"chi1_v = {chi1_v}, chi2_v = {chi2_v}, LNhat = {LNhat}")
 
-
-    #print(f"r_final_prefactor = {r_final_prefactor}, chi_eff = {chi_eff}, chi_perp_eff = {chi_perp_eff}")
     r_ISCO, _ = Kerr_ISCO(chi1_LN, chi2_LN, X1, X2)
-    #print(f"r_ISCO = {r_ISCO}, chi1_LN = {chi1_LN}, chi2_LN = {chi2_LN}, chi_perp_eff = {chi_perp_eff}")
-
-    cdef double a_f = precessing_final_spin(chi1_LN, chi2_LN, chi1_v, chi2_v, LNhat, X1,X2)
-    cdef double sign_final_spin = a_f/np.linalg.norm(a_f)
-
-    chi_total = chi1_v + chi2_v
-    chi_total_norm = np.linalg.norm(chi_total)
-    chi_parallel = np.dot(chi_total, LNhat)
-
-    chi_perp = chi_total - chi_parallel*LNhat
-    cdef double chi_perp_norm = np.linalg.norm(chi_perp)
 
     cdef double r_final_prefactor_test = 2.7 + (chi_eff - 0.5*chi_perp_eff)*(1-4.*nu)
 
     #print(f"r_final_prefactor = {r_final_prefactor}, r_final_prefactor = {r_final_prefactor_test}, chi_eff = {chi_eff}, chi_perp_eff = {chi_perp_eff}")
-    #print(f"r_final_old = {r_final_prefactor*r_ISCO}, r_final_new = {r_final_prefactor_test*r_ISCO}")
+
     cdef double r_final = max(11.0, r_final_prefactor_test * r_ISCO)
 
     cdef double r_switch_prefactor = 1.6
     cdef double r_switch = r_switch_prefactor * r_ISCO
 
-    cdef double dr0 = 0.1#5
+    cdef double dr0 = 0.1
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
     cdef double r_range = r0 - r_final
 
@@ -1405,7 +1383,7 @@ cpdef compute_postadiabatic_dynamics(
 
     # We increased r_size to be 10 instead of 4 in the AS limit
     if r_size <= 10 or r0<=11.5 or r_final >= r0:
-        #print(f"r_size = {r_size} <= 6 or r0 = {r0} <= 11.5")
+        #print(f"r_size = {r_size} <= 6 or r0 = {r0} <= 11.5, r_final = {r_final}")
         raise ValueError
     elif r_size < window_length + 2:
         r_size = window_length + 2
@@ -1416,6 +1394,7 @@ cpdef compute_postadiabatic_dynamics(
       r_size_new = int(np.ceil(r_range/dr0_new))
     else:
       dr0_new = r_range/r_size_new
+
     #print(f"r0 = {r0}, r_final = {r_final}, r_range = {r_range}, r_size  = {r_size}, dr0_new = {dr0_new}, r_size_new = {r_size_new}")
 
     if dr0_new < 0.05:
@@ -1542,10 +1521,10 @@ cpdef compute_postadiabatic_dynamics(
         dyn_augm.append([H_val,omega[i],omega_circ,chi1_LN,chi2_LN])
 
 
-    #t = cumulative_integral(r, dt_dr, order = 3)
+    #t = cumulative_integral(r, dt_dr)
     t = univariate_spline_integral(r,dt_dr)
 
-    #phi = cumulative_integral(r, dphi_dr, order=3)
+    #phi = cumulative_integral(r, dphi_dr)
     phi = univariate_spline_integral(r,dphi_dr)
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi, dyn_augm]
@@ -1675,6 +1654,7 @@ cpdef compute_combined_dynamics_exp_v1(
         step_back=step_back,
         y_init=ode_y_init,
     )
+
     #print(f"PA_success =  {PA_success}, ode_y_init = {ode_y_init}, omega_start = {omega_start}")
     if PA_success is True:
 
@@ -1730,7 +1710,7 @@ cpdef compute_combined_dynamics_exp_v1(
         t_new.append(t_pa[0])
 
         t_new = t_new[::-1]
-
+        #print(f"t_pa = {np.where(np.diff(t_pa)>0)}")
         # Interpolate window dynamics except the spins projections (otherwise bad things may happen due to the large timesteps of the PA dynamics)
         window_dynamics_interp = CubicSpline(t_pa, np.c_[postadiabatic_dynamics[:,:-2], omega_pa])
         tmp_window = window_dynamics_interp(t_new)
@@ -1758,9 +1738,9 @@ cpdef compute_combined_dynamics_exp_v1(
 @cython.profile(True)
 @cython.linetrace(True)
 @cython.cdivision(True)
-cpdef fin_diff_derivative_v1(u: np.array, y: np.array):
-      intrp = CubicSpline(u,y)
-      deriv = intrp.derivative()(u)
+def fin_diff_derivative_v1(x: np.array, y: np.array)->np.array:
+      intrp = CubicSpline(x[::-1], y[::-1])
+      deriv = intrp.derivative()(x[::-1])[::-1]
       return deriv
 
 
@@ -1880,7 +1860,6 @@ def univariate_spline_integral(
         (np.array) integral
     """
     y_x_interp = InterpolatedUnivariateSpline(x[::-1], y[::-1])
-    #y_x_interp = CubicSpline(x[::-1], y[::-1])
     y_x_integral = y_x_interp.antiderivative()(x[::-1])[::-1]
     integral = y_x_integral - y_x_integral[0]
 
