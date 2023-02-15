@@ -845,7 +845,8 @@ class SEOBNRv5PHM_opt(Model):
     def _evaluate_model(self):
         try:
             # TODO: implement PA dynamics
-            #print(f"m1 ={self.m_1}, m2 = {self.m_2}, chi1 = {self.chi1_v}, chi2 = {self.chi2_v}, omega_ref = {self.omega_ref}, omega_start = {self.omega_start}")
+            #print(f"q ={self.m_1/self.m_2}, chi1 = {self.chi1_v}, chi2 = {self.chi2_v}, omega_ref = {self.omega_ref}, omega_start = {self.omega_start}, Mt = {self.M}")
+
             # Generate PN and EOB dynamics
             if not self.settings["postadiabatic"]:
                 #print(f"Not using PA")
@@ -855,12 +856,9 @@ class SEOBNRv5PHM_opt(Model):
                     dynamics_fine,
                     t_PN,
                     dyn_PN,
-                    tmp_LN_low,
-                    tmp_LN_fine,
                     splines,
                     dynamics,
                     idx_restart,
-                    res,
                 ) = compute_dynamics_quasiprecessing(
                     self.omega_ref,
                     self.omega_start,
@@ -888,9 +886,6 @@ class SEOBNRv5PHM_opt(Model):
                     dyn_PN,
                     splines,
                     dynamics,
-                    tmp_LN_low,
-                    tmp_LN_fine,
-                    omega_start_pa,
                 ) = compute_combined_dynamics_exp_v1(
                     self.omega_ref,
                     self.omega_start,
@@ -904,20 +899,11 @@ class SEOBNRv5PHM_opt(Model):
                     backend=self.backend,
                     params=self.eob_pars,
                     step_back=self.step_back,
-                    #PA_order=4,
                     postadiabatic_type=self.settings["postadiabatic_type"],
                     r_size_input=self.settings['r_size_input'],
                 )
-                res = None
                 idx_restart = len(dynamics_low)
-                # print(f"f_start = {self.f_start}, omega_start = {self.omega_start}, omega_start = {omega_start_pa}")
-                self.omega_start = omega_start_pa
-                self.f_start = omega_start_pa / (self.M * lal.MTSUN_SI * np.pi)
-                # print(f"f_start = {self.f_start}, omega_start = {self.omega_start}")
 
-            tmp_LN = dyn_PN[:, :3]
-            self.LNhat = tmp_LN
-            self.res = res
             self.idx_restart = idx_restart
             self.pn_dynamics = np.c_[t_PN, dyn_PN]
             self.dynamics_fine = dynamics_fine
@@ -1066,7 +1052,6 @@ class SEOBNRv5PHM_opt(Model):
 
             chi1_attach = tmp[4:7]
             chi2_attach = tmp[7:10]
-            LN_attach = tmp[10:13]
             Lvec_attach = tmp[13:16]
 
             Jf_attach = (
@@ -1168,7 +1153,7 @@ class SEOBNRv5PHM_opt(Model):
             hlms_low = compute_hlms_new(dynamics_low[:, 1:], self.eob_pars)
 
             # Apply the NQC corrections to inspiral modes
-            t_low = dynamics_low[:, 0]
+            #t_low = dynamics_low[:, 0]
             omega_orb_low = dynamics_low[:, 6]
 
             # Polar dynamics, r,pr,omega_orb
@@ -1259,10 +1244,6 @@ class SEOBNRv5PHM_opt(Model):
             qt = quaternion.as_quat_array(np.zeros((len(t_full), 4)))
 
             self.idx = idx
-            self.t_low = t_low
-            self.t_fine = t_fine
-            self.tmp_LN_low = tmp_LN_low
-            self.tmp_LN_fine = tmp_LN_fine
             self.final_spin = final_spin
             self.final_mass = final_mass
             self.t_attach = t_attach

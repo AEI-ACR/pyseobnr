@@ -157,7 +157,6 @@ def compute_dynamics_prec_opt(
     chi2_L_start = tmp[3]
     chi1_v_start = tmp[4:7]
     chi2_v_start = tmp[7:10]
-    lN_start = tmp[10:13]
 
     params.p_params.omega = omega_start
     params.p_params.chi1_v[:] = chi1_v_start
@@ -165,7 +164,6 @@ def compute_dynamics_prec_opt(
 
     params.p_params.chi_1, params.p_params.chi_2 = chi1_LN_start, chi2_LN_start
     params.p_params.chi1_L, params.p_params.chi2_L = chi1_L_start, chi2_L_start
-    params.p_params.lN[:] = lN_start
 
     params.p_params.update_spins(chi1_LN_start, chi2_LN_start)
 
@@ -193,7 +191,7 @@ def compute_dynamics_prec_opt(
         elif initial_conditions == "postadiabatic":
             from .initial_conditions_precessing_postadiabatic import compute_IC_PA
 
-            r0, pphi0, pr0, splines = compute_IC_PA(
+            r0, pphi0, pr0 = compute_IC_PA(
                 omega_ref,
                 omega_start,
                 H,
@@ -238,14 +236,11 @@ def compute_dynamics_prec_opt(
     ts = []
     omegas = []
     augm_dyn = []
-    lN_dyn = []
 
     # Convert to numpy array to get the correct value
-    lN_start = [params.p_params.lN[0],params.p_params.lN[1],params.p_params.lN[2]]
     augm_dyn.append([params.p_params.H_val, params.p_params.omega, params.p_params.omega_circ, params.p_params.chi_1, params.p_params.chi_2])
     ts.append(0.0)
     res_gsl.append(y)
-    lN_dyn.append(lN_start)
     omegas.append(params.p_params.omega)
 
 
@@ -280,7 +275,6 @@ def compute_dynamics_prec_opt(
             # Append the last step
             res_gsl.append(y)
             ts.append(t)
-            lN_dyn.append([params.p_params.lN[0],params.p_params.lN[1],params.p_params.lN[2]])
             augm_dyn.append([params.p_params.H_val, params.p_params.omega, params.p_params.omega_circ, params.p_params.chi_1, params.p_params.chi_2])
 
 
@@ -294,7 +288,6 @@ def compute_dynamics_prec_opt(
             if np.isnan(omega):
                 res_gsl = res_gsl[:-1]
                 ts = ts[:-1]
-                lN_dyn = lN_dyn[:-1]
                 augm_dyn = augm_dyn[:-1]
                 break
 
@@ -336,7 +329,7 @@ def compute_dynamics_prec_opt(
 
         params.p_params.chi1_v[:] = chi1_v
         params.p_params.chi2_v[:] = chi2_v
-        params.p_params.lN[:] = tmp_LN#/my_norm(tmp_LN)
+        #params.p_params.lN[:] = tmp_LN#/my_norm(tmp_LN)
 
         ap = chi1_LN * X1 + chi2_LN * X2
         am = chi1_LN * X1 - chi2_LN * X2
@@ -366,7 +359,6 @@ def compute_dynamics_prec_opt(
     dyn = np.array(res_gsl)
     omega_eob = np.array(omegas)
     augm_dyn = np.array(augm_dyn)
-    lN_dyn = np.array(lN_dyn)
 
     dyn = np.c_[dyn,augm_dyn]
 
@@ -388,7 +380,6 @@ def compute_dynamics_prec_opt(
     t_fine = ts[idx_close:]
     dyn_fine = np.c_[t_fine, dyn[idx_close:]]
     omega_fine = omega_eob[idx_close:]
-    tmp_LN_fine = lN_dyn[idx_close:]
 
     t_peak = None
     if peak_omega:
@@ -414,15 +405,6 @@ def compute_dynamics_prec_opt(
                                                  t_idxm1,
                                                  t_idx1
             )
-        #print(f"t_peak = {t_peak}, omega_peak = {omega_peak}")
-        #print(f"idx_max = {idx_max}, len(omega_fine) = {len(omega_fine)}")
-        #intrp = CubicSpline(dyn_fine[:, 0], omega_fine)
-        #left = dyn_fine[0, 0]
-        #left = np.max([dyn_fine[-1,0]-100,dyn_fine[0,0]])
-        #print(left)
-        #right = dyn_fine[-1, 0]
-        #print(f"left = {left}, right = {right}")
-        #t_peak = iterative_refinement(intrp.derivative(), [left, right])
 
     if peak_pr:
         intrp = CubicSpline(t_fine, dyn_fine[:, 3])
@@ -430,8 +412,8 @@ def compute_dynamics_prec_opt(
         right = t_fine[-1]
         t_peak = iterative_refinement(intrp.derivative(), [left, right], pr = True)
 
-    t_roll, dyn_roll, omega_roll, lN_roll = ts, dyn, omega_eob, lN_dyn
-    res = np.c_[t_roll, dyn_roll, omega_roll, lN_roll]
+    t_roll, dyn_roll, omega_roll = ts, dyn, omega_eob
+    res = np.c_[t_roll, dyn_roll, omega_roll]
 
     if peak_omega or peak_pr:
         t_start = max(t_peak - step_back,dyn_fine[0,0])
@@ -442,22 +424,19 @@ def compute_dynamics_prec_opt(
         t_fine = t_roll[idx_close:]
         dyn_fine = np.c_[t_fine, dyn_roll[idx_close:]]
         omega_fine = omega_roll[idx_close:]
-        tmp_LN_fine = lN_roll[idx_close:]
 
 
-    t_roll, dyn_roll, omega_roll, lN_roll, idx_close = transition_dynamics_v2(ts, dyn, lN_dyn, omega_eob, idx_close)
+    t_roll, dyn_roll, omega_roll, idx_close = transition_dynamics_v2(ts, dyn, omega_eob, idx_close)
 
     t_fine = t_roll[idx_close:]
     dyn_fine = np.c_[t_fine, dyn_roll[idx_close:]]
     omega_fine = omega_roll[idx_close:]
-    tmp_LN_fine = lN_roll[idx_close:]
 
     dynamics_low = np.c_[t_roll[:idx_close], dyn_roll[:idx_close]]
     omega_low = omega_roll[:idx_close]
-    tmp_LN_low = lN_roll[:idx_close]
+
 
     # Add LN to the array so that it is also interpolated onto the fine sampling rate dynamics
-    dyn_fine = np.c_[dyn_fine,tmp_LN_fine]
     dyn_fine = interpolate_dynamics(
         dyn_fine, peak_omega=t_peak, step_back=step_back
     )
@@ -475,28 +454,23 @@ def compute_dynamics_prec_opt(
         idx_final = idx_omdiff[0]
         dyn_fine = dyn_fine[:idx_final+1]
 
-    # Take out tmp_LN_fine
-    dynamics_fine = dyn_fine[:,:-3]
-    tmp_LN_fine = dyn_fine[:,-3:]
+    # Define the dynamics
+    dynamics_fine = dyn_fine
 
     # Full dynamics array
     dynamics = np.vstack((dynamics_low, dynamics_fine))
 
 
 
-    # Return EOB dynamics, LN vectors,  PN stuff and the splines
+    # Return EOB dynamics, LN vectors,  PN stuff
     return (
         dynamics_low,
         dynamics_fine,
-        tmp_LN_low,
-        tmp_LN_fine,
         dynamics,
-        idx_close,
-        res,
-        splines
+        idx_close
     )
 
-def transition_dynamics_v2(ts: np.ndarray, dyn: np.ndarray, lN_dyn: np.ndarray, omega_eob: np.ndarray, idx_restart:int):
+def transition_dynamics_v2(ts: np.ndarray, dyn: np.ndarray, omega_eob: np.ndarray, idx_restart:int):
     """
        Function to transition from a point dyn1,t1final to a point (dyn2,tfinal2)
 
@@ -517,9 +491,6 @@ def transition_dynamics_v2(ts: np.ndarray, dyn: np.ndarray, lN_dyn: np.ndarray, 
 
     t_low = ts[:idx_restart]
     t_fine = ts[idx_restart:]
-
-    tmp_LN_low = lN_dyn[:idx_restart]
-    tmp_LN_fine = lN_dyn[idx_restart:]
 
     t_low_last = t_low[-1]
     t_fine_init = t_fine[0]
@@ -555,15 +526,12 @@ def transition_dynamics_v2(ts: np.ndarray, dyn: np.ndarray, lN_dyn: np.ndarray, 
 
         t_middle = ts[idx_restart - window : idx_restart + window]
         dyn_window = dyn[idx_restart - window : idx_restart + window]
-        lN_window = lN_dyn[idx_restart - window : idx_restart + window]
 
         dyn_interp = CubicSpline(t_middle, dyn_window[:, :])
         omega_interp = CubicSpline(t_middle, omega_eob[idx_restart - window : idx_restart + window])
-        lN_interp = CubicSpline(t_middle, lN_window)
 
         dyn_middle = dyn_interp(t_new)
         omega_middle = omega_interp(t_new)
-        lN_middle = lN_interp(t_new)
 
         # Separate low and high SR omega
         omega_low = omega_eob[:idx_restart]
@@ -572,7 +540,6 @@ def transition_dynamics_v2(ts: np.ndarray, dyn: np.ndarray, lN_dyn: np.ndarray, 
         time = np.concatenate((t_low,t_new[:-1],t_fine))
         dynamics = np.vstack((dyn_low, dyn_middle[:-1,:], dyn_fine))
         omega = np.concatenate((omega_low,omega_middle[:-1],omega_fine))
-        lN_full = np.vstack((tmp_LN_low, lN_middle[:-1,:],tmp_LN_fine))
 
         idx_restart_v1 =  len(omega_low)+len(omega_middle)-1 #idx_restart -1  + window_length
     else:
@@ -580,10 +547,9 @@ def transition_dynamics_v2(ts: np.ndarray, dyn: np.ndarray, lN_dyn: np.ndarray, 
         dynamics = dyn
         time = ts
         omega = omega_eob
-        lN_full = lN_dyn
         idx_restart_v1 = idx_restart
 
-    return time, dynamics, omega, lN_full, idx_restart_v1
+    return time, dynamics, omega, idx_restart_v1
 
 
 def parabolaExtrema(ff0:float,
@@ -691,12 +657,8 @@ def compute_dynamics_quasiprecessing(
 
         dynamics_low,
         dynamics_fine,
-        tmp_LN_low,
-        tmp_LN_fine,
         dynamics,
-        idx_restart,
-        res,
-        splines
+        idx_restart
     ) = compute_dynamics_prec_opt(
         omega_ref,
         omega_start,
@@ -721,10 +683,7 @@ def compute_dynamics_quasiprecessing(
         dynamics_fine,
         combined_t,
         combined_y,
-        tmp_LN_low,
-        tmp_LN_fine,
         splines,
         dynamics,
-        idx_restart,
-        res
+        idx_restart
     )

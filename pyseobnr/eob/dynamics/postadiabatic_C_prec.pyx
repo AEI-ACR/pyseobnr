@@ -1225,8 +1225,7 @@ cpdef compute_postadiabatic_solution(
 
         tmp = splines["everything"](omega)
         chi1_v = tmp[:,4:7]
-        chi2_v = tmp[:,7:10]
-        lN_v = tmp[:,10:13]
+        chi2_v = tmp[:,7:10] 
 
         chi1_LN = tmp[:,0]
         chi2_LN = tmp[:,1]
@@ -1245,7 +1244,6 @@ cpdef compute_postadiabatic_solution(
 
             params.p_params.chi1_v = chi1_v[i]
             params.p_params.chi2_v = chi2_v[i]
-            params.p_params.lN = lN_v[i]
 
             params.p_params.chi_1 = chi1_LN[i]
             params.p_params.chi_2 = chi2_LN[i]
@@ -1333,7 +1331,6 @@ cpdef compute_postadiabatic_dynamics(
     LNhat = tmp[10:13]
 
     params.p_params.omega = omega_start
-    params.p_params.lN = LNhat
 
     params.p_params.chi1_v = chi1_v
     params.p_params.chi2_v = chi2_v
@@ -1403,8 +1400,6 @@ cpdef compute_postadiabatic_dynamics(
 
     #print(f"previous r_size = {r_size}, r_size_20_points = {r_size_new}, precession_cycles = {precession_cycles}")
     #print(f"r0 = {r0}, r_final = {r_final}, dr0 = {dr0}, r_switch = {r_switch}, r_size = {r_size}, r_range = {r_range}")
-
-    cdef double omega_start_1 = omega_start
 
     # We increased r_size to be 10 instead of 4 in the AS limit
     if r_size <= 10 or r0<=11.5 or r_final >= r0:
@@ -1506,10 +1501,8 @@ cpdef compute_postadiabatic_dynamics(
     cdef double dH_dpr,dH_dpphi,csi
     cdef double dyn[6]
     cdef double[::1] p_circ = np.zeros(2)
-    cdef double[::1] tmp_LN = np.zeros(3)
 
     dyn_augm = []
-    lN_dyn = []
 
     for i in range(r.shape[0]):
         q = np.array([r[i], 0])
@@ -1525,7 +1518,6 @@ cpdef compute_postadiabatic_dynamics(
 
         chi1_v = tmp[4:7]
         chi2_v = tmp[7:10]
-        tmp_LN = tmp[10:13]
 
         ap = chi1_LN * X1 + chi2_LN * X2
         am = chi1_LN * X1 - chi2_LN * X2
@@ -1546,7 +1538,6 @@ cpdef compute_postadiabatic_dynamics(
         p_circ[1] = p[1]
         omega_circ = H.omega(q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
         dyn_augm.append([H_val,omega[i],omega_circ,chi1_LN,chi2_LN])
-        lN_dyn.append(tmp_LN)
 
 
     #t = cumulative_integral(r, dt_dr, order = 3)
@@ -1556,9 +1547,8 @@ cpdef compute_postadiabatic_dynamics(
     phi = univariate_spline_integral(r,dphi_dr)
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi, dyn_augm]
-    lN_dyn = np.array(lN_dyn)
 
-    return postadiabatic_dynamics, omega, lN_dyn, splines, omega_start_1
+    return postadiabatic_dynamics, omega
 
 
 
@@ -1630,11 +1620,9 @@ cpdef compute_combined_dynamics_exp_v1(
         omega_start,
     )
 
-    cdef double omega_start_pa = omega_start
-
     try:
 
-        postadiabatic_dynamics, omega_pa, tmp_LN_pa, splines, omega_start_pa = compute_postadiabatic_dynamics(
+        postadiabatic_dynamics, omega_pa = compute_postadiabatic_dynamics(
             omega_ref,
             omega_start,
             H,
@@ -1662,17 +1650,14 @@ cpdef compute_combined_dynamics_exp_v1(
         PA_success = False
         ode_y_init = None
         omega_pa = [omega_start]
-        omega_start_pa = omega_start
 
     omega_start = omega_pa[-1]
 
     (
         ode_dynamics_low,
         ode_dynamics_high,
-        tmp_LN_low,
-        tmp_LN_fine,
         dynamics,
-        idx_restart,_,_
+        idx_restart
     ) = compute_dynamics_prec_opt(
         omega_ref,
         omega_start,
@@ -1754,23 +1739,16 @@ cpdef compute_combined_dynamics_exp_v1(
         tmp = splines["everything"](omega_new)
         chi1_LN_window = tmp[:,0]
         chi2_LN_window = tmp[:,1]
-        lN_window = tmp[:,10:13]
         postadiabatic_dynamics_v1 = np.c_[window_dynamics, chi1_LN_window,chi2_LN_window]
 
         combined_dynamics = np.vstack((postadiabatic_dynamics_v1[:e_id], ode_dynamics_low))
-        tmp_LN = np.vstack((lN_window[:e_id],  tmp_LN_low, tmp_LN_fine))
-
-        len_window = len(lN_window[:e_id])
-        tmp_LN_low = tmp_LN[:idx_restart+len_window]
-        tmp_LN_fine = tmp_LN[idx_restart+len_window:]
 
     else:
         combined_dynamics = ode_dynamics_low
 
     dynamics = np.vstack((combined_dynamics, ode_dynamics_high))
 
-    return combined_dynamics, ode_dynamics_high,combined_t,combined_y,splines,dynamics, tmp_LN_low, tmp_LN_fine, omega_start_pa
-
+    return combined_dynamics, ode_dynamics_high,combined_t,combined_y,splines,dynamics
 
 @cython.boundscheck(False)
 @cython.nonecheck(False)
@@ -1859,9 +1837,6 @@ cpdef double compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.arr
 
     # Compute the precession frequency from LNhat
     lN_quat = quaternion.as_quat_array(np.c_[np.zeros(len(lN_pn)), lN_pn])
-    #dlNdt_arr = CubicSpline(t_pn, lN_pn).derivative()(t_pn)
-    #dlNdt_quat = quaternion.as_quat_array(np.c_[np.zeros(len(dlNdt_arr)), dlNdt_arr])
-    #omega_prec = 2.0*dlNdt_quat*lN_quat.conjugate()
 
     omega_prec_arr = quaternion.angular_velocity(lN_quat,t_pn)/2.0
     om_prec_norm = np.sqrt(np.einsum("ij,ij->i", omega_prec_arr, omega_prec_arr))

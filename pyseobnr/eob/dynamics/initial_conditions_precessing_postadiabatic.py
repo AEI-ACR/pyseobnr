@@ -45,7 +45,7 @@ def compute_IC_PA(
     PA_success = False
 
     try :
-        postadiabatic_dynamics, omega_pa, _, splines_pa, omega_start_pa = compute_postadiabatic_dynamics(
+        postadiabatic_dynamics, omega_pa = compute_postadiabatic_dynamics(
             omega_ref,
             omega_start,
             H, RR,
@@ -58,7 +58,7 @@ def compute_IC_PA(
             postadiabatic_type=postadiabatic_type,
             window_length=10,
             r_size_input=r_size_input,
-            #only_first_n=9,
+            #only_first_n=12,
         )
 
         r0 = postadiabatic_dynamics[0, 1]
@@ -114,7 +114,6 @@ def compute_IC_PA(
         # Note that omega and omega_pa[0] may differ due to numerical noise
         # we set the initial frequency to omega_pa[0] to avoid interpolation errors
         params.p_params.omega = omega_pa[0]
-        splines = splines_pa
 
     # Update parameters
     X1 = params.p_params.X_1
@@ -156,4 +155,4 @@ def compute_IC_PA(
 
     #print(f"PA: r0 = {r0}, pphi0 = {pphi0}, pr0 = {pr0}")
 
-    return r0, pphi0, pr0, splines
+    return r0, pphi0, pr0
