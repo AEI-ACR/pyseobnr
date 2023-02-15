@@ -695,7 +695,8 @@ cpdef compute_pr(
     u = 1./r_arr
     dudr = -u*u
     dpphi_du = - fin_diff_derivative_v1(u, pphi_arr)
-    cdef double[:] dpphi_dr = - dpphi_du*dudr
+    #cdef double[:] dpphi_dr = - dpphi_du*dudr
+    dpphi_dr = - dpphi_du*dudr
 
     #cdef double[:] dpphi_dr = - fin_diff_derivative_tests(r, pphi)
 
@@ -1079,7 +1080,8 @@ cpdef compute_pphi(
     u = 1./r_arr
     dudr = -u*u
     dpr_du = - fin_diff_derivative_v1(u, pr_arr)
-    cdef double[:] dpr_dr = - dpr_du*dudr
+    #cdef double[:] dpr_dr = - dpr_du*dudr
+    dpr_dr = - dpr_du*dudr
     #cdef double[:] dpr_dr = - fin_diff_derivative_tests(r, pr)
 
     cdef int i
@@ -1225,7 +1227,7 @@ cpdef compute_postadiabatic_solution(
 
         tmp = splines["everything"](omega)
         chi1_v = tmp[:,4:7]
-        chi2_v = tmp[:,7:10] 
+        chi2_v = tmp[:,7:10]
 
         chi1_LN = tmp[:,0]
         chi2_LN = tmp[:,1]
