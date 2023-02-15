@@ -21,6 +21,8 @@ def compute_IC_PA(
     m_1: float,
     m_2: float,
     splines: dict,
+    t_pn: np.array,
+    dynamics_pn: np.array,
     r_size_input: int=12,
     **kwargs,
 ):
@@ -52,6 +54,8 @@ def compute_IC_PA(
             chi1_v, chi2_v,
             m_1, m_2,
             splines,
+            t_pn,
+            dynamics_pn,
             tol=1e-12,
             params=params,
             order=8,
@@ -114,7 +118,7 @@ def compute_IC_PA(
         # Note that omega and omega_pa[0] may differ due to numerical noise
         # we set the initial frequency to omega_pa[0] to avoid interpolation errors
         params.p_params.omega = omega_pa[0]
-
+        
     # Update parameters
     X1 = params.p_params.X_1
     X2 = params.p_params.X_2

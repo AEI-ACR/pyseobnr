@@ -1270,8 +1270,8 @@ cpdef compute_postadiabatic_dynamics(
     double m_1,
     double m_2,
     dict splines,
-    t_pn,
-    dynamics_pn,
+    t_pn: np.array,
+    dynamics_pn: np.array,
     double tol=1e-12,
     EOBParams params=None,
     int order=1,
@@ -1358,9 +1358,6 @@ cpdef compute_postadiabatic_dynamics(
 
     cdef double r_final = max(11.0, r_final_prefactor_test * r_ISCO)
 
-    cdef double r_switch_prefactor = 1.6
-    cdef double r_switch = r_switch_prefactor * r_ISCO
-
     cdef double dr0 = 0.1
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
     cdef double r_range = r0 - r_final
@@ -1375,11 +1372,11 @@ cpdef compute_postadiabatic_dynamics(
       precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
       r_size_new = int(np.ceil(precession_cycles*20))
     else:
+      print(f"Setting precession cycles to 0")
       precession_cycles = 0
       r_size_new = 0
 
     #print(f"previous r_size = {r_size}, r_size_20_points = {r_size_new}, precession_cycles = {precession_cycles}")
-    #print(f"r0 = {r0}, r_final = {r_final}, dr0 = {dr0}, r_switch = {r_switch}, r_size = {r_size}, r_range = {r_range}")
 
     # We increased r_size to be 10 instead of 4 in the AS limit
     if r_size <= 10 or r0<=11.5 or r_final >= r0:
@@ -1633,6 +1630,35 @@ cpdef compute_combined_dynamics_exp_v1(
         omega_pa = [omega_start]
 
     omega_start = omega_pa[-1]
+    tmp = splines["everything"](omega_start)
+
+    #print(f"PA_success = {PA_success}, omega_start = {omega_start}, omega_pa[-1] = {omega_pa[-1]}, omegaPN_f = {omegaPN_f}")
+
+    cdef double X1 = params.p_params.X_1
+    cdef double X2 = params.p_params.X_2
+    cdef double chi1_LN_start = tmp[0]
+    cdef double chi2_LN_start = tmp[1]
+    cdef double chi1_L_start = tmp[2]
+    cdef double chi2_L_start = tmp[3]
+    chi1_v_start = tmp[4:7]
+    chi2_v_start = tmp[7:10]
+    lN_start = tmp[10:13]
+
+    params.p_params.omega = omega_start
+    params.p_params.chi1_v = chi1_v_start
+    params.p_params.chi2_v = chi2_v_start
+
+    params.p_params.chi_1, params.p_params.chi_2 = chi1_LN_start, chi2_LN_start
+    params.p_params.chi1_L, params.p_params.chi2_L = chi1_L_start, chi2_L_start
+    params.p_params.lN = lN_start
+
+    params.p_params.update_spins(chi1_LN_start, chi2_LN_start)
+
+    ap_start = chi1_LN_start * X1 + chi2_LN_start * X2
+    am_start = chi1_LN_start * X1 - chi2_LN_start * X2
+
+    dSO_start = dSO_poly_fit(params.p_params.nu, ap_start, am_start)
+    H.calibration_coeffs["dSO"] = dSO_start
 
     (
         ode_dynamics_low,
@@ -1648,6 +1674,8 @@ cpdef compute_combined_dynamics_exp_v1(
         m_1,
         m_2,
         splines,
+        combined_t,
+        combined_y,
         params,
         rtol=1e-8,
         atol=1e-8,
@@ -1812,6 +1840,7 @@ cpdef cumulative_integral(
     return integral
 
 
+@cython.boundscheck(True)
 @cython.profile(True)
 @cython.linetrace(True)
 @cython.cdivision(True)
