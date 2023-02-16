@@ -218,10 +218,9 @@ def mismatch_v5P_strain(
 
     f_high_phys = 2048.
 
+    """
     try:
-
         psd = aLIGOZeroDetHighPowerGWINC(len(hp_v5), hp_v5.delta_f, f_low_phys)
-        """
 
         # Compute match for hplus
         mm_hp = optimized_match(hp_v5,
@@ -242,7 +241,7 @@ def mismatch_v5P_strain(
 
         # Take the mean
         mm_mean  = 1.-np.mean([mm_hp,mm_hc])
-        """
+    
     except:
 
         print(
@@ -250,6 +249,7 @@ def mismatch_v5P_strain(
         )
         mm_mean = -1
         pass
+    """
 
     mm_mean=-1
     #print(m1,m2,chi1,chi2,iota_s,mm_mean)
