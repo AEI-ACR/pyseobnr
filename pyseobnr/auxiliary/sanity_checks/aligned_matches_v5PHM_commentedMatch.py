@@ -177,7 +177,7 @@ def mismatch_v5P_strain(
                                 iota_s, phi_s, distance,
                                 delta_t, 'SEOBNRv5PHM')
 
-    """
+
     # Pad zeros
     N = max(len(hp_td_v5), len(hc_td_v5p))
     pad = int(2 ** (np.floor(np.log2(N)) + 2))
@@ -221,6 +221,7 @@ def mismatch_v5P_strain(
     try:
 
         psd = aLIGOZeroDetHighPowerGWINC(len(hp_v5), hp_v5.delta_f, f_low_phys)
+        """
 
         # Compute match for hplus
         mm_hp = optimized_match(hp_v5,
@@ -241,6 +242,7 @@ def mismatch_v5P_strain(
 
         # Take the mean
         mm_mean  = 1.-np.mean([mm_hp,mm_hc])
+        """
     except:
 
         print(
@@ -249,7 +251,6 @@ def mismatch_v5P_strain(
         mm_mean = -1
         pass
 
-    """
     mm_mean=-1
     #print(m1,m2,chi1,chi2,iota_s,mm_mean)
     return (m1,m2, chi1, chi2, iota_s, mm_mean)
