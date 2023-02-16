@@ -699,8 +699,6 @@ class SEOBNRv5PHM_opt(Model):
 
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
-        # Uncomment and comment the line above to make the python Hamiltonian work
-        # self.H = H()
 
         # self.modes_list = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
 
