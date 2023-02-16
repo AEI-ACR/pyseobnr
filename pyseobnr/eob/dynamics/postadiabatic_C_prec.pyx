@@ -29,110 +29,7 @@ from .pn_evolution_opt import build_splines_PN
 from .integrate_ode_prec import compute_dynamics_prec_opt
 from pyseobnr.eob.utils.math_ops_opt import my_dot, my_norm
 
-fin_diff_coeffs_order_9 = np.array([
-    [-761./280., 8., -14., 56./3., -35./2., 56./5., -14./3., 8./7., -1./8.],
-    [-1./8., -223./140., 7./2., -7./2., 35./12., -7./4., 7./10., -1./6., 1./56.],
-    [1./56., -2./7., -19./20., 2., -5./4., 2./3., -1./4., 2./35., -1./168.],
-    [-1./168., 1./14., -1./2., -9./20., 5./4., -1./2., 1./6., -1./28., 1./280.],
-    [1./280., -4./105., 1./5., -4./5., 0, 4./5., -1./5., 4./105., -1./280.],
-    [-1./280., 1./28., -1./6., 1./2., -5./4., 9./20., 1./2., -1./14., 1./168.],
-    [1./168., -2./35., 1./4., -2./3., 5./4., -2., 19./20., 2./7., -1./56.],
-    [-1./56., 1./6., -7./10., 7./4., -35./12., 7./2., -7./2., 223./140., 1./8.],
-    [1./8., -8./7., 14./3., -56./5., 35./2., -56./3., 14., -8., 761./280.],
-])
 
-interpolated_integral_order_3 = [
-    [3./8., 19./24., -5./24., 1./24.],
-    [-1./24., 13./24., 13./24., -1./24.],
-    [1./24., -5./24., 19./24., 3./8.],
-]
-
-interpolated_integral_order_5 = [
-    [95./288., 1427./1440., -133./240., 241./720., -173./1440., 3./160.],
-    [-3./160., 637./1440., 511./720., -43./240., 77./1440., -11./1440.],
-    [11./1440., -31./480., 401./720., 401./720., -31./480., 11./1440.],
-    [-11./1440., 77./1440., -43./240., 511./720., 637./1440., -3./160.],
-    [3./160., -173./1440., 241./720., -133./240., 1427./1440., 95./288.],
-]
-
-interpolated_integral_order_7 = [
-    [5257./17280, 139849./120960, -(4511./4480), 123133./120960, -(88547./120960), 1537./4480, -(11351./120960), 275./24192],
-    [-(275./24192), 5311./13440, 11261./13440, -(44797./120960), 2987./13440, -(1283./13440), 2999./120960, -(13./4480)],
-    [13./4480, -(4183./120960), 6403./13440, 9077./13440, -(20227./120960), 803./13440, -(191./13440), 191./120960],
-    [-(191./120960), 1879./120960, -(353./4480), 68323./120960, 68323./120960, -(353./4480), 1879./120960, -(191./120960)],
-    [191./120960, -(191./13440), 803./13440, -(20227./120960), 9077./13440, 6403./13440, -(4183./120960), 13./4480],
-    [-(13./4480), 2999./120960, -(1283./13440), 2987./13440, -(44797./120960), 11261./13440, 5311./13440, -(275./24192)],
-    [275./24192, -(11351./120960), 1537./4480, -(88547./120960), 123133./120960, -(4511./4480), 139849./120960, 5257./17280],
-]
-
-
-@cython.profile(True)
-@cython.linetrace(True)
-@cython.cdivision(True)
-@cython.boundscheck(False)
-cdef double single_deriv(double[:] y,double h,double[:] coeffs):
-    """
-    Compute the derivative.
-
-    Args:
-        y (double[:]): value of the function
-        h (double): step
-        coeffs (double[:]): values of the coefficients of the derivative
-
-    Returns:
-        (double) derivative
-    """
-    cdef int i
-    cdef double total = 0.0
-    for i in range(9):
-        total+=coeffs[i]*y[i]
-    total/=h
-    return total
-
-@cython.profile(True)
-@cython.linetrace(True)
-@cython.cdivision(True)
-cpdef fin_diff_derivative_tests(
-    x,
-    y,
-    n: int = 8,
-):
-    """
-    Compute the finite difference derivative of y(x) with n grid points.
-
-    Args:
-        x: Dependent variable
-        y: Independent varible
-        n: Number of grid points
-
-    Returns:
-        (np.array) derivative dy_dx
-    """
-    dy_dx = np.zeros(x.size)
-    cdef double h = fabs(x[1] - x[0])
-    cdef int size = x.shape[0]
-    cdef int i
-    for i in range(size):
-        if i == 0:
-            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[0])
-        elif i == 1:
-            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[1])
-        elif i == 2:
-            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[2])
-        elif i == 3:
-            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[3])
-        elif i == size - 4:
-            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[5])
-        elif i == size - 3:
-            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[6])
-        elif i == size - 2:
-            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[7])
-        elif i == size - 1:
-            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[8])
-        else:
-            dy_dx[i] = single_deriv(y[i-4:i+5],h,fin_diff_coeffs_order_9[4])
-
-    return dy_dx
 
 @cython.profile(True)
 @cython.linetrace(True)
@@ -167,6 +64,7 @@ cpdef Kerr_ISCO(
     # Compute the ISCO L for this spin
     L_ISCO = 2/(3*np.sqrt(3))*(1+2*np.sqrt(3*r_ISCO)-2)
     return np.array([r_ISCO,L_ISCO])
+
 
 @cython.profile(True)
 @cython.linetrace(True)
@@ -387,7 +285,7 @@ cpdef compute_adiabatic_solution(
     for i in range(r.shape[0]):
 
         if omega[i] < 0.9*omega_start:
-          print(f"problem: omega ={omega[i]}< 0.9*omega_start {omega_start}")
+          print(f"problem PA dynamics is extrapolating: omega ={omega[i]}< 0.9*omega_start {omega_start}")
         j0_solution = optimize.root(
             j0_eqn,
             j0[i],
@@ -489,7 +387,7 @@ cpdef double pr_eqn(
     )
 
     if omega < 0.9*omega_start:
-      print(f"problem: omega ={omega}< 0.9*omega_start {omega_start}")
+      print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
 
     params.p_params.update_spins(chi1_LN, chi2_LN)
     cdef (double,double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
@@ -618,7 +516,7 @@ cpdef double pr_eqn_analytic(
     )
 
     if omega < 0.9*omega_start:
-      print(f"problem: omega ={omega}< 0.9*omega_start {omega_start}")
+      print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
 
     params.dynamics.p_circ[1] = pphi
     omega_circ = H.omega(
@@ -693,10 +591,7 @@ cpdef compute_pr(
         (np.array) Value of prstar at a given postadiabatic order for the whole radial grid.
     """
 
-
-    #cdef double[:] dpphi_dr = - fin_diff_derivative_tests(r, pphi)
-
-    cdef double[:] dpphi_dr = fin_diff_derivative_v1(r, pphi)
+    cdef double[:] dpphi_dr = spline_derivative(r, pphi)
 
 
     cdef int i
@@ -753,7 +648,7 @@ cpdef compute_pr(
         omega[i] = params.p_params.omega
 
         if omega[i] < 0.9*omega_start:
-          print(f"problem: omega ={omega[i]}< 0.9*omega_start {omega_start}")
+          print(f"problem PA dynamics is extrapolating: omega ={omega[i]}< 0.9*omega_start {omega_start}")
 
 
     return pr, omega
@@ -841,7 +736,7 @@ cpdef double pphi_eqn(
     omega_circ = H.omega(q,params.dynamics.p_circ,chi1_v,chi2_v,m_1,m_2,chi1_LN, chi2_LN, chi1_L, chi2_L)
 
     if omega < 0.9*omega_start:
-      print(f"problem: omega ={omega}< 0.9*omega_start {omega_start}")
+      print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
 
     params.p_params.update_spins(chi1_LN, chi2_LN)
 
@@ -970,7 +865,7 @@ cpdef double pphi_eqn_analytic(
     )
 
     if omega < 0.9*omega_start:
-      print(f"problem: omega ={omega}< 0.9*omega_start {omega_start}")
+      print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
 
     params.dynamics.p_circ[1] = pphi_sol
     omega_circ = H.omega(
@@ -1074,7 +969,7 @@ cpdef compute_pphi(
         (np.array) Value of pphi at a given postadiabatic order for the whole radial grid.
     """
 
-    cdef double[:] dpr_dr = fin_diff_derivative_v1(r, pr)
+    cdef double[:] dpr_dr = spline_derivative(r, pr)
 
     cdef int i
     tmp = splines["everything"](omega)
@@ -1278,7 +1173,6 @@ cpdef compute_postadiabatic_dynamics(
     str postadiabatic_type="analytic",
     int window_length=10,
     only_first_n=None,
-    int r_size_input = 12,
 ):
     """
     Compute postadiabatic dynamics from the spins specified at a certain reference frequency and
@@ -1348,66 +1242,67 @@ cpdef compute_postadiabatic_dynamics(
     r0, _, _ =computeIC_augm(omega_start, H, RR, chi1_v, chi2_v, m_1, m_2, params=params)
     cdef double chi_eff = ap
 
-    #print(f"chi1_v = {chi1_v}, chi2_v = {chi2_v}, LNhat = {LNhat}")
-
     r_ISCO, _ = Kerr_ISCO(chi1_LN, chi2_LN, X1, X2)
 
-    cdef double r_final_prefactor_test = 2.7 + (chi_eff - 0.5*chi_perp_eff)*(1-4.*nu)
+    # Phenomenological prefactor to r_ISCO to adjust r_final in the precessing case
+    cdef double r_final_prefactor = 2.7 + (chi_eff - 0.5*chi_perp_eff)*(1-4.*nu)
 
-    #print(f"r_final_prefactor = {r_final_prefactor}, r_final_prefactor = {r_final_prefactor_test}, chi_eff = {chi_eff}, chi_perp_eff = {chi_perp_eff}")
-
-    cdef double r_final = max(11.0, r_final_prefactor_test * r_ISCO)
+    # Compute the final point of the radial grid
+    cdef double r_final = max(11.0, r_final_prefactor * r_ISCO)
 
     cdef double dr0 = 0.1
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
     cdef double r_range = r0 - r_final
 
-    omega_pn = dynamics_pn[:,-1]
-    lN_pn = dynamics_pn[:,:3]
-
+    # Compute now the number of precessing cycles (only in the aligned-spin limit)
     cdef double chi_in_plane = chi1_v[0]**2.+chi1_v[1]**2. + chi2_v[0]**2.+chi2_v[1]**2.
     cdef int r_size_new = 0
     cdef double precessiong_cycles = 0.0
     cdef double dr0_new = 0.1
 
+    omega_pn = dynamics_pn[:,-1]
+    lN_pn = dynamics_pn[:,:3]
     if chi_in_plane > 0 :
       precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
+
+      # Multiply the number of precession cycles by 20, so that the have 20 points per precession cycle,
+      # however as we are making a uniform radial grid below this condition will not be exactly fulfilled
       r_size_new = int(np.ceil(precession_cycles*20))
 
-    #print(f"previous r_size = {r_size}, r_size_20_points = {r_size_new}, precession_cycles = {precession_cycles}")
 
-    # We increased r_size to be 10 instead of 4 in the AS limit
+    # Some checks to decide whether the radial grid is large enough to perform the postadiabatic evolution
     if r_size <= 10 or r0<=11.5 or r_final >= r0:
         raise ValueError
     elif r_size < window_length + 2:
         r_size = window_length + 2
 
-    # Close to the AS limit the number of precessing cycles is zero, and we use 0.1 as the default step size of the radial grid
+    # If the number of precessing cycles is zero, we use 0.1 as the default step size of the radial grid
     if r_size_new ==0:
       dr0_new = 0.1
       r_size_new = int(np.ceil(r_range/dr0_new))
     else:
       dr0_new = r_range/r_size_new
 
-    #print(f"r0 = {r0}, r_final = {r_final}, r_range = {r_range}, r_size  = {r_size}, dr0_new = {dr0_new}, r_size_new = {r_size_new}")
-
+    # Put some upper and lower bounds to the step size of the radial grid
     if dr0_new < 0.05:
       dr0_new = 0.05
       r_size_new = int(np.ceil(r_range/dr0_new))
-      
+
     if dr0_new > 0.1:
       dr0_new = 0.1
       r_size_new = int(np.ceil(r_range/dr0_new))
 
+    # Compute the final grid
     r, _ = np.linspace(r0, r_final, num=r_size_new, endpoint=True, retstep=True)
 
-
+    # Option only used in the PA initial conditions for the non-PA model
     if only_first_n is not None:
       r = r[:only_first_n]
 
     # First guess at circular omega, from Kepler's law
     omega = r**(-3./2)
 
+    # Arrays for the position and canonical momentum
     cdef double[::1] q = np.zeros(2)
     cdef double[::1] p = np.zeros(2)
 
@@ -1446,7 +1341,7 @@ cpdef compute_postadiabatic_dynamics(
 
         omega[i] = om
         if omega[i]< 0.9*omega_start :
-          print(f"PROBLEM WE ARE EXTRAPOLATING!")
+          print(f"WARNING PA DYNAMICS IS EXTRAPOLATING!")
 
 
     # Compute the PA solution
@@ -1510,11 +1405,8 @@ cpdef compute_postadiabatic_dynamics(
         omega_circ = H.omega(q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
         dyn_augm.append([H_val,omega[i],omega_circ,chi1_LN,chi2_LN])
 
-
-    #t = cumulative_integral(r, dt_dr)
+    # Compute integrals to obtain the time array and the orbital phase
     t = univariate_spline_integral(r,dt_dr)
-
-    #phi = cumulative_integral(r, dphi_dr)
     phi = univariate_spline_integral(r,dphi_dr)
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi, dyn_augm]
@@ -1543,7 +1435,6 @@ cpdef compute_combined_dynamics_exp_v1(
     str backend="ode",
     int PA_order=8,
     str postadiabatic_type="analytic",
-    int r_size_input=12,
 ):
 
     """
@@ -1610,7 +1501,6 @@ cpdef compute_combined_dynamics_exp_v1(
             order=PA_order,
             postadiabatic_type=postadiabatic_type,
             window_length=10,
-            r_size_input=r_size_input,
         )
 
         PA_success = True
@@ -1622,36 +1512,8 @@ cpdef compute_combined_dynamics_exp_v1(
         ode_y_init = None
         omega_pa = [omega_start]
 
+    # Set omega_start to the last frequency of the PA evolution
     omega_start = omega_pa[-1]
-    tmp = splines["everything"](omega_start)
-
-    #print(f"PA_success = {PA_success}, omega_start = {omega_start}, omega_pa[-1] = {omega_pa[-1]}, omegaPN_f = {omegaPN_f}")
-
-    cdef double X1 = params.p_params.X_1
-    cdef double X2 = params.p_params.X_2
-    cdef double chi1_LN_start = tmp[0]
-    cdef double chi2_LN_start = tmp[1]
-    cdef double chi1_L_start = tmp[2]
-    cdef double chi2_L_start = tmp[3]
-    chi1_v_start = tmp[4:7]
-    chi2_v_start = tmp[7:10]
-    lN_start = tmp[10:13]
-
-    params.p_params.omega = omega_start
-    params.p_params.chi1_v = chi1_v_start
-    params.p_params.chi2_v = chi2_v_start
-
-    params.p_params.chi_1, params.p_params.chi_2 = chi1_LN_start, chi2_LN_start
-    params.p_params.chi1_L, params.p_params.chi2_L = chi1_L_start, chi2_L_start
-    params.p_params.lN = lN_start
-
-    params.p_params.update_spins(chi1_LN_start, chi2_LN_start)
-
-    ap_start = chi1_LN_start * X1 + chi2_LN_start * X2
-    am_start = chi1_LN_start * X1 - chi2_LN_start * X2
-
-    dSO_start = dSO_poly_fit(params.p_params.nu, ap_start, am_start)
-    H.calibration_coeffs["dSO"] = dSO_start
 
     (
         ode_dynamics_low,
@@ -1676,14 +1538,14 @@ cpdef compute_combined_dynamics_exp_v1(
         y_init=ode_y_init,
     )
 
-    #print(f"PA_success =  {PA_success}, ode_y_init = {ode_y_init}, omega_start = {omega_start}")
+
     if PA_success is True:
 
         # Interpolate the PA dynamics in its full range. Note that for the AS model this is only
         # done in a window before the ODE integration to smooth the timestep transition. For the
-        # precessing model the twisting-up procedure, precisely the time-dependent rotation from the
-        # co-precessing to the J-frame imposes a minimum timestep in LN such that the quaternion can be
-        # accurately interpolated into the finer waveform grid
+        # precessing model this is done on the full range of the post-adiabatic dynamics to ensure
+        # enough resolution to accurately describe the rotations from the co-precessing frame to the
+        # inertial frame
 
         t_pa = postadiabatic_dynamics[:, 0]
 
@@ -1713,7 +1575,6 @@ cpdef compute_combined_dynamics_exp_v1(
         dt = dt_ode_init
         t = t_ode_init - dt
         t_new = []
-
         step_multiplier = 1.3
 
         while True:
@@ -1730,8 +1591,9 @@ cpdef compute_combined_dynamics_exp_v1(
         # Add the initial time
         t_new.append(t_pa[0])
 
+        # Reverse the timeseries
         t_new = t_new[::-1]
-        #print(f"t_pa = {np.where(np.diff(t_pa)>0)}")
+
         # Interpolate window dynamics except the spins projections (otherwise bad things may happen due to the large timesteps of the PA dynamics)
         window_dynamics_interp = CubicSpline(t_pa, np.c_[postadiabatic_dynamics[:,:-2], omega_pa])
         tmp_window = window_dynamics_interp(t_new)
@@ -1739,6 +1601,7 @@ cpdef compute_combined_dynamics_exp_v1(
         window_dynamics = tmp_window[:,:-1]
         omega_new = tmp_window[:,-1]
 
+        # Compute the spin projections onto LNhat from the new interpolated orbital frequency
         tmp = splines["everything"](omega_new)
         chi1_LN_window = tmp[:,0]
         chi2_LN_window = tmp[:,1]
@@ -1753,84 +1616,6 @@ cpdef compute_combined_dynamics_exp_v1(
 
     return combined_dynamics, ode_dynamics_high,combined_t,combined_y,splines,dynamics
 
-@cython.boundscheck(False)
-@cython.nonecheck(False)
-@cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
-@cython.cdivision(True)
-def fin_diff_derivative_v1(x: np.array, y: np.array)->np.array:
-      intrp = CubicSpline(x[::-1], y[::-1])
-      deriv = intrp.derivative()(x[::-1])[::-1]
-      return deriv
-
-
-@cython.profile(True)
-@cython.linetrace(True)
-cpdef cumulative_integral(
-    x: np.array,
-    y: np.array,
-    order: int = 7,
-):
-    """
-    Compute cumulative integral of y(x)..
-
-    Args:
-        x (np.array): Dependent variable.
-        y (np.array): Independent variable.
-        order (np.array): Order of the finite difference (3,5 or 7).
-
-    Returns:
-        (np.array) cumulative integral
-    """
-    cdef double h = x[1] - x[0]
-
-    integral = np.zeros(x.size)
-
-    if order == 3:
-        for i in range(x.size - 1):
-            if i == 0:
-                z = np.sum(interpolated_integral_order_3[0] * y[:4])
-            elif i == x.size - 2:
-                z = np.sum(interpolated_integral_order_3[2] * y[-4:])
-            else:
-                z = np.sum(interpolated_integral_order_3[1] * y[i-1:i+3])
-
-            integral[i+1] = integral[i] + z * h
-    elif order == 5:
-        for i in range(x.size - 1):
-            if i == 0:
-                z = np.sum(interpolated_integral_order_5[0] * y[:6])
-            elif i == 1:
-                z = np.sum(interpolated_integral_order_5[1] * y[:6])
-            elif i == x.size - 3:
-                z = np.sum(interpolated_integral_order_5[3] * y[-6:])
-            elif i == x.size - 2:
-                z = np.sum(interpolated_integral_order_5[4] * y[-6:])
-            else:
-                z = np.sum(interpolated_integral_order_5[2] * y[i-2:i+4])
-
-            integral[i+1] = integral[i] + z * h
-    elif order == 7:
-        for i in range(x.size - 1):
-            if i == 0:
-                z = np.sum(interpolated_integral_order_7[0] * y[:8])
-            elif i == 1:
-                z = np.sum(interpolated_integral_order_7[1] * y[:8])
-            elif i == 2:
-                z = np.sum(interpolated_integral_order_7[2] * y[:8])
-            elif i == x.size - 4:
-                z = np.sum(interpolated_integral_order_7[4] * y[-8:])
-            elif i == x.size - 3:
-                z = np.sum(interpolated_integral_order_7[5] * y[-8:])
-            elif i == x.size - 2:
-                z = np.sum(interpolated_integral_order_7[6] * y[-8:])
-            else:
-                z = np.sum(interpolated_integral_order_7[3] * y[i-3:i+5])
-
-            integral[i+1] = integral[i] + z * h
-
-    return integral
 
 
 @cython.boundscheck(True)
@@ -1838,10 +1623,25 @@ cpdef cumulative_integral(
 @cython.linetrace(True)
 @cython.cdivision(True)
 cpdef double compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn:np.array):
+    """
+    Estimate the number of precession cycles from LNhat, computed as the phase of the precession
+    frequency at the final point of the radial grid divided by 2 pi.
 
-    # Compute the precession frequency from LNhat
+    Args:
+        r_final (double): Last point of the radial grid.
+        t_pn (np.array): Time array of the PN evolution.
+        omega_pn (np.array): Orbital frequency from the PN evolution.
+        lN_pn (np.array): LNhat obtained from the PN evolution.
+
+    Returns:
+        (double) Number of precession cycles.
+    """
+
+    # Compute the LNhat quaternion
     lN_quat = quaternion.as_quat_array(np.c_[np.zeros(len(lN_pn)), lN_pn])
 
+
+    # Compute the angular velocity
     omega_prec_arr = quaternion.angular_velocity(lN_quat,t_pn)/2.0
     om_prec_norm = np.sqrt(np.einsum("ij,ij->i", omega_prec_arr, omega_prec_arr))
 
@@ -1850,16 +1650,45 @@ cpdef double compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.arr
     iut = CubicSpline(1./r_pn,t_pn)
     iom_prec = CubicSpline(t_pn,om_prec_norm)
 
+    # Compute the phase
     ph_om_prec = iom_prec.antiderivative()(t_pn)
     iph_prec = CubicSpline(t_pn,ph_om_prec)
 
-    #cdef double t_final = iut(1./r_final)
-    #cdef double prec_cycles = iph_prec(t_final)/(2.*np.pi)
+
+    # Evaluate the phase at t_final
     t_final = iut(1./r_final)
     prec_cycles = iph_prec(t_final)/(2.*np.pi)
 
 
     return prec_cycles
+
+
+
+@cython.boundscheck(False)
+@cython.nonecheck(False)
+@cython.initializedcheck(False)
+@cython.profile(True)
+@cython.linetrace(True)
+@cython.cdivision(True)
+def spline_derivative(x: np.array, y: np.array)->np.array:
+      """
+      Compute derivative of y(x) using cubic splines.
+
+      Args:
+          x (np.array): Dependent variable.
+          y (np.array): Independent variable.
+
+      Returns:
+          (np.array) derivaive dy/dx. Note that the order is reversed as x will be
+                     the orbital separation which is monotonically decreasing, while
+                     the interpolation requires x to be monotonically increasing.
+      """
+      intrp = CubicSpline(x[::-1], y[::-1])
+      deriv = intrp.derivative()(x[::-1])[::-1]
+      return deriv
+
+
+
 
 @cython.boundscheck(False)
 @cython.nonecheck(False)
@@ -1872,14 +1701,16 @@ def univariate_spline_integral(
     y: np.array,
 ) -> np.array:
     """
-    Compute integral of y(x) using univariate spline.
+    Compute integral of y(x) using a univariate spline.
 
     Args:
         x (np.array): Dependent variable.
         y (np.array): Independent variable.
 
     Returns:
-        (np.array) integral
+        (np.array) integral.Note that the order is reversed as x will be
+                   the orbital separation which is monotonically decreasing, while
+                   the interpolation requires x to be monotonically increasing.
     """
     y_x_interp = InterpolatedUnivariateSpline(x[::-1], y[::-1])
     y_x_integral = y_x_interp.antiderivative()(x[::-1])[::-1]

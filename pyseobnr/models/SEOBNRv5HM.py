@@ -710,8 +710,7 @@ class SEOBNRv5PHM_opt(Model):
             polarizations_from_coprec=False,  # True for computing directly polarizations
             beta_approx=0,
             rd_approx=True,
-            rd_smoothing=False,
-            r_size_input=12,
+            rd_smoothing=False, 
         )
         return settings
 
@@ -874,11 +873,8 @@ class SEOBNRv5PHM_opt(Model):
                     step_back=self.step_back,
                     initial_conditions=self.settings["initial_conditions"],
                     initial_conditions_postadiabatic_type=self.settings["initial_conditions_postadiabatic_type"],
-                    r_size_input=self.settings['r_size_input'],
                 )
             else:
-                #self.omega_start = 0.019
-                #print(f"Using PA, self.settings['r_size_input'] = {self.settings['r_size_input']}")
                 (
                     dynamics_low,
                     dynamics_fine,
@@ -900,7 +896,6 @@ class SEOBNRv5PHM_opt(Model):
                     params=self.eob_pars,
                     step_back=self.step_back,
                     postadiabatic_type=self.settings["postadiabatic_type"],
-                    r_size_input=self.settings['r_size_input'],
                 )
                 idx_restart = len(dynamics_low)
 
