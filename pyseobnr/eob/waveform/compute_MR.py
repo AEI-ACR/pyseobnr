@@ -9,7 +9,7 @@ from ..utils.utils_precession_opt import compute_omegalm_P_frame
 
 
 def compute_MR_mode_free(
-    t, m1, m2, chi1, chi2, attach_params, ell, m, fits_dict,t_match=0, phi_match=0, qnm_rotation=0.
+    t, m1, m2, chi1, chi2, attach_params, ell, m, fits_dict,f_nyquist,lmax_nyquist,t_match=0, phi_match=0, qnm_rotation=0.
 ):
     """
     Evaluate the MR ansatze. See Eqs.(56, 57, 58) in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
@@ -47,6 +47,12 @@ def compute_MR_mode_free(
     final_spin = attach_params["final_spin"]
     omega_complex = compute_QNM(ell, m, 0, final_spin, final_mass).conjugate()
     omega_complex = compute_omegalm_P_frame(omega_complex, m, qnm_rotation)
+
+    # Sanity check on nyquist frequency
+    if np.real(omega_complex) > 2*np.pi*f_nyquist and lmax_nyquist >= ell:
+        raise ValueError(
+                f"Internal function call failed: Input domain error. Ringdown frequency of ({ell},{m}) mode greater than maximum frequency from Nyquist theorem. Decrease the time spacing to resolve this mode."
+            )
     sigmaR = -np.imag(omega_complex)
     sigmaI = -np.real(omega_complex)
     # Step 3 - use the fits for the free coefficients in the RD anzatse

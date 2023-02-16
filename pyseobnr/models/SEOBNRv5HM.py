@@ -148,6 +148,8 @@ class SEOBNRv5HM_opt(Model):
         self.am = self.m_1 * self.chi_1 - self.m_2 * self.chi_2
         self.dt = self.settings["dt"]
         self.delta_T = self.dt / (self.M * lal.MTSUN_SI)
+        self.f_nyquist = 0.5/self.delta_T
+        
         # print(f"In SI units, dt = {self.dt}. In geometric units, with M={self.M}, delta_T={self.delta_T}")
         self.prefixes = compute_newtonian_prefixes(self.m_1, self.m_2)
 
@@ -182,6 +184,7 @@ class SEOBNRv5HM_opt(Model):
         # Check that the modes are valid, i.e. something we
         # can return
         self._validate_modes()
+        self.lmax_nyquist = self.settings.get("lmax_nyquist", self.max_ell_returned)
         # Now deal with which mixed modes the user wants, if any
 
         self.mixed_modes = [(3, 2), (4, 3)]
@@ -378,7 +381,7 @@ class SEOBNRv5HM_opt(Model):
                 f_22 = omega_orb / (self.M * lal.MTSUN_SI * np.pi)
                 if self.f_ref > f_22[-1]:
                     logger.error(
-                        "f_ref is larger than the highest frequency in the inspiral!"
+                        "Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!"
                     )
                     raise ValueError
                 # Solve for time when f_22 = f_ref
@@ -520,6 +523,8 @@ class SEOBNRv5HM_opt(Model):
                 self.chi_1,
                 self.chi_2,
                 t_attach,
+                self.f_nyquist,
+                self.lmax_nyquist,
                 mixed_modes=self.mixed_modes,
             )
 
@@ -634,6 +639,7 @@ class SEOBNRv5PHM_opt(Model):
 
         self.dt = self.settings["dt"]
         self.delta_T = self.dt / (self.M * lal.MTSUN_SI)
+        self.f_nyquist = 0.5/self.delta_T
 
         self.prefixes = compute_newtonian_prefixes(self.m_1, self.m_2)
 
@@ -670,6 +676,7 @@ class SEOBNRv5PHM_opt(Model):
         # Check that the modes are valid, i.e. something we
         # can return
         self._validate_modes()
+        self.lmax_nyquist = self.settings.get("lmax_nyquist", self.max_ell_returned)
         # Now deal with which mixed modes the user wants, if any
 
         self.mixed_modes = [(3, 2), (4, 3)]
@@ -927,7 +934,7 @@ class SEOBNRv5PHM_opt(Model):
                 f_22 = omega_orb / (self.M * lal.MTSUN_SI * np.pi)
                 if self.f_ref > f_22[-1]:
                     logger.error(
-                        "f_ref is larger than the highest frequency in the inspiral!"
+                        "Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!"
                     )
                     raise ValueError
                 # Solve for time when f_22 = f_ref
@@ -1222,6 +1229,8 @@ class SEOBNRv5PHM_opt(Model):
                 chi1LN_attach,
                 chi2LN_attach,
                 t_attach,
+                self.f_nyquist,
+                self.lmax_nyquist,
                 mixed_modes=self.mixed_modes,
                 final_state=[final_mass, final_spin],
                 qnm_rotation=qnm_rotation,

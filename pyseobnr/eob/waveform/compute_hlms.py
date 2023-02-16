@@ -102,6 +102,8 @@ def compute_IMR_modes(
     chi1,
     chi2,
     t_attach,
+    f_nyquist,
+    lmax_nyquist,
     mixed_modes=[(3, 2), (4, 3)],
     final_state=None,
     qnm_rotation=0.,
@@ -119,6 +121,8 @@ def compute_IMR_modes(
         chi_1 (float): z-component of the primary dimensionless spin
         chi_2 (float): z-component of the secondary dimensionless spin
         t_attach (float): Attachment time
+        f_nyquist (float): Nyquist frequency, needed for checking that RD frequency is resolved
+        lmax_nyquist (int): Determines for which modes the nyquist test is applied for
         mixed_modes (List): List of mixed modes to consider. Defaults to [(3,2),(4,3)]
         final_state (List): Final mass and spin of the remnant. Default to None. If None,
                             compute internally.
@@ -262,6 +266,8 @@ def compute_IMR_modes(
             ell,
             m,
             fits_dict,
+            f_nyquist,
+            lmax_nyquist,
             t_match=0,
             phi_match=phi_match,
             qnm_rotation=qnm_rotation,
@@ -291,6 +297,8 @@ def compute_IMR_modes(
             t_attach,
             t_ringdown,
             fits_dict,
+            f_nyquist,
+            lmax_nyquist,
             qnm_rotation=qnm_rotation,
         )
         # Construct the full IMR waveform
@@ -318,6 +326,8 @@ def compute_mixed_mode(
     t_match,
     t_ringdown,
     fits_dict,
+    f_nyquist,
+    lmax_nyquist,
     qnm_rotation = 0.,
 ):
     """
@@ -338,7 +348,10 @@ def compute_mixed_mode(
         t_match (float): inspiral time at which the merger-ringdown waveform is attached
         t_ringdown (np.ndarray): rindgown time array
         fits_dict (dict): dictionary of fit coefficients in the ringdown anzatz
+        f_nyquist (float): Nyquist frequency, needed for checking that RD frequency is resolved
+        lmax_nyquist (int): Determines for which modes the nyquist test is applied for
         qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame (Eq. 33 of Hamilton et al.)
+        
 
     Returns:
         np.ndarray: the merger-ringdown waveform for the mixed modes
@@ -416,6 +429,8 @@ def compute_mixed_mode(
         m,
         m,
         fits_dict,
+        f_nyquist,
+        lmax_nyquist,
         t_match=0 * t_match,
         phi_match=phi_mm,
         qnm_rotation=qnm_rotation,
@@ -459,6 +474,8 @@ def compute_mixed_mode(
         ell,
         m,
         fits_dict,
+        f_nyquist,
+        lmax_nyquist,
         t_match=0 * t_match,
         phi_match=ph_ellm0,
         qnm_rotation=qnm_rotation,
