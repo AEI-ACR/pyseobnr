@@ -49,14 +49,24 @@ def generate_modes_opt(
     settings=None,
     debug=False,
 ):
+    if q < 1.0:
+        raise ValueError("mass-ratio has to be positive and with convention q>=1")
+    if omega_start < 0:
+        raise ValueError("omega_start has to be positive")
+    
     if approximant == "SEOBNRv5HM":
+
+        if np.abs(chi1) > 1 or np.abs(chi2) > 1:
+            raise ValueError("chi1 and chi2 have to respect Kerr limit (|chi|<=1)")
         RR_f = SEOBNRv5RRForce()
         model = SEOBNRv5HM.SEOBNRv5HM_opt(
             q, chi1, chi2, omega_start, Ham_aligned_opt, RR_f, settings=settings
         )
         model()
     elif approximant == "SEOBNRv5PHM":
-
+        
+        if np.linalg.norm(chi1) > 1 or np.linalg.norm(chi2) > 1:
+            raise ValueError("chi1 and chi2 have to respect Kerr limit (|chi|<=1)")
         RR_f = SEOBNRv5RRForce()
         model = SEOBNRv5HM.SEOBNRv5PHM_opt(
             q, *chi1, *chi2, omega_start, Ham_prec_pa_cy, RR_f, omega_ref = omega_ref, settings=settings
@@ -123,7 +133,10 @@ class GenerateWaveform:
         Mtot = mass1 + mass2
         if Mtot < 0.001 or Mtot > 1e6:
             raise ValueError("Unreasonable value for total mass, aborting.")
-
+        
+        if mass1*mass2/Mtot**2 < 100./(1+100)**2:
+            raise ValueError("Internal function call failed: Input domain error. Model is only valid for systems with mass-ratio up to 100.")
+        
         default_params = {
             "spin1x": 0.0,
             "spin1y": 0.0,
@@ -152,6 +165,12 @@ class GenerateWaveform:
         for param in default_params.keys():
             if param not in parameters:
                 parameters[param] = default_params[param]
+        
+        for param in ["spin1x","spin1y","spin1z","spin2x","spin2y","spin2z","distance","inclination","phi_ref","f22_start","f_ref","deltaT","f_max","deltaF"]:
+            if not isinstance(parameters[param],float) and not isinstance(parameters[param],int):
+                raise ValueError(
+                f"{param} has to be a real number!"
+            )
 
         if (
             parameters["approximant"] == "SEOBNRv5HM"
@@ -182,6 +201,9 @@ class GenerateWaveform:
             > 1
         ):
             raise ValueError("Dimensionless spin magnitudes cannot be greater than 1!")
+        
+        if parameters["f22_start"] <= 0 or parameters["f_ref"] < 0:
+            raise ValueError("Starting frequency and reference frequency have to be positive!")
 
         if mass2 > mass1:
             self.swap_masses = True
@@ -214,8 +236,8 @@ class GenerateWaveform:
 
         if parameters["postadiabatic_type"] not in ["numeric", "analytic"]:
             raise ValueError("Unrecongised setting for dynamics postadiabatic type.")
+        
 
-        # TODO: Implement checking of f_min not too high, and f_nyquist
         self.parameters = parameters
 
     def generate_td_modes(self):
@@ -265,10 +287,14 @@ class GenerateWaveform:
 
             if "initial_conditions_postadiabatic_type" in self.parameters:
                 settings.update(initial_conditions_postadiabatic_type=self.parameters["initial_conditions_postadiabatic_type"])
+
         if self.parameters["mode_array"] != None:
             settings["return_modes"] = self.parameters[
                 "mode_array"
             ]  # Select mode array
+        
+        if "lmax_nyquist" in self.parameters:
+            settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
 
         settings.update(f_ref=self.parameters["f_ref"])
         times, h = generate_modes_opt(
@@ -370,6 +396,9 @@ class GenerateWaveform:
                 settings["return_modes"] = self.parameters[
                     "mode_array"
                 ]  # Select mode array
+            
+            if "lmax_nyquist" in self.parameters:
+                settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
 
             settings.update(f_ref=self.parameters["f_ref"])
             Mpc_to_meters = lal.PC_SI * 1e6
