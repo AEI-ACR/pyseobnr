@@ -546,7 +546,7 @@ def compute_quasiprecessing_PNdynamics_opt(
         chi_2 (np.ndarray): Dimensionless spin of the secondary
         rtol (float, optional): Relative tolerance for EOB integration. Defaults to 1e-12.
         atol (float, optional): Absolute tolerance for EOB integration. Defaults to 1e-12.
-        backend (str, optional): The backend to use for ODE integration. Defaults to "solve_ivp".
+        backend (str, optional): The backend to use for ODE integration. Defaults to "DOP853".
 
     Returns:
         tuple: Aligned-spin EOB dynamics, PN time, PN dynamics, PN splines
