@@ -162,7 +162,7 @@ def perturbation_mismatch_prec(m1:float, m2:float,
 
     f_min = omega0 / (np.pi * (m1 + m2) * lal.MTSUN_SI)
     distance = 1e6*lal.PC_SI
-    delta_t = 1./8192.0#16384.
+    delta_t = 1./8192.0 
     approx = 'SEOBNRv5PHM_PA'
 
     # Add small perturbation to m1
@@ -223,7 +223,7 @@ def perturbation_mismatch_prec(m1:float, m2:float,
 
     f_high_phys = 2048.
 
-    psd = aLIGOZeroDetHighPowerGWINC(len(hp), hp.delta_f, f_low_phys)
+    psd = aLIGOZeroDetHighPower(len(hp), hp.delta_f, f_low_phys)
 
     # Compute match for hplus
     mm_hp = optimized_match(hp,

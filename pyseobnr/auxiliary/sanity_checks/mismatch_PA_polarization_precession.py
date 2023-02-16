@@ -58,7 +58,6 @@ def generate_v5PHM_waveform(m1:float, m2:float,
                             iota:float, phi:float, distance:float,
                             delta_t:float, approx:str,
                             ell_max: int = 5,
-                            r_size_input: int=12,
                             initial_conditions = "adiabatic",
                             initial_conditions_postadiabatic_type = "analytic",
                             ):
@@ -74,7 +73,6 @@ def generate_v5PHM_waveform(m1:float, m2:float,
             'ell_max':ell_max,'beta_approx':None,'M':mtotal,"dt":delta_t,
             "initial_conditions" : initial_conditions,
             "initial_conditions_postadiabatic_type" : initial_conditions_postadiabatic_type,
-            'r_size_input':r_size_input
             }
 
     if approx == 'SEOBNRv5PHM_PA':
@@ -177,7 +175,7 @@ def pa_mismatch_prec(m1,m2, s1x,s1y,s1z,s2x,s2y,s2z, iota_s,ell_max=5,initial_co
     omega_start = omega_ref
 
     distance = 1e6*lal.PC_SI
-    delta_t = 1./8192.0#16384.
+    delta_t = 1./8192.0
     f_min = omega_start / (Mt * lal.MTSUN_SI * np.pi)
 
 

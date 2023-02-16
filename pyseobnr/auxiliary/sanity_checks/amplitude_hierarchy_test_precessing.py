@@ -27,7 +27,7 @@ def amplitude_hierarchy(q: float, chi1x: float,  chi1y: float,  chi1z: float,  c
     omega0 = 0.015
     omega_start = omega0
     mt = 60.
-    delta_t = 1./4096.0#8192.
+    delta_t = 1./8192.
 
     chi_1 = [chi1x, chi1y, chi1z]
     chi_2 = [chi2x, chi2y, chi2z]

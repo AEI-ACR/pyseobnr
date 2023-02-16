@@ -156,8 +156,8 @@ def mismatch_v5P_strain(
     omega0 = 0.02
     f_min = omega0 / (np.pi * (m1 + m2) * lal.MTSUN_SI)
     distance = 1e6*lal.PC_SI
-    delta_t = 1./4096.0#8192.0#16384.
-
+    delta_t = 1./8192.0
+    
     # Generate TD polatizations of SEOBNRv5HM
     time_v5, modes_v5, hp_td_v5, hc_td_v5 = generate_v5PHM_waveform(m1, m2,
                                 0.,0., chi1,
@@ -219,7 +219,6 @@ def mismatch_v5P_strain(
 
     try:
 
-        #psd = aLIGOZeroDetHighPowerGWINC(len(hp_v5), hp_v5.delta_f, f_low_phys)
         psd = aLIGOZeroDetHighPower(len(hp_v5), hp_v5.delta_f, f_low_phys)
 
         # Compute match for hplus

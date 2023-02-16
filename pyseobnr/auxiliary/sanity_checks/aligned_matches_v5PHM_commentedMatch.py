@@ -104,7 +104,7 @@ def generate_v5PHM_waveform(m1:float, m2:float,
             modes_dict["{},{}".format(ell, m)] = modes[key] # Minus sign to have same convention as v5PHM
             modes_dict["{},-{}".format(ell,m)] = pow(-1.,ll) * np.conjugate(modes[key]) # Minus sign to have same convention as v5PHM
 
-    elif approx == 'IMRPhenomTPHM':
+    elif 'IMRPhenomT' in approx:
 
         time = {}
         modes_dict = {}
@@ -128,7 +128,7 @@ def generate_v5PHM_waveform(m1:float, m2:float,
                         f_min,
                         f_min,
                         wf_param,
-                        lalsim.GetApproximantFromString("IMRPhenomTPHM"),
+                        lalsim.GetApproximantFromString(approx),
                     )
     else:
         raise NotImplementedError
