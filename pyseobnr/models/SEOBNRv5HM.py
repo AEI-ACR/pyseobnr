@@ -606,7 +606,14 @@ class SEOBNRv5PHM_opt(Model):
         self.nu = self.m_1 * self.m_2 / (self.m_1 + self.m_2) ** 2
 
         self.omega_start = omega_start
+
+        # Do not use a omega_start which implies r0< 10.5, if that is
+        # the case change starting frequency to correspond to r0=10.5M
+        if (self.omega_start)**(-2./3.) < 10.5:
+            self.omega_start = (10.5)**(-3./2.)
+
         self.f_start = omega_start / (self.M * lal.MTSUN_SI * np.pi)
+
 
         # Deal with reference and starting frequencies
         if omega_ref:
@@ -710,7 +717,7 @@ class SEOBNRv5PHM_opt(Model):
             polarizations_from_coprec=False,  # True for computing directly polarizations
             beta_approx=0,
             rd_approx=True,
-            rd_smoothing=False, 
+            rd_smoothing=False,
         )
         return settings
 
@@ -843,13 +850,9 @@ class SEOBNRv5PHM_opt(Model):
 
     def _evaluate_model(self):
         try:
-            # TODO: implement PA dynamics
-            #print(f"q ={self.m_1/self.m_2}, chi1 = {self.chi1_v}, chi2 = {self.chi2_v}, omega_ref = {self.omega_ref}, omega_start = {self.omega_start}, Mt = {self.M}")
 
             # Generate PN and EOB dynamics
             if not self.settings["postadiabatic"]:
-                #print(f"Not using PA")
-
                 (
                     dynamics_low,
                     dynamics_fine,
@@ -938,7 +941,6 @@ class SEOBNRv5PHM_opt(Model):
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
                 phase_shift = intrp_phase(t_correct)
-                # print(f"phase_shift = {phase_shift}, t_correct = {t_correct}")
                 # Shift the phase for all dynamics arrays
                 self.dynamics[:, 2] -= phase_shift
                 dynamics_low[:, 2] -= phase_shift
@@ -952,7 +954,6 @@ class SEOBNRv5PHM_opt(Model):
 
             t_fine = dynamics_fine[:, 0]
 
-            # print(f"r_restart = {dynamics[:,1][idx_restart]}, rISCO = {r_ISCO}")
             # Use restart index to interpolate only in the region typically r>6
             # This avoids interpolation errors at close separations where drdt can be > 0
             u_rlow = 1.0 / dynamics_low[:, 1]  # [:idx_restart]
@@ -966,6 +967,7 @@ class SEOBNRv5PHM_opt(Model):
             iom = CubicSpline(t_dyn, omega_dyn)
             om_r10M = iom(t_r10M)
             tmp = splines["everything"](om_r10M)
+
             chi1LN_om_r10M = tmp[0]
             chi2LN_om_r10M = tmp[1]
             chi1_om_r10M = tmp[4:7]
@@ -977,7 +979,6 @@ class SEOBNRv5PHM_opt(Model):
             r_ISCO, _ = Kerr_ISCO(chi1LN_om_r10M, chi2LN_om_r10M, self.m_1, self.m_2,)
 
             self.r_ISCO = r_ISCO
-            # print(f"r_ISCO = {r_ISCO}")
             r_fine = dynamics_fine[:, 1]
 
             if r_ISCO < r_fine[-1]:
@@ -1013,7 +1014,6 @@ class SEOBNRv5PHM_opt(Model):
 
             # Compute the timeshift from the reference point
             self.NR_deltaT = NR_deltaT_NS(self.nu) + NR_deltaT(self.nu, ap, am)
-            # print(f"NR_deltaT = {self.NR_deltaT}")
             self.t_ISCO = t_ISCO
             self.omega_rISCO = om_rISCO
             t_attach = t_ISCO - self.NR_deltaT
@@ -1031,7 +1031,6 @@ class SEOBNRv5PHM_opt(Model):
                 )
 
             self.t_attach = t_attach
-            # print(f"t_attach = {t_attach}")
             # For the following steps, we also need spins at the attachment point
             # First compute the orbital frequency at that point
             # iom_orb_fine = CubicSpline(dynamics_fine[:, 0], dynamics_fine[:, 6])
@@ -1060,8 +1059,6 @@ class SEOBNRv5PHM_opt(Model):
 
             self.Lvec_hat_attach = Lvec_hat_attach
             self.Jfhat_attach = Jfhat_attach
-
-            # print(f"tattach : Lvec = {Lvec_attach}, s1 = {chi1_attach*self.m_1*self.m_1}, s2 = {chi2_attach*self.m_2*self.m_2}, Jf bo = {Jf}")
 
             self.eob_pars.p_params.chi_1 = chi1LN_attach
             self.eob_pars.p_params.chi_2 = chi2LN_attach
