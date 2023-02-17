@@ -42,7 +42,6 @@ def SEOBBuildJframeVectors(Jhat_final: np.ndarray):
     Args:
         Jhat_final(np.ndarray): Final total angular momentum vector
 
-
     Returns:
         (tuple): Triad of unit vectors defining the J-frame
     """
@@ -109,8 +108,8 @@ def SEOBEulerJ2PFromDynamics(
 
     Args:
         t (np.ndarray): Time array
+        omega (np.ndarray): EOB orbital frequency
         LNhat (np.ndarray): LNhat vector array array (in J frame!)
-
 
     Returns:
         (tuple): Time-dependent quaterions describing the rotation from the co-precessing frame to the J-frame
@@ -191,20 +190,22 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
      lowest overtone of the (2,2) and (2,1) QNM frequencies.
 
      Args:
-        t_full (np.ndarray): Time array of the waveform modes
-        final_spin (float): Final spin of the BH
-        final_mass (float): Final mass of the BH
-        euler_angles_attach (np.ndarray): Euler angles (alpha,beta,gamma) at the attachment time
+        t_full (np.ndarray): Time array of the waveform modes.
+        precRate (float): Precessing rate,  differences between the lowest overtone of the
+                          (2,2) and (2,1) QNM frequencies. See Eq. (3.4) of 2004.09442.
+        euler_angles_attach (np.ndarray): Euler angles (alpha,beta,gamma) at the attachment time.
+        euler_angles_derivative_attach (np.ndarray): Time derivative of the Euler angles (alpha,beta,gamma) at the attachment time.
         t_attach (float): Attachment time of the dynamics and the ringdown
         idx (int): Index at which the attachment of the ringdown is performed
         flip (int): Sign of the direction of the final spin with respect to the final orbital angular momentum
                     It distinguishes between the prograde and the retrograde cases
                     See Sec. III B of https://arxiv.org/pdf/2004.09442v1.pdf for details
         rd_approx (bool): If True apply the approximation of the Euler angles, if False use constant angles
+        rd_smoothing (bool): If True apply smoothing of the Euler angles, if False do not apply the smoothing
         beta_approx (int): If 0 use constant beta angle, otherwise use small opening angle approximation
 
     Returns:
-        (quaternion): Quaternion describing the ringdown approximation of the Euler angles in the J-frame
+        (quaternion.quaternion): Quaternion describing the ringdown approximation of the Euler angles in the J-frame
     """
     alphaAttach, betaAttach, gammaAttach = euler_angles_attach
     t_RD = t_full[idx[-1] + 1 :]
@@ -290,8 +291,16 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
     return quat_postMerger
 
 
-def minimal_rotation_mine(R, t, v, omega, domega, iterations=2):
-    """Adjust frame so that there is no rotation about z' axis
+def minimal_rotation_mine(
+    R: quaternion.quaternion,
+    t: quaternion.quaternion,
+    v:quaternion.quaternion,
+    omega: np.ndarray,
+    domega: np.ndarray,
+    iterations: int=2
+):
+    """
+    Adjust frame so that there is no rotation about z' axis.
     The output of this function is a frame that rotates the z axis onto the same z' axis as the
     input frame, but with minimal rotation about that axis.  This is done by pre-composing the input
     rotation with a rotation about the z axis through an angle gamma, where
@@ -301,14 +310,18 @@ def minimal_rotation_mine(R, t, v, omega, domega, iterations=2):
     minimally rotating frame, which means that repeated application of this function improves its
     accuracy.  By default, this function is iterated twice, though a few more iterations may be
     called for.
-    Parameters
-    ----------
-    R : quaternion array
-        Time series describing rotation
-    t : float array
-        Corresponding times at which R is measured
-    iterations : int [defaults to 2]
-        Repeat the minimization to refine the result
+
+    Args:
+        R (quaternion.quaternion) : Quaternion describing rotation.
+        t (quaternion.quaternion) : Quaternion times at which R is measured.
+        v (quaternion.quaternion) : Corresponding times at which R is measured.
+        omega (np.ndarray): Orbital frequency array from EOB dynamics.
+        domega (np.ndarray): Time derivative of the orbital frequency array from EOB dynamics.
+        iterations (int):  Repeat the minimization to refine the result. Defaults to 2.
+
+    Returns:
+        (quaternion.quaternion): Quaternion with the minimum rotation condition applied on it.
+
     """
     from scipy.interpolate import CubicSpline
 
@@ -333,21 +346,26 @@ def minimal_rotation_mine(R, t, v, omega, domega, iterations=2):
     )
 
 
-def minimal_quat(v_final, V, aux, t_dyn, omega):
-    """Compute the rotation that aligns V with v_final
+def minimal_quat(
+    v_final: quaternion.quaternion,
+    V: quaternion.quaternion,
+    aux: quaternion.quaternion,
+    t_dyn: np.ndarray,
+    omega: np.ndarray
+):
+    """
+    Compute the rotation that aligns V with v_final
     and obeys the minimal rotation condition.
-    See Eq() in
 
     Args:
-        v_final (np.ndarray): The final spin.
-        V (np.ndarray): z-axis of the co-precessing frame
-        aux (np.ndarray): An optional auxiliary vector to help with
-                    numerical stability
-        t_dyn (np.ndarray): Time array from dynamics
-        omega (np.ndarray): Orbital frequency array from dynamics
+        v_final (quaternion.quaternion): z-axis quaternion of the final spin frame.
+        V (quaternion.quaternion): Quaternion of LNhat in the final spin frame.
+        aux (quaternion.quaternion): An optional auxiliary quaternion to help with numerical stability.
+        t_dyn (np.ndarray): Time array from EOB dynamics.
+        omega (np.ndarray): Orbital frequency array from EOB dynamics.
 
     Returns:
-        np.ndarray: Array of quaternions
+        (np.ndarray): Array of quaternions
     """
     omega_intrp = CubicSpline(t_dyn, omega)
     domega = omega_intrp.derivative()(t_dyn)
