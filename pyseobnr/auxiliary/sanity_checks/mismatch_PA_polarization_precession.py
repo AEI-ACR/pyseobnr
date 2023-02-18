@@ -175,7 +175,7 @@ def pa_mismatch_prec(m1,m2, s1x,s1y,s1z,s2x,s2y,s2z, iota_s,ell_max=5,initial_co
     omega_start = omega_ref
 
     distance = 1e6*lal.PC_SI
-    delta_t = 1./8192.0
+    delta_t = 1./16384.0 
     f_min = omega_start / (Mt * lal.MTSUN_SI * np.pi)
 
 
