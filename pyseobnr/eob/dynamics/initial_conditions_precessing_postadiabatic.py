@@ -21,6 +21,8 @@ def compute_IC_PA(
     m_1: float,
     m_2: float,
     splines: dict,
+    t_pn: np.array,
+    dynamics_pn: np.array,
     **kwargs,
 ):
     """Compute the postadiabatic initial conditions for an aligned-spin BBH binary
@@ -44,19 +46,21 @@ def compute_IC_PA(
     PA_success = False
 
     try :
-        postadiabatic_dynamics, omega_pa, _, splines_pa, omega_start_pa = compute_postadiabatic_dynamics(
+        postadiabatic_dynamics, omega_pa = compute_postadiabatic_dynamics(
             omega_ref,
             omega_start,
             H, RR,
             chi1_v, chi2_v,
             m_1, m_2,
             splines,
+            t_pn,
+            dynamics_pn,
             tol=1e-12,
             params=params,
             order=8,
             postadiabatic_type=postadiabatic_type,
             window_length=10,
-            #only_first_n=9,
+            only_first_n=12,
         )
 
         r0 = postadiabatic_dynamics[0, 1]
@@ -66,35 +70,6 @@ def compute_IC_PA(
 
         PA_success = True
     except:
-        """
-        X1 = params.p_params.X_1
-        X2 = params.p_params.X_2
-
-        tmp = splines["everything"](omega_start)
-        chi1_LN_start = tmp[0]
-        chi2_LN_start = tmp[1]
-        chi1_L_start = tmp[2]
-        chi2_L_start = tmp[3]
-        chi1_v_start = tmp[4:7]
-        chi2_v_start = tmp[7:10]
-        lN_start = tmp[10:13]
-
-        params.p_params.omega = omega_start
-        params.p_params.chi1_v[:] = chi1_v_start
-        params.p_params.chi2_v[:] = chi2_v_start
-
-        params.p_params.chi_1, params.p_params.chi_2 = chi1_LN_start, chi2_LN_start
-        params.p_params.chi1_L, params.p_params.chi2_L = chi1_L_start, chi2_L_start
-        params.p_params.lN[:] = lN_start
-
-        params.p_params.update_spins(chi1_LN_start, chi2_LN_start)
-
-        ap_start = chi1_LN_start * X1 + chi2_LN_start * X2
-        am_start = chi1_LN_start * X1 - chi2_LN_start * X2
-
-        dSO_start = dSO_poly_fit(params.p_params.nu, ap_start, am_start)
-        H.calibration_coeffs["dSO"] = dSO_start
-        """
 
         # If PA fails use the adiabatic initial conditions
         r0, pphi0, pr0 = computeIC_augm(
@@ -108,11 +83,11 @@ def compute_IC_PA(
                 params=params,
             )
         params.p_params.omega = omega_start
+        
     if PA_success:
         # Note that omega and omega_pa[0] may differ due to numerical noise
         # we set the initial frequency to omega_pa[0] to avoid interpolation errors
         params.p_params.omega = omega_pa[0]
-        splines = splines_pa
 
     # Update parameters
     X1 = params.p_params.X_1
@@ -154,4 +129,4 @@ def compute_IC_PA(
 
     #print(f"PA: r0 = {r0}, pphi0 = {pphi0}, pr0 = {pr0}")
 
-    return r0, pphi0, pr0, splines
+    return r0, pphi0, pr0

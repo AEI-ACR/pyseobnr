@@ -36,7 +36,11 @@ def amplitude_hierarchy(q: float, chi1x: float,  chi1y: float,  chi1z: float,  c
     try:
 
         ell_max = 5
-        settings = {'ell_max':ell_max,'beta_approx':None,'M':mt,"dt":delta_t,"return_coprec":True}
+        settings = {'ell_max':ell_max,'beta_approx':None,'M':mt,"dt":delta_t,"return_coprec":True,
+        "postadiabatic": True,
+        "postadiabatic_type": "analytic",
+        "initial_conditions":"adiabatic",
+        "initial_conditions_postadiabatic_type":"analytic"}
         _, _, model = generate_modes_opt(q,chi_1,chi_2,omega0,approximant='SEOBNRv5PHM',
                                    debug=True,settings=settings)
 

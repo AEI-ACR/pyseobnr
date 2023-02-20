@@ -23,24 +23,24 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         return self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
 
     cpdef _call(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-        
+
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-        
+
         cdef double r = q[0]
         cdef double phi = q[1]
-        
+
         cdef double prst = p[0]
         cdef double L = p[1]
-        
+
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-        
+
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -62,105 +62,105 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         # Actual Hamiltonian expressions
         cdef double Dbpm = r*(6730497718123.02*nu**3 + 133772083200.0*nu**2*r**2 + 1822680546449.21*nu**2*r + 80059249540278.2*nu**2 + 2589101062873.81*nu*r**2 + 10611661054566.2*nu*r - 12049908701745.2*nu + 5107745331375.71*r**2 - 326837426.241486*r*(14700.0*nu + 42911.0) - 39476764256925.6*r - (-5041721180160.0*nu**2 - 25392914995744.3*nu - 879923036160.0*r**2 - 283115520.0*r*(14700.0*nu + 42911.0) + 104186110149937.0)*log(r) + 5787938193408.0*log(r)**2 + 275059053208689.0)/(55296.0*nu*(14515200.0*nu**3 - 42636451.6032331*nu**2 - 2510664218.28128*nu + 1002013764.01019) - 967680.0*r**3*(-138240.0*nu**2 - 2675575.66847905*nu - 5278341.3229329) - 9216.0*r**2*(-197773496.793534*nu**2 - 630116198.873299*nu + 5805304367.87913) + r*(5927865218923.02*nu**3 + 43133561885859.3*nu**2 + 43393301259014.8*nu + 86618264430493.3*(1 - 0.496948781616935*nu)**2 + 188440788778196.0) + 5787938193408.0*r*log(r)**2 + (-1698693120.0*nu*(11592.0*nu + 69847.0) + 879923036160.0*r**3 + 283115520.0*r**2*(14700.0*nu + 42911.0) + 49152.0*r*(102574080.0*nu**2 + 409207698.136075*nu - 2119671837.36038))*log(r))
-        
+
         cdef double Apm = 7680.0*r**4*(-5416406.59541186*nu**2 + 28.0*nu*(1920.0*a6 + 733955.307463037) + 2048.0*nu*(756.0*nu + 336.0*r + 407.0)*log(r) - 7.0*r*(-185763.092693281*nu**2 + 938918.400156317*nu - 245760.0) - 3440640.0)/(241555486248.807*nu**4 + 1120.0*nu**3*(-17833256.898555*r**2 - 163683964.822551*r - 1188987459.03162) + 7.0*nu**2*(-39321600.0*a6*(3.0*r + 59.0) + 745857848.115604*a6 + 1426660551.8844*r**5 - 3089250703.76879*r**4 - 6178501407.53758*r**3 + 2064783811.32587*r**2 + 122635399361.987*r + 276057889687.011) + 67645734912.0*nu**2*log(r)**2 + 53760.0*nu*(7680.0*a6*(r**4 + 2.0*r**3 + 4.0*r**2 + 8.0*r + 16.0) + 128.0*r*(-6852.34813868015*r**4 + 4264.6962773603*r**3 + 8529.39255472061*r**2 + 13218.7851094412*r - 33722.4297811176) + 113485.217444961*r*(-r**4 + 2.0*r**3 + 4.0*r**2 + 8.0*r + 16.0) + 148.04406601634*r*(349.0*r**4 + 1926.0*r**3 + 3852.0*r**2 + 7704.0*r + 36400.0)) + 32768.0*nu*(-1882456.23663972*nu**2 - 38842241.4769507*nu + 161280.0*r**5 + 480.0*r**4*(756.0*nu + 1079.0) + 960.0*r**3*(756.0*nu + 1079.0) + 1920.0*r**2*(588.0*nu + 1079.0) + 240.0*r*(-3024.0*nu**2 - 7466.27061066206*nu + 17264.0) + 13447680.0)*log(r) + 13212057600.0*r**5)
-        
+
         cdef double t2 = chix2**2 + chiy2**2 + chiz2**2
-        
+
         cdef double t1 = chix1**2 + chiy1**2 + chiz1**2
-        
+
         cdef double ap2 = X_1**2*t1 + X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-        
+
         cdef double xi = Dbpm**0.5*r**2*(Apm + ap2/r**2)/(ap2 + r**2)
-        
+
         cdef double apam = X_1**2*t1 - X_2**2*t2
-        
+
         cdef double am2 = X_1**2*t1 - X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-        
+
         cdef double QSalign2 = prst**4*(-0.46875*am2*(4.0*nu**2 - 5.0*nu + 1.0) - 0.15625*ap2*(32.0*nu**2 - 33.0*nu - 5.0) + 0.3125*apam*delta*(18.0*nu - 1.0))/(r**3*xi**4)
-        
+
         cdef double Qpm = 1.48275342024365*nu*prst**8/r**2.5 + 0.121954868780449*nu*prst**8/r - 11.3175085791863*nu*prst**6/r**3.5 + 147.443752990146*nu*prst**4/r**4.5 + prst**8*(-6.0*nu**4 + 3.42857142857143*nu**3 + 3.33842023648322*nu**2 + 1.38977750996128*nu)/r**2 + prst**6*(6.0*nu**3 - 5.4*nu**2 - 2.78300763695006*nu)/r**2 + prst**6*(-14.0*nu**4 + 188.0*nu**3 - 89.5298327361234*nu**2 - 33.9782122170436*nu)/r**3 + prst**4*(-6.0*nu**2 + 8.0*nu)/r**2 + prst**4*(10.0*nu**3 - 131.0*nu**2 + 92.7110442849544*nu)/r**3 + prst**4*(602.318540416564*nu**3 + nu**2*(118.4*log(r) - 1796.13660498019) + nu*(452.542166996693 - 51.6952380952381*log(r)))/r**4
-        
+
         cdef double Qq = QSalign2 + Qpm
-        
+
         cdef double Bnpa = -r*(r + 2.0)/(ap2*r*(r + 2.0) + r**4)
-        
+
         cdef double BnpSalign2 = (0.1875*am2*(4.0*nu - 1.0) + ap2*(3.0*nu + 2.8125) - 2.625*apam*delta)/r**3 + (0.015625*am2*(4.0*nu**2 + 115.0*nu - 37.0) + 0.015625*ap2*(-1171.0*nu - 861.0) + 0.03125*apam*delta*(26.0*nu + 449.0))/r**4
-        
+
         cdef double Bnp = Apm*Dbpm + BnpSalign2 + ap2/r**2 - 1.0
-        
+
         cdef double amz = chi_1*X_1 - chi_2*X_2
-        
+
         cdef double apz = chi_1*X_1 + chi_2*X_2
-        
+
         cdef double napnam = -0.5*amz*apz + 0.5*apam
-        
+
         cdef double amz2 = amz**2
-        
+
         cdef double nam2 = 0.5*am2 - 0.5*amz2
-        
+
         cdef double apz2 = apz**2
-        
+
         cdef double nap2 = 0.5*ap2 - 0.5*apz2
-        
+
         cdef double BpSprec2 = -nap2/r**2 + (nam2*(0.1875 - 0.75*nu) + nap2*(-1.75*nu - 0.9375) + napnam*(0.75 - 1.5*X_2))/r**3 + (-0.125*delta*napnam*(98.0*nu + 43.0) + 0.015625*nam2*(152.0*nu**2 - 1090.0*nu + 219.0) + 0.00520833333333333*nap2*(264.0*nu**2 - 1610.0*nu + 375.0))/r**4
-        
+
         cdef double Bp = BpSprec2 + 1.0
-        
+
         cdef double ASprec2 = 2.0*nap2/r**3 + (4.125*delta*napnam + 0.125*nam2*(-4.0*nu - 3.0) + 0.25*nap2*(7.0*nu - 31.0))/r**4 + (0.25*delta*napnam*(68.0*nu - 1.0) + 0.015625*nam2*(-328.0*nu**2 + 1166.0*nu - 171.0) + 0.00520833333333333*nap2*(-264.0*nu**2 + 2870.0*nu + 561.0))/r**5
-        
+
         cdef double ASalign2 = (0.125*am2*(4.0*nu + 1.0) + 1.125*ap2 - 1.25*apam*delta)/r**4 + (0.046875*am2*(28.0*nu**2 - 27.0*nu - 3.0) - 0.390625*ap2*(7.0*nu + 9.0) - 1.21875*apam*delta*(2.0*nu - 3.0))/r**5
-        
+
         cdef double A = (ASalign2 + ASprec2 + Apm + ap2/r**2)/(ap2*(1.0 + 2.0/r)/r**2 + 1.0)
-        
+
         cdef double ap = X_1*chiL1 + X_2*chiL2
-        
+
         cdef double lap = ap
-        
+
         cdef double Heven = (A*(Bnpa*L**2*lap**2/r**2 + Bp*L**2/r**2 + Qq + prst**2*(Bnp + 1.0)/xi**2 + 1.0))**0.5
-        
+
         cdef double am = X_1*chiL1 - X_2*chiL2
-        
+
         cdef double lam = am
-        
+
         cdef double Ga3 = L*lam*(-0.25*L**2*delta*nap2/r**3 + (0.0416666666666667*ap2*delta + nap2*(0.416666666666667 - 0.833333333333333*X_2))/r**2) + L*lap*(L**2*(-0.25*nap2 + napnam*(0.5 - X_2))/r**3 + (-0.25*ap2 + 0.208333333333333*apam*delta - 1.66666666666667*delta*napnam - 0.75*nap2)/r**2)
-        
+
         cdef double SOcalib = L*nu*dSO*lap/r**3
-        
+
         cdef double gam = L**4*(0.29296875*nu**2 - 0.3515625*nu - 0.41015625)/r**4 + L**2*(0.46875 - 0.28125*nu)/r**2 + L**2*(-0.798177083333333*nu**2 - 0.2734375*nu - 0.23046875)/r**3 + 0.25 + (0.34375*nu + 0.09375)/r + (0.536458333333333*nu**2 - 0.03125*nu + 0.078125)/r**2
-        
+
         cdef double gap = L**4*(1.34765625*nu**2 + 0.5859375*nu + 0.41015625)/r**4 + L**2*(-1.40625*nu - 0.46875)/r**2 + L**2*(-2.07161458333333*nu**2 - 2.0859375*nu + 0.23046875)/r**3 + 1.75 + (0.71875*nu - 0.09375)/r + (0.567708333333333*nu**2 - 5.53125*nu - 0.078125)/r**2
-        
+
         cdef double Hodd = (Ga3 + L*delta*gam*lam + L*gap*lap + SOcalib)/(ap2*(r + 2.0) + r**3)
-        
+
         cdef double pr = prst/xi
-        
+
         cdef double Heff = Heven + Hodd
 
         # Evaluate H_real/nu
         cdef double H = M * sqrt(1+2*nu*(Heff-1)) / nu
         return H,xi, A, Bnp, Bnpa, Qq, Heven, Hodd, Bp
-        
+
 
     cpdef grad(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-        
+
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-        
+
         cdef double r = q[0]
         cdef double phi = q[1]
-        
+
         cdef double prst = p[0]
         cdef double L = p[1]
-        
+
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-        
+
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -436,7 +436,7 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         return dHdr, dHdphi, dHdpr, dHdpphi
     cpdef hessian(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-        
+
         """
         Toy aligned-spin Hamiltonian
 
@@ -444,17 +444,17 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
 
         # Coordinate definitions
-        
+
         cdef double r = q[0]
         cdef double phi = q[1]
-        
+
         cdef double prst = p[0]
         cdef double L = p[1]
-        
+
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-        
+
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -1234,24 +1234,24 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         return np.array([d2Hdr2, d2Hdrdphi, d2Hdrdpr, d2Hdrdpphi, d2Hdrdphi, d2Hdphi2, d2Hdphidpr, d2Hdphidpphi, d2Hdrdpr, d2Hdphidpr, d2Hdpr2, d2Hdprdpphi, d2Hdrdpphi, d2Hdphidpphi, d2Hdprdpphi, d2Hdpphi2]).reshape(4, 4)
 
     cdef double xi(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-       
+
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-        
+
         cdef double r = q[0]
         cdef double phi = q[1]
-        
+
         cdef double prst = p[0]
         cdef double L = p[1]
-        
+
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-        
+
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -1273,83 +1273,21 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         # Actual Hamiltonian expressions
         cdef double Dbpm = r*(6730497718123.02*nu**3 + 133772083200.0*nu**2*r**2 + 1822680546449.21*nu**2*r + 80059249540278.2*nu**2 + 2589101062873.81*nu*r**2 + 10611661054566.2*nu*r - 12049908701745.2*nu + 5107745331375.71*r**2 - 326837426.241486*r*(14700.0*nu + 42911.0) - 39476764256925.6*r - (-5041721180160.0*nu**2 - 25392914995744.3*nu - 879923036160.0*r**2 - 283115520.0*r*(14700.0*nu + 42911.0) + 104186110149937.0)*log(r) + 5787938193408.0*log(r)**2 + 275059053208689.0)/(55296.0*nu*(14515200.0*nu**3 - 42636451.6032331*nu**2 - 2510664218.28128*nu + 1002013764.01019) - 967680.0*r**3*(-138240.0*nu**2 - 2675575.66847905*nu - 5278341.3229329) - 9216.0*r**2*(-197773496.793534*nu**2 - 630116198.873299*nu + 5805304367.87913) + r*(5927865218923.02*nu**3 + 43133561885859.3*nu**2 + 43393301259014.8*nu + 86618264430493.3*(1 - 0.496948781616935*nu)**2 + 188440788778196.0) + 5787938193408.0*r*log(r)**2 + (-1698693120.0*nu*(11592.0*nu + 69847.0) + 879923036160.0*r**3 + 283115520.0*r**2*(14700.0*nu + 42911.0) + 49152.0*r*(102574080.0*nu**2 + 409207698.136075*nu - 2119671837.36038))*log(r))
-        
+
         cdef double Apm = 7680.0*r**4*(-5416406.59541186*nu**2 + 28.0*nu*(1920.0*a6 + 733955.307463037) + 2048.0*nu*(756.0*nu + 336.0*r + 407.0)*log(r) - 7.0*r*(-185763.092693281*nu**2 + 938918.400156317*nu - 245760.0) - 3440640.0)/(241555486248.807*nu**4 + 1120.0*nu**3*(-17833256.898555*r**2 - 163683964.822551*r - 1188987459.03162) + 7.0*nu**2*(-39321600.0*a6*(3.0*r + 59.0) + 745857848.115604*a6 + 1426660551.8844*r**5 - 3089250703.76879*r**4 - 6178501407.53758*r**3 + 2064783811.32587*r**2 + 122635399361.987*r + 276057889687.011) + 67645734912.0*nu**2*log(r)**2 + 53760.0*nu*(7680.0*a6*(r**4 + 2.0*r**3 + 4.0*r**2 + 8.0*r + 16.0) + 128.0*r*(-6852.34813868015*r**4 + 4264.6962773603*r**3 + 8529.39255472061*r**2 + 13218.7851094412*r - 33722.4297811176) + 113485.217444961*r*(-r**4 + 2.0*r**3 + 4.0*r**2 + 8.0*r + 16.0) + 148.04406601634*r*(349.0*r**4 + 1926.0*r**3 + 3852.0*r**2 + 7704.0*r + 36400.0)) + 32768.0*nu*(-1882456.23663972*nu**2 - 38842241.4769507*nu + 161280.0*r**5 + 480.0*r**4*(756.0*nu + 1079.0) + 960.0*r**3*(756.0*nu + 1079.0) + 1920.0*r**2*(588.0*nu + 1079.0) + 240.0*r*(-3024.0*nu**2 - 7466.27061066206*nu + 17264.0) + 13447680.0)*log(r) + 13212057600.0*r**5)
-        
+
         cdef double t2 = chix2**2 + chiy2**2 + chiz2**2
-        
+
         cdef double t1 = chix1**2 + chiy1**2 + chiz1**2
-        
+
         cdef double ap2 = X_1**2*t1 + X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-        
+
         cdef double xi = Dbpm**0.5*r**2*(Apm + ap2/r**2)/(ap2 + r**2)
         
-        cdef double apam = X_1**2*t1 - X_2**2*t2
-        
-        cdef double am2 = X_1**2*t1 - X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
-        
-        cdef double QSalign2 = prst**4*(-0.46875*am2*(4.0*nu**2 - 5.0*nu + 1.0) - 0.15625*ap2*(32.0*nu**2 - 33.0*nu - 5.0) + 0.3125*apam*delta*(18.0*nu - 1.0))/(r**3*xi**4)
-        
-        cdef double Qpm = 1.48275342024365*nu*prst**8/r**2.5 + 0.121954868780449*nu*prst**8/r - 11.3175085791863*nu*prst**6/r**3.5 + 147.443752990146*nu*prst**4/r**4.5 + prst**8*(-6.0*nu**4 + 3.42857142857143*nu**3 + 3.33842023648322*nu**2 + 1.38977750996128*nu)/r**2 + prst**6*(6.0*nu**3 - 5.4*nu**2 - 2.78300763695006*nu)/r**2 + prst**6*(-14.0*nu**4 + 188.0*nu**3 - 89.5298327361234*nu**2 - 33.9782122170436*nu)/r**3 + prst**4*(-6.0*nu**2 + 8.0*nu)/r**2 + prst**4*(10.0*nu**3 - 131.0*nu**2 + 92.7110442849544*nu)/r**3 + prst**4*(602.318540416564*nu**3 + nu**2*(118.4*log(r) - 1796.13660498019) + nu*(452.542166996693 - 51.6952380952381*log(r)))/r**4
-        
-        cdef double Qq = QSalign2 + Qpm
-        
-        cdef double Bnpa = -r*(r + 2.0)/(ap2*r*(r + 2.0) + r**4)
-        
-        cdef double BnpSalign2 = (0.1875*am2*(4.0*nu - 1.0) + ap2*(3.0*nu + 2.8125) - 2.625*apam*delta)/r**3 + (0.015625*am2*(4.0*nu**2 + 115.0*nu - 37.0) + 0.015625*ap2*(-1171.0*nu - 861.0) + 0.03125*apam*delta*(26.0*nu + 449.0))/r**4
-        
-        cdef double Bnp = Apm*Dbpm + BnpSalign2 + ap2/r**2 - 1.0
-        
-        cdef double amz = chi_1*X_1 - chi_2*X_2
-        
-        cdef double apz = chi_1*X_1 + chi_2*X_2
-        
-        cdef double napnam = -0.5*amz*apz + 0.5*apam
-        
-        cdef double amz2 = amz**2
-        
-        cdef double nam2 = 0.5*am2 - 0.5*amz2
-        
-        cdef double apz2 = apz**2
-        
-        cdef double nap2 = 0.5*ap2 - 0.5*apz2
-        
-        cdef double BpSprec2 = -nap2/r**2 + (nam2*(0.1875 - 0.75*nu) + nap2*(-1.75*nu - 0.9375) + napnam*(0.75 - 1.5*X_2))/r**3 + (-0.125*delta*napnam*(98.0*nu + 43.0) + 0.015625*nam2*(152.0*nu**2 - 1090.0*nu + 219.0) + 0.00520833333333333*nap2*(264.0*nu**2 - 1610.0*nu + 375.0))/r**4
-        
-        cdef double Bp = BpSprec2 + 1.0
-        
-        cdef double ASprec2 = 2.0*nap2/r**3 + (4.125*delta*napnam + 0.125*nam2*(-4.0*nu - 3.0) + 0.25*nap2*(7.0*nu - 31.0))/r**4 + (0.25*delta*napnam*(68.0*nu - 1.0) + 0.015625*nam2*(-328.0*nu**2 + 1166.0*nu - 171.0) + 0.00520833333333333*nap2*(-264.0*nu**2 + 2870.0*nu + 561.0))/r**5
-        
-        cdef double ASalign2 = (0.125*am2*(4.0*nu + 1.0) + 1.125*ap2 - 1.25*apam*delta)/r**4 + (0.046875*am2*(28.0*nu**2 - 27.0*nu - 3.0) - 0.390625*ap2*(7.0*nu + 9.0) - 1.21875*apam*delta*(2.0*nu - 3.0))/r**5
-        
-        cdef double A = (ASalign2 + ASprec2 + Apm + ap2/r**2)/(ap2*(1.0 + 2.0/r)/r**2 + 1.0)
-        
-        cdef double ap = X_1*chiL1 + X_2*chiL2
-        
-        cdef double lap = ap
-        
-        cdef double Heven = (A*(Bnpa*L**2*lap**2/r**2 + Bp*L**2/r**2 + Qq + prst**2*(Bnp + 1.0)/xi**2 + 1.0))**0.5
-        
-        cdef double am = X_1*chiL1 - X_2*chiL2
-        
-        cdef double lam = am
-        
-        cdef double Ga3 = L*lam*(-0.25*L**2*delta*nap2/r**3 + (0.0416666666666667*ap2*delta + nap2*(0.416666666666667 - 0.833333333333333*X_2))/r**2) + L*lap*(L**2*(-0.25*nap2 + napnam*(0.5 - X_2))/r**3 + (-0.25*ap2 + 0.208333333333333*apam*delta - 1.66666666666667*delta*napnam - 0.75*nap2)/r**2)
-        
-        cdef double SOcalib = L*nu*dSO*lap/r**3
-        
-        cdef double gam = L**4*(0.29296875*nu**2 - 0.3515625*nu - 0.41015625)/r**4 + L**2*(0.46875 - 0.28125*nu)/r**2 + L**2*(-0.798177083333333*nu**2 - 0.2734375*nu - 0.23046875)/r**3 + 0.25 + (0.34375*nu + 0.09375)/r + (0.536458333333333*nu**2 - 0.03125*nu + 0.078125)/r**2
-        
-        cdef double gap = L**4*(1.34765625*nu**2 + 0.5859375*nu + 0.41015625)/r**4 + L**2*(-1.40625*nu - 0.46875)/r**2 + L**2*(-2.07161458333333*nu**2 - 2.0859375*nu + 0.23046875)/r**3 + 1.75 + (0.71875*nu - 0.09375)/r + (0.567708333333333*nu**2 - 5.53125*nu - 0.078125)/r**2
-        
-        cdef double Hodd = (Ga3 + L*delta*gam*lam + L*gap*lap + SOcalib)/(ap2*(r + 2.0) + r**3)
-        
-        cdef double pr = prst/xi
-        
-
         return xi
+
     cpdef dynamics(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-        
+
         """
         Toy aligned-spin Hamiltonian
 
@@ -1357,17 +1295,17 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         """
 
         # Coordinate definitions
-        
+
         cdef double r = q[0]
         cdef double phi = q[1]
-        
+
         cdef double prst = p[0]
         cdef double L = p[1]
-        
+
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-        
+
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -1644,24 +1582,24 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         return dHdr, dHdphi, dHdpr, dHdpphi,H,xi
     cpdef double omega(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-        
+
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-        
+
         cdef double r = q[0]
         cdef double phi = q[1]
-        
+
         cdef double prst = p[0]
         cdef double L = p[1]
-        
+
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-        
+
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
@@ -1793,24 +1731,24 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         return omega
 
     cpdef auxderivs(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-        
+
         """
         Toy aligned-spin Hamiltonian
 
         """
 
         # Coordinate definitions
-        
+
         cdef double r = q[0]
         cdef double phi = q[1]
-        
+
         cdef double prst = p[0]
         cdef double L = p[1]
-        
+
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
         cdef double chiz1 = chi1_v[2]
-        
+
         cdef double chix2 = chi2_v[0]
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
