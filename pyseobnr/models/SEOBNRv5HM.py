@@ -136,7 +136,7 @@ class SEOBNRv5HM_opt(Model):
                 self.omega0 = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
                 self.f0 = self.omega0 / (self.M * lal.MTSUN_SI * np.pi)
 
-        # The choice of step-back is determined by the range of 
+        # The choice of step-back is determined by the range of
         # NR_deltaT in the parameter space of application.
         # The largest value is reached for maximum q and
         # maximum negative spins. The default choice of 250
@@ -149,7 +149,7 @@ class SEOBNRv5HM_opt(Model):
         self.dt = self.settings["dt"]
         self.delta_T = self.dt / (self.M * lal.MTSUN_SI)
         self.f_nyquist = 0.5/self.delta_T
-        
+
         # print(f"In SI units, dt = {self.dt}. In geometric units, with M={self.M}, delta_T={self.delta_T}")
         self.prefixes = compute_newtonian_prefixes(self.m_1, self.m_2)
 
@@ -606,7 +606,14 @@ class SEOBNRv5PHM_opt(Model):
         self.nu = self.m_1 * self.m_2 / (self.m_1 + self.m_2) ** 2
 
         self.omega_start = omega_start
+
+        # Do not use a omega_start which implies r0< 10.5, if that is
+        # the case change starting frequency to correspond to r0=10.5M
+        if (self.omega_start)**(-2./3.) < 10.5:
+            self.omega_start = (10.5)**(-3./2.)
+
         self.f_start = omega_start / (self.M * lal.MTSUN_SI * np.pi)
+
 
         # Deal with reference and starting frequencies
         if omega_ref:
@@ -710,7 +717,7 @@ class SEOBNRv5PHM_opt(Model):
             polarizations_from_coprec=False,  # True for computing directly polarizations
             beta_approx=0,
             rd_approx=True,
-            rd_smoothing=True,
+            rd_smoothing=False,
         )
         return settings
 
@@ -843,7 +850,6 @@ class SEOBNRv5PHM_opt(Model):
 
     def _evaluate_model(self):
         try:
-            # TODO: implement PA dynamics
 
             # Generate PN and EOB dynamics
             if not self.settings["postadiabatic"]:
@@ -852,12 +858,9 @@ class SEOBNRv5PHM_opt(Model):
                     dynamics_fine,
                     t_PN,
                     dyn_PN,
-                    tmp_LN_low,
-                    tmp_LN_fine,
                     splines,
                     dynamics,
                     idx_restart,
-                    res,
                 ) = compute_dynamics_quasiprecessing(
                     self.omega_ref,
                     self.omega_start,
@@ -868,17 +871,13 @@ class SEOBNRv5PHM_opt(Model):
                     self.chi1_v,
                     self.chi2_v,
                     self.eob_pars,
-                    rtol=1e-9,  # 1e-11,
-                    atol=1e-9,  # 1e-12,
+                    rtol=1e-8,  # 1e-11,
+                    atol=1e-8,  # 1e-12,
                     step_back=self.step_back,
                     initial_conditions=self.settings["initial_conditions"],
-                    initial_conditions_postadiabatic_type=self.settings[
-                        "initial_conditions_postadiabatic_type"
-                    ],
+                    initial_conditions_postadiabatic_type=self.settings["initial_conditions_postadiabatic_type"],
                 )
             else:
-                # self.omega_start = 0.019
-
                 (
                     dynamics_low,
                     dynamics_fine,
@@ -886,9 +885,6 @@ class SEOBNRv5PHM_opt(Model):
                     dyn_PN,
                     splines,
                     dynamics,
-                    tmp_LN_low,
-                    tmp_LN_fine,
-                    omega_start_pa,
                 ) = compute_combined_dynamics_exp_v1(
                     self.omega_ref,
                     self.omega_start,
@@ -904,16 +900,8 @@ class SEOBNRv5PHM_opt(Model):
                     step_back=self.step_back,
                     postadiabatic_type=self.settings["postadiabatic_type"],
                 )
-                res = None
                 idx_restart = len(dynamics_low)
-                # print(f"f_start = {self.f_start}, omega_start = {self.omega_start}, omega_start = {omega_start_pa}")
-                self.omega_start = omega_start_pa
-                self.f_start = omega_start_pa / (self.M * lal.MTSUN_SI * np.pi)
-                # print(f"f_start = {self.f_start}, omega_start = {self.omega_start}")
 
-            tmp_LN = dyn_PN[:, :3]
-            self.LNhat = tmp_LN
-            self.res = res
             self.idx_restart = idx_restart
             self.pn_dynamics = np.c_[t_PN, dyn_PN]
             self.dynamics_fine = dynamics_fine
@@ -953,7 +941,6 @@ class SEOBNRv5PHM_opt(Model):
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
                 phase_shift = intrp_phase(t_correct)
-                # print(f"phase_shift = {phase_shift}, t_correct = {t_correct}")
                 # Shift the phase for all dynamics arrays
                 self.dynamics[:, 2] -= phase_shift
                 dynamics_low[:, 2] -= phase_shift
@@ -967,7 +954,6 @@ class SEOBNRv5PHM_opt(Model):
 
             t_fine = dynamics_fine[:, 0]
 
-            # print(f"r_restart = {dynamics[:,1][idx_restart]}, rISCO = {r_ISCO}")
             # Use restart index to interpolate only in the region typically r>6
             # This avoids interpolation errors at close separations where drdt can be > 0
             u_rlow = 1.0 / dynamics_low[:, 1]  # [:idx_restart]
@@ -981,6 +967,7 @@ class SEOBNRv5PHM_opt(Model):
             iom = CubicSpline(t_dyn, omega_dyn)
             om_r10M = iom(t_r10M)
             tmp = splines["everything"](om_r10M)
+
             chi1LN_om_r10M = tmp[0]
             chi2LN_om_r10M = tmp[1]
             chi1_om_r10M = tmp[4:7]
@@ -992,7 +979,6 @@ class SEOBNRv5PHM_opt(Model):
             r_ISCO, _ = Kerr_ISCO(chi1LN_om_r10M, chi2LN_om_r10M, self.m_1, self.m_2,)
 
             self.r_ISCO = r_ISCO
-            # print(f"r_ISCO = {r_ISCO}")
             r_fine = dynamics_fine[:, 1]
 
             if r_ISCO < r_fine[-1]:
@@ -1028,7 +1014,6 @@ class SEOBNRv5PHM_opt(Model):
 
             # Compute the timeshift from the reference point
             self.NR_deltaT = NR_deltaT_NS(self.nu) + NR_deltaT(self.nu, ap, am)
-            # print(f"NR_deltaT = {self.NR_deltaT}")
             self.t_ISCO = t_ISCO
             self.omega_rISCO = om_rISCO
             t_attach = t_ISCO - self.NR_deltaT
@@ -1046,7 +1031,6 @@ class SEOBNRv5PHM_opt(Model):
                 )
 
             self.t_attach = t_attach
-            # print(f"t_attach = {t_attach}")
             # For the following steps, we also need spins at the attachment point
             # First compute the orbital frequency at that point
             # iom_orb_fine = CubicSpline(dynamics_fine[:, 0], dynamics_fine[:, 6])
@@ -1062,7 +1046,6 @@ class SEOBNRv5PHM_opt(Model):
 
             chi1_attach = tmp[4:7]
             chi2_attach = tmp[7:10]
-            LN_attach = tmp[10:13]
             Lvec_attach = tmp[13:16]
 
             Jf_attach = (
@@ -1076,8 +1059,6 @@ class SEOBNRv5PHM_opt(Model):
 
             self.Lvec_hat_attach = Lvec_hat_attach
             self.Jfhat_attach = Jfhat_attach
-
-            # print(f"tattach : Lvec = {Lvec_attach}, s1 = {chi1_attach*self.m_1*self.m_1}, s2 = {chi2_attach*self.m_2*self.m_2}, Jf bo = {Jf}")
 
             self.eob_pars.p_params.chi_1 = chi1LN_attach
             self.eob_pars.p_params.chi_2 = chi2LN_attach
@@ -1164,7 +1145,7 @@ class SEOBNRv5PHM_opt(Model):
             hlms_low = compute_hlms_new(dynamics_low[:, 1:], self.eob_pars)
 
             # Apply the NQC corrections to inspiral modes
-            t_low = dynamics_low[:, 0]
+            #t_low = dynamics_low[:, 0]
             omega_orb_low = dynamics_low[:, 6]
 
             # Polar dynamics, r,pr,omega_orb
@@ -1255,10 +1236,6 @@ class SEOBNRv5PHM_opt(Model):
             qt = quaternion.as_quat_array(np.zeros((len(t_full), 4)))
 
             self.idx = idx
-            self.t_low = t_low
-            self.t_fine = t_fine
-            self.tmp_LN_low = tmp_LN_low
-            self.tmp_LN_fine = tmp_LN_fine
             self.final_spin = final_spin
             self.final_mass = final_mass
             self.t_attach = t_attach

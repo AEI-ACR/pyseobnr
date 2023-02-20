@@ -49,14 +49,9 @@ extensions = [
              include_dirs=[np.get_include(),"pyseobnr/eob/utils","pyseobnr/eob/hamiltonian"],
              extra_compile_args=['-O3']
     ),
-    Extension("pyseobnr.eob.hamiltonian.Ham_AvgS2precess_simple_cython_AD", ["pyseobnr/eob/hamiltonian/Ham_AvgS2precess_simple_cython_AD.pyx"],
-             include_dirs=[np.get_include(),"pyseobnr/eob/utils","pyseobnr/eob/hamiltonian"],
-             extra_compile_args=['-O3'],
-
-
-    ),
     Extension("pyseobnr.eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD", ["pyseobnr/eob/hamiltonian/Ham_AvgS2precess_simple_cython_PA_AD.pyx"],
              include_dirs=[np.get_include(),"pyseobnr/eob/utils","pyseobnr/eob/hamiltonian"],
+             extra_compile_args=['-O3'],
     ),
 ]
 

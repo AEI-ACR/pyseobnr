@@ -2,7 +2,7 @@ import argparse
 import importlib
 import os,sys
 from mimetypes import MimeTypes
-import lal
+import lal, lalsimulation as lalsim
 import numpy as np
 
 
@@ -104,22 +104,51 @@ def generate_v5PHM_waveform(m1:float, m2:float,
             modes_dict["{},{}".format(ell, m)] = modes[key] # Minus sign to have same convention as v5PHM
             modes_dict["{},-{}".format(ell,m)] = pow(-1.,ll) * np.conjugate(modes[key]) # Minus sign to have same convention as v5PHM
 
+    elif 'IMRPhenomT' in approx:
 
+        time = {}
+        modes_dict = {}
+        wf_param = lal.CreateDict()
+        hp, hc = lalsim.SimInspiralChooseTDWaveform(
+                        m1 * lal.MSUN_SI,
+                        m2 * lal.MSUN_SI,
+                        s1x,
+                        s1y,
+                        s1z,
+                        s2x,
+                        s2y,
+                        s2z,
+                        distance,
+                        iota,
+                        phi,
+                        0.0,
+                        0.,
+                        0.,
+                        delta_t,
+                        f_min,
+                        f_min,
+                        wf_param,
+                        lalsim.GetApproximantFromString(approx),
+                    )
     else:
         raise NotImplementedError
 
+    if 'SEOBNRv5' in approx:
+        hp_NR, hc_NR = combine_modes(iota, phi, modes_dict)
 
+        t_s = timeMtoSec(time, mtotal)
+        hp = ampNRtoPhysicalTD(hp_NR,mtotal,distance)
+        hc = ampNRtoPhysicalTD(hc_NR,mtotal,distance)
 
-    hp_NR, hc_NR = combine_modes(iota, phi, modes_dict)
+        # Taper
+        hp_td = TimeSeries(hp, delta_t=delta_t)
+        hc_td = TimeSeries(hc, delta_t=delta_t)
+    else:
 
-    t_s = timeMtoSec(time, mtotal)
-    hp = ampNRtoPhysicalTD(hp_NR,mtotal,distance)
-    hc = ampNRtoPhysicalTD(hc_NR,mtotal,distance)
+        # Taper
+        hp_td = TimeSeries(hp.data.data, delta_t=delta_t)
+        hc_td = TimeSeries(hc.data.data, delta_t=delta_t)
 
-
-    # Taper
-    hp_td = TimeSeries(hp, delta_t=delta_t)
-    hc_td = TimeSeries(hc, delta_t=delta_t)
     hp_td = taper_timeseries(hp_td, tapermethod="startend")
     hc_td = taper_timeseries(hc_td, tapermethod="startend")
 
@@ -156,9 +185,11 @@ def mismatch_v5P_strain(
     omega0 = 0.02
     f_min = omega0 / (np.pi * (m1 + m2) * lal.MTSUN_SI)
     distance = 1e6*lal.PC_SI
-    delta_t = 1./16384.0
+    delta_t = 1./4096.0#8192.0
 
     # Generate TD polatizations of SEOBNRv5HM
+
+    """
     time_v5, modes_v5, hp_td_v5, hc_td_v5 = generate_v5PHM_waveform(m1, m2,
                                 0.,0., chi1,
                                 0.,0., chi2,
@@ -170,12 +201,30 @@ def mismatch_v5P_strain(
 
 
     # Generate TD polatizations of SEOBNRv5PHM
+
     time_v5p, modes_v5p, hp_td_v5p, hc_td_v5p = generate_v5PHM_waveform(m1, m2,
                                 0.,0., chi1,
                                 0.,0., chi2,
                                 f_min,
                                 iota_s, phi_s, distance,
                                 delta_t, 'SEOBNRv5PHM')
+    """
+
+
+    time_v5, modes_v5, hp_td_v5, hc_td_v5 = generate_v5PHM_waveform(m1, m2,
+                                0.,0., chi1,
+                                0.,0., chi2,
+                                f_min,
+                                iota_s, phi_s, distance,
+                                delta_t, 'IMRPhenomTPHM')
+
+
+    time_v5p, modes_v5p, hp_td_v5p, hc_td_v5p = generate_v5PHM_waveform(m1, m2,
+                                0.,0., chi1,
+                                0.,0., chi2,
+                                f_min,
+                                iota_s, phi_s, distance,
+                                delta_t, 'IMRPhenomTPHM')
 
     # Pad zeros
     N = max(len(hp_td_v5), len(hc_td_v5p))
@@ -217,8 +266,9 @@ def mismatch_v5P_strain(
 
     f_high_phys = 2048.
 
+    #"""
     try:
-
+        #psd = aLIGOZeroDetHighPowerGWINC(len(hp_v5), hp_v5.delta_f, f_low_phys)
         psd = aLIGOZeroDetHighPower(len(hp_v5), hp_v5.delta_f, f_low_phys)
 
         # Compute match for hplus
@@ -240,6 +290,7 @@ def mismatch_v5P_strain(
 
         # Take the mean
         mm_mean  = 1.-np.mean([mm_hp,mm_hc])
+
     except:
 
         print(
@@ -247,7 +298,9 @@ def mismatch_v5P_strain(
         )
         mm_mean = -1
         pass
+    #"""
 
+    mm_mean=-1
     #print(m1,m2,chi1,chi2,iota_s,mm_mean)
     return (m1,m2, chi1, chi2, iota_s, mm_mean)
 

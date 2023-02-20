@@ -4,12 +4,6 @@ from .eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
 from .eob.waveform.waveform import SEOBNRv5RRForce
 from .models import SEOBNRv5HM
 
-from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_AD import (
-    Ham_AvgS2precess_simple_cython_AD as Ham_prec_cy,
-)
-
-
-
 from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
     Ham_AvgS2precess_simple_cython_PA_AD as Ham_prec_pa_cy,
 )
@@ -114,7 +108,6 @@ class GenerateWaveform:
             approximant: 'SEOBNRv5HM' or 'SEOBNRv5PHM' (not implemented yet), Default: 'SEOBNRv5HM'
 
         """
-
         self.validate_parameters(parameters)
 
     def validate_parameters(self, parameters):
@@ -160,6 +153,7 @@ class GenerateWaveform:
             "initial_conditions_postadiabatic_type": "analytic",
             "postadiabatic": True,
             "postadiabatic_type": "analytic",
+            'r_size_input':12,
         }
 
         for param in default_params.keys():
@@ -282,6 +276,9 @@ class GenerateWaveform:
                     postadiabatic_type=self.parameters["postadiabatic_type"]
                 )
 
+        if "r_size_input" in self.parameters:
+            settings.update(r_size_input=self.parameters["r_size_input"])
+
         if "initial_conditions" in self.parameters:
             settings.update(initial_conditions=self.parameters["initial_conditions"])
 
@@ -391,6 +388,8 @@ class GenerateWaveform:
                 if "initial_conditions_postadiabatic_type" in self.parameters:
                     settings.update(initial_conditions_postadiabatic_type=self.parameters["initial_conditions_postadiabatic_type"])
 
+            if 'r_size_input' in self.parameters:
+                settings.update(r_size_input=self.parameters["r_size_input"])
 
             if self.parameters["mode_array"] != None:
                 settings["return_modes"] = self.parameters[
@@ -519,7 +518,6 @@ class GenerateWaveform:
 
         Routine similar to LAL SimInspiralFD.
         """
-
         # Adjust deltaT depending on sampling rate
         fmax = self.parameters["f_max"]
         f_nyquist = fmax
