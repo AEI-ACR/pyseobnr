@@ -29,42 +29,7 @@ from .pn_evolution_opt import build_splines_PN
 from .integrate_ode_prec import compute_dynamics_prec_opt
 from pyseobnr.eob.utils.math_ops_opt import my_dot, my_norm
 
-
-
-@cython.profile(True)
-@cython.linetrace(True)
-cpdef Kerr_ISCO(
-    double chi1,
-    double chi2,
-    double m1,
-    double m2,
-):
-    """
-    Orbital separation and angular momentum of the Innermost Stable Circular Orbit (ISCO)
-    for a Kerr black hole computed from the final spin estimated from NR fits
-
-    Args:
-        chi1 (double): Projection of the primary dimensionless spin onto LNhat
-        chi2 (double): Projection of the secondary dimensionless spin onto LNhat
-        m1 (double): Mass of the primary
-        m2 (double): Mass of the secondary
-
-    Returns:
-        (np.array) rISCO and LISCO
-    """
-    # Final spin computed from NR fits
-    a = nrutils.bbh_final_spin_non_precessing_HBR2016(
-            m1, m2, chi1, chi2, version="M3J4"
-    )
-    # Compute the ISCO radius for this spin
-    Z_1 = 1+(1-a**2)**(1./3)*((1+a)**(1./3)+(1-a)**(1./3))
-    Z_2 = np.sqrt(3*a**2+Z_1**2)
-    r_ISCO = 3+Z_2-np.sign(a)*np.sqrt((3-Z_1)*(3+Z_1+2*Z_2))
-
-    # Compute the ISCO L for this spin
-    L_ISCO = 2/(3*np.sqrt(3))*(1+2*np.sqrt(3*r_ISCO)-2)
-    return np.array([r_ISCO,L_ISCO])
-
+from .postadiabatic_C import Kerr_ISCO, Newtonian_j0, univariate_spline_integral
 
 @cython.profile(True)
 @cython.linetrace(True)
@@ -154,21 +119,6 @@ cpdef precessing_final_spin(
 
     return final_spin
 
-
-
-@cython.profile(True)
-@cython.linetrace(True)
-def Newtonian_j0(r):
-    """
-    Newtonian estimate of the orbital angular momentum
-
-    Args:
-        r(double): Orbital separation
-
-    Returns:
-        (double) Orbital angular momentum
-    """
-    return np.sqrt(r)
 
 @cython.profile(True)
 @cython.linetrace(True)
@@ -1686,34 +1636,3 @@ def spline_derivative(x: np.array, y: np.array)->np.array:
       intrp = CubicSpline(x[::-1], y[::-1])
       deriv = intrp.derivative()(x[::-1])[::-1]
       return deriv
-
-
-
-
-@cython.boundscheck(False)
-@cython.nonecheck(False)
-@cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
-@cython.cdivision(True)
-def univariate_spline_integral(
-    x: np.array,
-    y: np.array,
-) -> np.array:
-    """
-    Compute integral of y(x) using a univariate spline.
-
-    Args:
-        x (np.array): Dependent variable.
-        y (np.array): Independent variable.
-
-    Returns:
-        (np.array) integral.Note that the order is reversed as x will be
-                   the orbital separation which is monotonically decreasing, while
-                   the interpolation requires x to be monotonically increasing.
-    """
-    y_x_interp = InterpolatedUnivariateSpline(x[::-1], y[::-1])
-    y_x_integral = y_x_interp.antiderivative()(x[::-1])[::-1]
-    integral = y_x_integral - y_x_integral[0]
-
-    return integral
