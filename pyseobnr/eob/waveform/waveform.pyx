@@ -26,6 +26,7 @@ DEF euler_gamma=0.5772156649015329
 
 # Lookup table of fast spin-weighted spherical harmonics
 # Used to compute Newtonian prefactors in factorized waveform
+# Follows the scipy convention: ylms[m][ell]
 cdef double ylms[9][9]
 ylms[:] = [
     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -130,7 +131,7 @@ LOOKUP_TABLE[:] = [
 @cython.linetrace(True)
 cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int m):
     """
-    Calculates the Newtonian multipole prefactors, see Eq. 25-27 in v5HM doc.
+    Calculates the Newtonian multipole prefactors, see Eq. 25-27 in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
     See also Sec. 2A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
     """
     cdef double complex n = 0.0
@@ -213,7 +214,7 @@ cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int
 @cython.boundscheck(False)
 cpdef compute_newtonian_prefixes(double m1, double m2):
     """
-    Loop to set the Newtonian multipole prefactors, see Eq. 25-27 in v5HM doc.
+    Loop to set the Newtonian multipole prefactors, see Eq. 25-27 in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
     """
     cdef double complex prefixes[9][9]
     for l in range(2, ell_max + 1):
@@ -226,7 +227,7 @@ cpdef compute_newtonian_prefixes(double m1, double m2):
 @cython.cdivision(True)
 cpdef double evaluate_nqc_correction_flux(double r, double pr,  double omega, double[:] coeffs):
     """
-    Calculate the NQC amplitude correction, see Eq. 35 in v5HM doc.
+    Calculate the NQC amplitude correction, see Eq. 35 in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
     """
     cdef double sqrtR = sqrt(r)
     cdef double rOmega = r * omega
@@ -244,7 +245,7 @@ cpdef double evaluate_nqc_correction_flux(double r, double pr,  double omega, do
 @cython.cdivision(True)
 cpdef compute_tail(double omega, double H, double[:,:] Tlm):
     """
-    Calculate the resummed Tail effects, see Eq. 32 in v5HM doc.
+    Calculate the resummed Tail effects, see Eq. 32 in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
     See also Sec. 2B of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
     and Eq. (42) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.87.084035
     """
@@ -282,14 +283,14 @@ cdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double ch
     """
     Compute the amplitude residual coefficients. 
     See Sec. 2C and 2D of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
-    See Eq. 59-63 of v5HM theory doc for new terms, rest copied from SEOBNRv4HM LAL code.
+    See Eq. 59-63 of https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf) for new terms, rest copied from SEOBNRv4HM LAL code.
+
     Coefficients can be found in:
-    - v5HM theory doc / v5HM doc
+    - https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf and SEOBNRv5HM.pdf)
     - Appendix A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.98.084028
     - Eqs. (2.4) to (2.6) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.95.044028
     - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.83.064003
-
-    # TODO: update after all expressions for the modes have been written in the v5HM paper
+    - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.86.024011
     """
 
     cdef double nu2 = nu*nu
@@ -1030,15 +1031,14 @@ cpdef public void compute_delta_coeffs(double nu,double dm, double a,double chiS
     """
     Compute the phase residual coefficients. 
     See Sec. 2B of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
-    See Eq. 59-63 of v5HM theory doc for new terms, rest copied from SEOBNRv4HM LAL code)
+    See Eq. 59-63 of https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf) for new terms, rest copied from SEOBNRv4HM LAL code
 
     Coefficients can be found in:
-    - v5HM theory doc / v5HM doc
+    - https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf and SEOBNRv5HM.pdf)
     - Appendix A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.98.084028
     - Eqs. (2.4) to (2.6) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.95.044028
     - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.83.064003
-
-    # TODO: update after all expressions for the modes have been written in the v5HM paper
+    - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.86.024011
     """
 
     cdef double nu2 = nu*nu
@@ -1369,7 +1369,7 @@ cdef void update_rho_coeffs(double[:,:,:] rho_coeffs, double[:,:,:] extra_coeffs
 @cython.linetrace(True)
 cdef double compute_flux(double r,double phi,double pr,double pphi,double omega,double omega_circ,double H,EOBParams eob_pars):
     """
-    Compute the full flux. See Eq(43) in the v5HM docs.
+    Compute the full flux. See Eq(43) in the .
     """
     cdef int l,m
     cdef double[:,:] Tlm = eob_pars.flux_params.Tlm
@@ -2138,7 +2138,7 @@ cdef double complex EOBFluxCalculateNewtonianMultipole(
 @cython.linetrace(True)
 cdef double complex compute_mode(double v_phi2,double phi, double Slm, double[] vs,double[] vhs,int l, int m, EOBParams eob_pars):
     """
-    Compute the given (l,m) mode at one instant in time. See Eq(24) in v5HM docs.
+    Compute the given (l,m) mode at one instant in time. See Eq(24) in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
     """
 
     cdef double complex Tlm,hNewton,rholm,deltalm
@@ -2300,7 +2300,7 @@ cdef double min_threshold(int l,int m):
 cpdef compute_special_coeffs(double[:,:] dynamics, double t_attach, EOBParams eob_pars,
     dict amp_fits, dict amp_thresholds, dict modes={(2,1):7,(4,3):7,(5,5):5}):
     """
-    Compute the "special" amplitude coefficients. See discussion after Eq. (33) in v5HM doc.
+    Compute the "special" amplitude coefficients. See discussion after Eq. (33) in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
     """
     # Step 0: spline the dynamics to the attachment point
 
