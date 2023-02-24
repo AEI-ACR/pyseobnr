@@ -134,7 +134,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         """
         Aligned-spin SEOBNRv5HM Hamiltonian.
-        See Sec. 1B and 1C of v5HM theory doc
+        See Sec. 1B and 1C of
+        https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5_theory.pdf
         """
 
         # Coordinate definitions

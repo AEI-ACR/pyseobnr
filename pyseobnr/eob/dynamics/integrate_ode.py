@@ -28,32 +28,7 @@ class control_y_new(_control):
         a_dydt = 1
         _control.__init__(self, eps_abs, eps_rel, a_y, a_dydt, None)
 
-'''
-def augment_dynamics(dynamics, chi_1, chi_2, m_1, m_2, H):
-    """Compute dynamical quantities we need for the waveform
 
-    Args:
-        dynamics (np,ndarray): The dynamics array: t,r,phi,pr,pphi
-    """
-    result = []
-    p_c = np.zeros(2)
-
-    for i, row in enumerate(dynamics):
-        q = row[1:3]
-        p = row[3:5]
-        p_c[1] = p[1]
-        # Evaluate a few things: H, omega,omega_circ
-
-        dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
-        omega = dyn[3]
-        H_val = dyn[4]
-
-        omega_c = H.omega(q, p_c, chi_1, chi_2, m_1, m_2)
-
-        result.append([H_val, omega, omega_c])
-    result = np.array(result)
-    return np.c_[dynamics, result]
-'''
 
 @jit(nopython=True)
 def h_max(r):
