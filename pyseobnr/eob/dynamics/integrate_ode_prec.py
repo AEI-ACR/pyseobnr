@@ -116,7 +116,7 @@ def compute_dynamics_prec_opt(
     step_back: float = 250.,
     y_init=None,
     initial_conditions: str = 'adiabatic',
-    initial_conditions_postadiabatic_type: str = 'analytic', 
+    initial_conditions_postadiabatic_type: str = 'analytic',
     ):
     """
     Function to perform a non-precessing EOB evolution with the spins modified
@@ -124,6 +124,7 @@ def compute_dynamics_prec_opt(
     evolution.
 
     Args:
+        omega_ref (float): Reference orbital frequency at which the spins are defined
         omega_start (float): Starting orbital frequency
         omegaPN_f (float): Final orbital frequency from the precessing-spin PN evolution
         H (Hamiltonian): Hamiltonian class
@@ -132,11 +133,15 @@ def compute_dynamics_prec_opt(
         m_2 (float): Mass component of the secondary
         splines (dict): Dictionary containing the splines in orbital frequency of the vector components of the spins, LN and L as
                         well as the spin projections onto LN and L
+        t_pn (np.array): Time array of the PN evolution of the spins and Newtonian angular momentum.
+        dynamics_pn (np.array): Array of the spin-precessing PN evolution. It contains the Newtonian angular momentum, the dimensionful spin vectors and the PN orbital frequency.
         params (EOBParams): Container of additional inputs
         rtol (float, optional): Relative tolerance for EOB integration. Defaults to 1e-12
         atol (float, optional): Absolute tolerance for EOB integration. Defaults to 1e-12
         step_back (float, optional): Amount of time to step back for fine interpolation. Defaults to 250.
-        y_init (np.ndarray, optional): Initial condition vector (r,phi,pr,pphi)
+        y_init (np.ndarray, optional): Initial condition vector (r,phi,pr,pphi).
+        initial_conditions (str, optional): Type of initial conditions for the ODE evolution ('adiabatic' or 'postadiabatic').
+        initial_conditions_postadiabatic_type (str, optional): Type of postadiabatic initial conditions for the ODE evolution ('analytic' or 'numeric').
 
     Returns:
         (tuple): Low and high sampling rate dynamics, unit Newtonian orbital angular momentum, assembled dynamics
@@ -481,7 +486,7 @@ def transition_dynamics_v2(ts: np.ndarray, dyn: np.ndarray, omega_eob: np.ndarra
             ts (np.ndarray): Time array
             dyn (np.ndarray): Dynamics array  (r,phi,pr,pphi)
             omega_eob (np.ndarray): Orbital frequency array
-            step_back (float, optional): Amount of time to step back for fine interpolation. Defaults to 250
+            idx_restart (int): Index which separates the low sampling rate dynamics and the high sampling rate dynamics.
 
        Returns:
             (tuple): Time array, dynamics, orbital frequency and index splitting the low and high sampling rate dynamics
@@ -628,7 +633,9 @@ def compute_dynamics_quasiprecessing(
         rtol (float, optional): Relative tolerance for EOB integration. Defaults to 1e-12.
         atol (float, optional): Absolute tolerance for EOB integration. Defaults to 1e-12.
         step_back (float, optional): Amount of time to step back for fine interpolation. Defaults to 250.
-        y_init (np.ndarray, optional): Initial condition vector (r,phi,pr,pphi)
+        y_init (np.ndarray, optional): Initial condition vector (r,phi,pr,pphi).
+        initial_conditions (str, optional): Type of initial conditions for the ODE evolution ('adiabatic' or 'postadiabatic').
+        initial_conditions_postadiabatic_type (str, optional): Type of postadiabatic initial conditions for the ODE evolution ('analytic' or 'numeric').
 
     Returns:
         tuple: Aligned-spin EOB dynamics, PN time, PN dynamics, PN splines

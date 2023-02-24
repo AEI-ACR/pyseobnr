@@ -178,7 +178,6 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
     euler_angles_derivative_attach: np.ndarray,
     t_attach: float,
     idx: int,
-    flip: int,
     rd_approx: bool,
     rd_smoothing: bool,
     beta_approx: int = 0,
@@ -197,9 +196,6 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
         euler_angles_derivative_attach (np.ndarray): Time derivative of the Euler angles (alpha,beta,gamma) at the attachment time.
         t_attach (float): Attachment time of the dynamics and the ringdown
         idx (int): Index at which the attachment of the ringdown is performed
-        flip (int): Sign of the direction of the final spin with respect to the final orbital angular momentum
-                    It distinguishes between the prograde and the retrograde cases
-                    See Sec. III B of https://arxiv.org/pdf/2004.09442v1.pdf for details
         rd_approx (bool): If True apply the approximation of the Euler angles, if False use constant angles
         rd_smoothing (bool): If True apply smoothing of the Euler angles, if False do not apply the smoothing
         beta_approx (int): If 0 use constant beta angle, otherwise use small opening angle approximation
@@ -383,7 +379,6 @@ def minimal_quat(
 def inspiral_merger_quaternion_angles(
     t_dynamics: np.ndarray,
     omega_dynamics: np.ndarray,
-    final_spin: float,
     t_attach: float,
     Lvec_hat_attach: np.ndarray,
     Jfhat_attach: np.ndarray,
@@ -397,7 +392,6 @@ def inspiral_merger_quaternion_angles(
     Args:
         t_dynamics (np.ndarray): Time array for dynamics
         omega_dynamics (np.ndarray): EOB orbital frequency
-        final_spin (float): Final spin
         t_attach (float): Attachment time
         Lvec_hat_attach (np.ndarray): LN at attachment, I frame
         Jfhat_attach (np.ndarray): final spin direction, I frame
@@ -489,7 +483,6 @@ def inspiral_merger_quaternion_angles(
     flip = 1
     if cos_angle < 0:
         flip = -1
-        final_spin *= -1
 
     return t_dynamics, quatJ2P_dyn, quatI2J, euler_angles_attach,euler_angles_derivative_attach,flip
 
