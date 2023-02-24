@@ -23,11 +23,26 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         return self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
 
     cpdef _call(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
+        """
+        Evaluate the Hamiltonian as well as several potentials.
+
+        Args:
+          q (double[:]): Canonical positions (r,phi).
+          p (double[:]): Canonical momenta  (prstar,pphi).
+          chi1_v (double[:]): Dimensionless spin vector of the primary.
+          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
+          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+
+        Returns:
+           (tuple)  H,xi, A, Bnp, Bnpa, Qq, Heven, Hodd, Bp
 
         """
-        Toy aligned-spin Hamiltonian
 
-        """
 
         # Coordinate definitions
 
@@ -143,9 +158,23 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
 
     cpdef grad(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-
         """
-        Toy aligned-spin Hamiltonian
+        Compute the gradient of the Hamiltonian in polar coordinates.
+
+        Args:
+          q (double[:]): Canonical positions (r,phi).
+          p (double[:]): Canonical momenta  (prstar,pphi).
+          chi1_v (double[:]): Dimensionless spin vector of the primary.
+          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
+          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+
+        Returns:
+           (tuple) dHdr, dHdphi, dHdpr, dHdpphi
 
         """
 
@@ -435,10 +464,26 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double dHdpphi = M * M * dHeffdpphi / (nu*H)
 
         return dHdr, dHdphi, dHdpr, dHdpphi
+
     cpdef hessian(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
 
         """
-        Toy aligned-spin Hamiltonian
+        Evaluate the Hessian of the Hamiltonian.
+
+        Args:
+          q (double[:]): Canonical positions (r,phi).
+          p (double[:]): Canonical momenta  (prstar,pphi).
+          chi1_v (double[:]): Dimensionless spin vector of the primary.
+          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
+          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+
+        Returns:
+           (np.array)  d2Hdr2, d2Hdrdphi, d2Hdrdpr, d2Hdrdpphi, d2Hdrdphi, d2Hdphi2, d2Hdphidpr, d2Hdphidpphi, d2Hdrdpr, d2Hdphidpr, d2Hdpr2, d2Hdprdpphi, d2Hdrdpphi, d2Hdphidpphi, d2Hdprdpphi, d2Hdpphi2
 
         """
 
@@ -1236,8 +1281,22 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
     cdef double xi(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
 
         """
-        Toy aligned-spin Hamiltonian
+        Compute the tortoise coordinate conversion factor.
 
+        Args:
+          q (double[:]): Canonical positions (r,phi).
+          p (double[:]): Canonical momenta  (prstar,pphi).
+          chi1_v (double[:]): Dimensionless spin vector of the primary.
+          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
+          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+
+        Returns:
+           (double) xi
         """
 
         # Coordinate definitions
@@ -1283,15 +1342,28 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double ap2 = X_1**2*t1 + X_1*X_2*(2.0*chix1*chix2 + 2.0*chiy1*chiy2 + 2.0*chiz1*chiz2) + X_2**2*t2
 
         cdef double xi = Dbpm**0.5*r**2*(Apm + ap2/r**2)/(ap2 + r**2)
-        
+
         return xi
 
     cpdef dynamics(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
 
         """
-        Toy aligned-spin Hamiltonian
+        Compute the dynamics from the Hamiltonian,i.e., dHdr, dHdphi, dHdpr, dHdpphi,H and xi.
 
-        Returns gradient of H, H and xi, to be used in RHS of equations of motion
+        Args:
+          q (double[:]): Canonical positions (r,phi).
+          p (double[:]): Canonical momenta  (prstar,pphi).
+          chi1_v (double[:]): Dimensionless spin vector of the primary.
+          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
+          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+
+        Returns:
+           (tuple) dHdr, dHdphi, dHdpr, dHdpphi,H and xi
         """
 
         # Coordinate definitions
@@ -1581,11 +1653,26 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double  dHdpphi = M2 * dHeffdpphi / nuH
 
         return dHdr, dHdphi, dHdpr, dHdpphi,H,xi
+
     cpdef double omega(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
 
         """
-        Toy aligned-spin Hamiltonian
+        Compute the orbital frequency from the Hamiltonian.
 
+        Args:
+          q (double[:]): Canonical positions (r,phi).
+          p (double[:]): Canonical momenta  (prstar,pphi).
+          chi1_v (double[:]): Dimensionless spin vector of the primary.
+          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
+          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+
+        Returns:
+           (double) dHdpphi
         """
 
         # Coordinate definitions
@@ -1733,7 +1820,22 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
     cpdef auxderivs(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
 
         """
-        Toy aligned-spin Hamiltonian
+        Compute derivatives of the potentials which are used in the post-adiabatic approximation.
+
+        Args:
+          q (double[:]): Canonical positions (r,phi).
+          p (double[:]): Canonical momenta  (prstar,pphi).
+          chi1_v (double[:]): Dimensionless spin vector of the primary.
+          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
+          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
+          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+
+        Returns:
+           (tuple) dAdr, dBnpdr, dBnpadr, dxidr, dQdr, dQdprst, dHodddr, dBpdr, dHevendr
 
         """
 

@@ -34,6 +34,8 @@ def prec_eqns_20102022(t, z, nu, m_1, m_2, X1, X2):
         z (np.array): Vector of unknowns
         m_1 (float): Mass of primary
         m_2 (float): Mass of secondary
+        X1 (float): m_1/(m1+m_2)
+        X2 (float): m_2/(m1+m_2)
 
     Returns:
         np.array: RHS of equations
@@ -470,10 +472,9 @@ def compute_omega_orb(
         z (np.array): The dynamics variables, stored as (q,p)
         H (Hamiltonian): The Hamiltonian object to use
         RR (function): The RR force to use. Must have same signature as Hamiltonian
-        chi_1 (float): z-component of the primary spin
-        chi_2 (float): z-component of the secondary spin
         m_1 (float): mass of the primary
         m_2 (float): mass of the secondary
+        params (EOBParams): Container of additional inputs
 
     Returns:
         np.array: The dynamics equations, including RR

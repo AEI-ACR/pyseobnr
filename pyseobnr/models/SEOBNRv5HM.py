@@ -1176,7 +1176,6 @@ class SEOBNRv5PHM_opt(Model):
             ) = inspiral_merger_quaternion_angles(
                 dynamics[:, 0],
                 dynamics[:, 6],
-                final_spin,
                 t_attach,
                 Lvec_hat_attach,
                 Jfhat_attach,
@@ -1255,7 +1254,6 @@ class SEOBNRv5PHM_opt(Model):
                 euler_angles_derivative_attach,
                 t_attach,
                 idx,
-                flip,
                 self.rd_approx,
                 self.rd_smoothing,
                 beta_approx=self.beta_approx,

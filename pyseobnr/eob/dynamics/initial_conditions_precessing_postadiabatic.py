@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Computes post-adiabatic initial conditions in polar coordinates. 
+Computes post-adiabatic initial conditions in polar coordinates.
 """
 
 from typing import Callable
@@ -36,6 +36,10 @@ def compute_IC_PA(
         chi2_v (np.ndarray): Dimensionless spin vector of the secondary
         m_1 (float): Mass of primary
         m_2 (float): Mass of secondary
+        splines (dict): Dictionary containing the splines in orbital frequency of the vector components of the spins, LN and L as
+                        well as the spin projections onto LN and L
+        t_pn (np.array): Time array of the PN evolution of the spins and Newtonian angular momentum.
+        dynamics_pn (np.array): Array of the spin-precessing PN evolution. It contains the Newtonian angular momentum, the dimensionful spin vectors and the PN orbital frequency.
 
     Returns:
         tuple: The initial conditions: (r,pphi,pr)
@@ -83,7 +87,7 @@ def compute_IC_PA(
                 params=params,
             )
         params.p_params.omega = omega_start
-        
+
     if PA_success:
         # Note that omega and omega_pa[0] may differ due to numerical noise
         # we set the initial frequency to omega_pa[0] to avoid interpolation errors
