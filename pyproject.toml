@@ -63,6 +63,9 @@
 	# dynamic properties set by tools:
 	dynamic = ["version"]
 
+[tool.setuptools_scm]
+write_to = "pyseobnr/_version.py"
+
 [project.optional-dependencies]
 	checks = [
 		'bilby',
