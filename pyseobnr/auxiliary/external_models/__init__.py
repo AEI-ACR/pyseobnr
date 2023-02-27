@@ -1,1 +1,1 @@
-from .external_models import NRHybSur2dq15Model,NRHybSur3dq8Model,SEOBNRv4HM_LAL,Model,NRModel_SXS
+from .external_models import NRHybSur2dq15Model,NRHybSur3dq8Model,SEOBNRv4HM_LAL,Model,NRModel_SXS,NRModel_LVC,NRModel_RIT
