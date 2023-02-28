@@ -143,7 +143,7 @@ class GenerateWaveform:
             "f22_start": 20.0,
             "f_ref": 20.0,
             "deltaT": 1.0 / 2048.0,
-            "deltaF": 0.125,
+            "deltaF": 0.0,
             "mode_array": None,
             "approximant": "SEOBNRv5HM",
             "conditioning": 2,
@@ -158,6 +158,11 @@ class GenerateWaveform:
         for param in default_params.keys():
             if param not in parameters:
                 parameters[param] = default_params[param]
+        
+        if parameters["approximant"] not in ["SEOBNRv5HM","SEOBNRv5PHM"]:
+            raise ValueError(
+                "Approximant not implemented!"
+            )
         
         #Disable direct polarizations for aligned-spin model
         if (
@@ -204,8 +209,9 @@ class GenerateWaveform:
         ):
             raise ValueError("Dimensionless spin magnitudes cannot be greater than 1!")
         
-        if parameters["f22_start"] <= 0 or parameters["f_ref"] < 0:
-            raise ValueError("Starting frequency and reference frequency have to be positive!")
+        for param in ["f22_start", "f_ref","f_max", "deltaT", "deltaF","distance"]:
+            if parameters[param] < 0:
+                raise ValueError(f"{param} have to be positive!")
 
         if mass2 > mass1:
             self.swap_masses = True
@@ -554,6 +560,7 @@ class GenerateWaveform:
             chirplen_exp = np.frexp(chirplen)
             chirplen = int(np.ldexp(1, chirplen_exp[1]))
             deltaF = 1.0 / (chirplen * deltaT)
+            self.parameters["deltaF"] = deltaF
 
         else:
             chirplen = int(1.0 / (deltaF * deltaT))
