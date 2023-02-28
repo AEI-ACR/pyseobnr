@@ -143,7 +143,6 @@ class GenerateWaveform:
             "f22_start": 20.0,
             "f_ref": 20.0,
             "deltaT": 1.0 / 2048.0,
-            "f_max": 1024.0,
             "deltaF": 0.125,
             "mode_array": None,
             "approximant": "SEOBNRv5HM",
@@ -159,6 +158,15 @@ class GenerateWaveform:
         for param in default_params.keys():
             if param not in parameters:
                 parameters[param] = default_params[param]
+        
+        #Disable direct polarizations for aligned-spin model
+        if (
+            parameters["approximant"] == "SEOBNRv5HM"
+        ):
+            parameters["polarizations_from_coprec"] = False
+        
+        if "f_max" not in parameters.keys():
+            parameters["f_max"] = 0.5/parameters["deltaT"]
         
         for param in ["spin1x","spin1y","spin1z","spin2x","spin2y","spin2z","distance","inclination","phi_ref","f22_start","f_ref","deltaT","f_max","deltaF"]:
             if not isinstance(parameters[param],float) and not isinstance(parameters[param],int):
