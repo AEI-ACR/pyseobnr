@@ -1,3 +1,4 @@
+from typing import Any, Dict, Tuple, Union
 from .eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
     Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C as Ham_aligned_opt,
 )
@@ -14,16 +15,54 @@ import numpy as np
 
 
 def generate_prec_hpc_opt(
-    q, chi1, chi2, omega_start, omega_ref=None, settings=None, debug=False
-):
+    q: float,
+    chi1: np.ndarray,
+    chi2: np.ndarray,
+    omega_start: float,
+    omega_ref: float = None,
+    settings: Dict[Any, Any] = None,
+    debug: bool = False,
+) -> Tuple:
+    """Generate the GW wave polarizations for precessing model in an optimised way. In particular,
+    do not compute the inertial frame modes,instead write the polarizations directly summing
+    over the co-precessing frame modes
+
+    Args:
+        q (float): Mass ratio >=1
+        chi1 (np.ndarray): Dimensionless spin of the primary
+        chi2 (np.ndarray): Dimensionless spin of the secondary
+        omega_start (float): Starting orbital frequency, in geometric units
+        omega_ref (float, optional): Reference orbital frequency, in geometric units.
+                                     Defaults to None, in which case equals omega_start.
+        settings (Dict[Any,Any], optional): Any additional settings to pass to model. Defaults to None.
+        debug (bool, optional): Run in debug mode and return the model object. Defaults to False.
+
+    Returns:
+        Tuple: Either (time,polarization) or (time,polarizations,model) if debug=True
+    """
     if settings is None:
         settings = {"polarizations_from_coprec": True}
     else:
         settings.update(polarizations_from_coprec=True)
 
+    if q < 1.0:
+        raise ValueError("mass-ratio has to be positive and with convention q>=1")
+    if omega_start < 0:
+        raise ValueError("omega_start has to be positive")
+
+    if np.linalg.norm(chi1) > 1 or np.linalg.norm(chi2) > 1:
+        raise ValueError("chi1 and chi2 have to respect Kerr limit (|chi|<=1)")
+
     RR_f = SEOBNRv5RRForce()
     model = SEOBNRv5HM.SEOBNRv5PHM_opt(
-        q, *chi1, *chi2, omega_start, Ham_prec_pa_cy, RR_f,  omega_ref = omega_ref, settings=settings
+        q,
+        *chi1,
+        *chi2,
+        omega_start,
+        Ham_prec_pa_cy,
+        RR_f,
+        omega_ref=omega_ref,
+        settings=settings,
     )
 
     model()
@@ -34,20 +73,41 @@ def generate_prec_hpc_opt(
 
 
 def generate_modes_opt(
-    q,
-    chi1,
-    chi2,
-    omega_start,
-    omega_ref=None,
-    approximant="SEOBNRv5HM",
-    settings=None,
-    debug=False,
-):
+    q: float,
+    chi1: Union[float, np.ndarray],
+    chi2: Union[float, np.ndarray],
+    omega_start: float,
+    omega_ref: float = None,
+    approximant: str = "SEOBNRv5HM",
+    settings: Dict[Any, Any] = None,
+    debug: bool = False,
+) -> Tuple:
+    """Compute the GW waveform modes for the given configuration and approximant.
+
+    Args:
+        q (float): Mass ratio >=1
+        chi1 (Union[float,np.ndarray]): Dimensionless spin of primary. If float, interpreted as z component
+        chi2 (Union[float,np.ndarray]): Dimensionless spin of secondary. If float, interpreted as z component
+        omega_start (float): Starting orbital frequency, in geometric units
+        omega_ref (float, optional): Reference orbital frequency, in geometric untis.
+                                     Defaults to None, in which case equals omega_start.
+        approximant (str, optional): The approximant to use. Defaults to "SEOBNRv5HM".
+        settings (Dict[Any,Any], optional): Additional settings to pass to model. Defaults to None.
+        debug (bool, optional): Run in debug mode . Defaults to False.
+
+    Raises:
+        ValueError: If input parameters are not physical
+        NotImplementedError: If the approximant requested does not exist
+
+    Returns:
+        Tuple: Either (time,dictionary of modes) or (time,dcitionary of modes,model) if
+               debug=True
+    """
     if q < 1.0:
         raise ValueError("mass-ratio has to be positive and with convention q>=1")
     if omega_start < 0:
         raise ValueError("omega_start has to be positive")
-    
+
     if approximant == "SEOBNRv5HM":
 
         if np.abs(chi1) > 1 or np.abs(chi2) > 1:
@@ -58,12 +118,19 @@ def generate_modes_opt(
         )
         model()
     elif approximant == "SEOBNRv5PHM":
-        
+
         if np.linalg.norm(chi1) > 1 or np.linalg.norm(chi2) > 1:
             raise ValueError("chi1 and chi2 have to respect Kerr limit (|chi|<=1)")
         RR_f = SEOBNRv5RRForce()
         model = SEOBNRv5HM.SEOBNRv5PHM_opt(
-            q, *chi1, *chi2, omega_start, Ham_prec_pa_cy, RR_f, omega_ref = omega_ref, settings=settings
+            q,
+            *chi1,
+            *chi2,
+            omega_start,
+            Ham_prec_pa_cy,
+            RR_f,
+            omega_ref=omega_ref,
+            settings=settings,
         )
         model()
     else:
@@ -126,10 +193,12 @@ class GenerateWaveform:
         Mtot = mass1 + mass2
         if Mtot < 0.001 or Mtot > 1e6:
             raise ValueError("Unreasonable value for total mass, aborting.")
-        
-        if mass1*mass2/Mtot**2 < 100./(1+100)**2:
-            raise ValueError("Internal function call failed: Input domain error. Model is only valid for systems with mass-ratio up to 100.")
-        
+
+        if mass1 * mass2 / Mtot ** 2 < 100.0 / (1 + 100) ** 2:
+            raise ValueError(
+                "Internal function call failed: Input domain error. Model is only valid for systems with mass-ratio up to 100."
+            )
+
         default_params = {
             "spin1x": 0.0,
             "spin1y": 0.0,
@@ -152,32 +221,43 @@ class GenerateWaveform:
             "initial_conditions_postadiabatic_type": "analytic",
             "postadiabatic": True,
             "postadiabatic_type": "analytic",
-            'r_size_input':12,
+            "r_size_input": 12,
         }
 
         for param in default_params.keys():
             if param not in parameters:
                 parameters[param] = default_params[param]
-        
-        if parameters["approximant"] not in ["SEOBNRv5HM","SEOBNRv5PHM"]:
-            raise ValueError(
-                "Approximant not implemented!"
-            )
-        
-        #Disable direct polarizations for aligned-spin model
-        if (
-            parameters["approximant"] == "SEOBNRv5HM"
-        ):
+
+        if parameters["approximant"] not in ["SEOBNRv5HM", "SEOBNRv5PHM"]:
+            raise ValueError("Approximant not implemented!")
+
+        # Disable direct polarizations for aligned-spin model
+        if parameters["approximant"] == "SEOBNRv5HM":
             parameters["polarizations_from_coprec"] = False
-        
+
         if "f_max" not in parameters.keys():
-            parameters["f_max"] = 0.5/parameters["deltaT"]
-        
-        for param in ["spin1x","spin1y","spin1z","spin2x","spin2y","spin2z","distance","inclination","phi_ref","f22_start","f_ref","deltaT","f_max","deltaF"]:
-            if not isinstance(parameters[param],float) and not isinstance(parameters[param],int):
-                raise ValueError(
-                f"{param} has to be a real number!"
-            )
+            parameters["f_max"] = 0.5 / parameters["deltaT"]
+
+        for param in [
+            "spin1x",
+            "spin1y",
+            "spin1z",
+            "spin2x",
+            "spin2y",
+            "spin2z",
+            "distance",
+            "inclination",
+            "phi_ref",
+            "f22_start",
+            "f_ref",
+            "deltaT",
+            "f_max",
+            "deltaF",
+        ]:
+            if not isinstance(parameters[param], float) and not isinstance(
+                parameters[param], int
+            ):
+                raise ValueError(f"{param} has to be a real number!")
 
         if (
             parameters["approximant"] == "SEOBNRv5HM"
@@ -208,8 +288,8 @@ class GenerateWaveform:
             > 1
         ):
             raise ValueError("Dimensionless spin magnitudes cannot be greater than 1!")
-        
-        for param in ["f22_start", "f_ref","f_max", "deltaT", "deltaF","distance"]:
+
+        for param in ["f22_start", "f_ref", "f_max", "deltaT", "deltaF", "distance"]:
             if parameters[param] < 0:
                 raise ValueError(f"{param} have to be positive!")
 
@@ -239,12 +319,16 @@ class GenerateWaveform:
         if parameters["initial_conditions"] not in ["adiabatic", "postadiabatic"]:
             raise ValueError("Unrecongised setting for initial conditions.")
 
-        if parameters["initial_conditions_postadiabatic_type"] not in ["numeric", "analytic"]:
-            raise ValueError("Unrecongised setting for initial conditions postadiabatic type.")
+        if parameters["initial_conditions_postadiabatic_type"] not in [
+            "numeric",
+            "analytic",
+        ]:
+            raise ValueError(
+                "Unrecongised setting for initial conditions postadiabatic type."
+            )
 
         if parameters["postadiabatic_type"] not in ["numeric", "analytic"]:
             raise ValueError("Unrecongised setting for dynamics postadiabatic type.")
-        
 
         self.parameters = parameters
 
@@ -281,7 +365,12 @@ class GenerateWaveform:
             q = 1 / q
 
         # Generate internal models, in geometrized units
-        settings = {"dt": dt, "M": Mtot, "beta_approx": None, "polarizations_from_coprec": False}
+        settings = {
+            "dt": dt,
+            "M": Mtot,
+            "beta_approx": None,
+            "polarizations_from_coprec": False,
+        }
         if "postadiabatic" in self.parameters:
             settings.update(postadiabatic=self.parameters["postadiabatic"])
 
@@ -297,13 +386,17 @@ class GenerateWaveform:
             settings.update(initial_conditions=self.parameters["initial_conditions"])
 
             if "initial_conditions_postadiabatic_type" in self.parameters:
-                settings.update(initial_conditions_postadiabatic_type=self.parameters["initial_conditions_postadiabatic_type"])
+                settings.update(
+                    initial_conditions_postadiabatic_type=self.parameters[
+                        "initial_conditions_postadiabatic_type"
+                    ]
+                )
 
         if self.parameters["mode_array"] != None:
             settings["return_modes"] = self.parameters[
                 "mode_array"
             ]  # Select mode array
-        
+
         if "lmax_nyquist" in self.parameters:
             settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
 
@@ -397,19 +490,25 @@ class GenerateWaveform:
                         postadiabatic_type=self.parameters["postadiabatic_type"]
                     )
             if "initial_conditions" in self.parameters:
-                settings.update(initial_conditions=self.parameters["initial_conditions"])
+                settings.update(
+                    initial_conditions=self.parameters["initial_conditions"]
+                )
 
                 if "initial_conditions_postadiabatic_type" in self.parameters:
-                    settings.update(initial_conditions_postadiabatic_type=self.parameters["initial_conditions_postadiabatic_type"])
+                    settings.update(
+                        initial_conditions_postadiabatic_type=self.parameters[
+                            "initial_conditions_postadiabatic_type"
+                        ]
+                    )
 
-            if 'r_size_input' in self.parameters:
+            if "r_size_input" in self.parameters:
                 settings.update(r_size_input=self.parameters["r_size_input"])
 
             if self.parameters["mode_array"] != None:
                 settings["return_modes"] = self.parameters[
                     "mode_array"
                 ]  # Select mode array
-            
+
             if "lmax_nyquist" in self.parameters:
                 settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
 
@@ -426,7 +525,13 @@ class GenerateWaveform:
                 phi += np.pi
             settings.update(phiref=np.pi / 2 - phi)
             times, hpc = generate_prec_hpc_opt(
-                q, chi1, chi2, omega_start, omega_ref = omega_ref, settings=settings, debug=False
+                q,
+                chi1,
+                chi2,
+                omega_start,
+                omega_ref=omega_ref,
+                settings=settings,
+                debug=False,
             )
             hpc *= fac
             times *= Mtot * lal.MTSUN_SI
