@@ -25,7 +25,7 @@ def compute_IC_PA(
     dynamics_pn: np.array,
     **kwargs,
 ):
-    """Compute the postadiabatic initial conditions for an aligned-spin BBH binary
+    """Compute the postadiabatic initial conditions for a precessing-spin BBH binary
 
     Args:
         omega_ref (float): Reference *orbital* frequency in geometric units at which the spins are defined
