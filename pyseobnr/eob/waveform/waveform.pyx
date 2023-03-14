@@ -217,6 +217,10 @@ cpdef compute_newtonian_prefixes(double m1, double m2):
     Loop to set the Newtonian multipole prefactors, see Eq. 25-27 in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
     """
     cdef double complex prefixes[9][9]
+    for i in range(9):
+        for j in range(9):
+            prefixes[i][j]=0.0
+
     for l in range(2, ell_max + 1):
         for m in range(1, l + 1):
             prefixes[l][m] = calculate_multipole_prefix(m1, m2, l, m)
@@ -281,7 +285,7 @@ cdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double ch
     double complex[:,:,:] f_coeffs_vh, bint extra_PN_terms):
 
     """
-    Compute the amplitude residual coefficients. 
+    Compute the amplitude residual coefficients.
     See Sec. 2C and 2D of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
     See Eq. 59-63 of https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf) for new terms, rest copied from SEOBNRv4HM LAL code.
 
@@ -360,7 +364,7 @@ cdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double ch
     rho_coeffs_log[2,2][10] = 439877.0 / 55566.0
     # (2,2) mode ends
 
-    # We set test-spin terms to 0 (as in SEOBNRv4HM) 
+    # We set test-spin terms to 0 (as in SEOBNRv4HM)
     # as no major improvement was found when trying to include them
     a = 0.0
     a2 = 0.0
@@ -1029,7 +1033,7 @@ cpdef public void compute_delta_coeffs(double nu,double dm, double a,double chiS
     double complex[:,:,:] delta_coeffs, double complex[:,:,:] delta_coeffs_vh):
 
     """
-    Compute the phase residual coefficients. 
+    Compute the phase residual coefficients.
     See Sec. 2B of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
     See Eq. 59-63 of https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf) for new terms, rest copied from SEOBNRv4HM LAL code
 
@@ -2375,9 +2379,9 @@ cpdef compute_special_coeffs(double[:,:] dynamics, double t_attach, EOBParams eo
         amp =  amp_fits[(l, m)]
         amp22 = amp_fits[(2,2)]
 
-        # when the amplitude at merger is too small a positive sign is better 
+        # when the amplitude at merger is too small a positive sign is better
         if np.abs(amp)<1e-4:
-            amp = np.abs(amp)      
+            amp = np.abs(amp)
 
         min_amp = amp_thresholds[(l,m)]
         if np.abs(amp)<amp22/min_amp:
@@ -2401,7 +2405,7 @@ cpdef compute_special_coeffs(double[:,:] dynamics, double t_attach, EOBParams eo
 @cython.cdivision(True)
 cpdef compute_factors(double[::1] phi_orb,int m_max, double complex[:,:]result):
     """
-    Trivial helper function that computes iterative e^{im\phi} which is used in interpolation, see `interpolate_modes_fast` in `compute_hlms.py` 
+    Trivial helper function that computes iterative e^{im\phi} which is used in interpolation, see `interpolate_modes_fast` in `compute_hlms.py`
     """
     cdef int N = phi_orb.shape[0]
     cdef int i,m
