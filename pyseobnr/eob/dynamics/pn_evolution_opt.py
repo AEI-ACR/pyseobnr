@@ -603,7 +603,7 @@ def compute_quasiprecessing_PNdynamics_opt(
         elif v >= 1.0:  #  v/c >= 1!
             yout = 0
 
-        elif ddomega <= 0.0:  #  // d^2omega/dt^2 <= 0!
+        elif ddomega <= 0.0 or np.abs(ddomega) < 1e-8:  #  // d^2omega/dt^2 <= 0!
             yout = 0
 
         # Empirical bound on the PN integration (typically it ends earlier)
