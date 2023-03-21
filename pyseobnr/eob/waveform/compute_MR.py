@@ -32,7 +32,6 @@ def compute_MR_mode_free(
 
     Returns:
         np.ndarray: the merger-ringdown waveform
-        np.ndarray: the phase the merger-ringdown ansatz (see Eq.58 of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf)
 
     """
     # Step 1 - use the NR fits for amplitude and frequency at attachment time
