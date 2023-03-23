@@ -210,7 +210,7 @@ class SEOBNRv5HM_opt(Model):
             dt=2.4627455127717882e-05,  # Desired time spacing, *in seconds*
             debug=False,  # Run in debug mode
             postadiabatic=False,  # Use postadiabatic?
-            return_modes=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)],
+            return_modes=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)],
         )
         return settings
 
@@ -713,7 +713,7 @@ class SEOBNRv5PHM_opt(Model):
             initial_conditions_postadiabatic_type="analytic",
             postadiabatic=False,  # Use postadiabatic?
             postadiabatic_type="analytic",
-            return_modes=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)],
+            return_modes=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)],
             polarizations_from_coprec=False,  # True for computing directly polarizations
             beta_approx=0,
             rd_approx=True,

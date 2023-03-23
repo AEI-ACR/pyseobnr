@@ -1,15 +1,17 @@
-# Test that the aligned-spin SEOBNRvHM model has not changed.
-# Follows the procedure of IMRPhenomXHM/IMRPhenomTHM tests
-# in LALSuite.
+"""
+Test that the aligned-spin SEOBNRv5HM model has not changed.
+Follows the procedure of IMRPhenomXHM/IMRPhenomTHM tests
+in LALSuite.
 
-import sys
+This file was automatically generated on 2023-02-17 09:44:52.434215.
+It should be regenrated using regenerate_SEOBNRv5HM.py whenever
+understood changes to the model are made.
+"""
+
 import pytest
-import lal
-import lalsimulation
 import numpy as np
 from pyseobnr.generate_waveform import generate_modes_opt, GenerateWaveform
-
-# -- utility functions ---------------------
+import lal
 
 
 def get_amp_phase(h):
@@ -98,7 +100,6 @@ def gen_test_data(test_type):
         hc_diff = sum_sqr_diff(hc1.data.data, hc2.data.data)
         return hp_diff, hc_diff
 
-
 # -- test functions ---------------------
 
 
@@ -115,7 +116,7 @@ def test_SEOBNRv5HM_diff_TD():
 
     """
 
-    expected_result = np.array([1.15218049e-17, 1.14681612e-17])
+    expected_result = np.array([1.152235524056277e-17,1.146878299877863e-17])
 
     new_result = np.array(gen_test_data("TD"))
     np.testing.assert_allclose(
@@ -137,7 +138,8 @@ def test_SEOBNRv5HM_diff_FD():
     """
 
     expected_result = np.array(
-        [8.57654647e-20, 3.55137514e04, 6.90111343e-20, 3.72286833e04]
+	[8.575172329787633e-20,3.559216430128160e+04,6.899656958665323e-20,
+ 3.730985884757374e+04]
     )
 
     new_result = np.array(gen_test_data("FD"))
