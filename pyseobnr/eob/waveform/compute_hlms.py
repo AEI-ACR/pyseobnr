@@ -9,8 +9,7 @@ import numpy as jnp
 from lalinference.imrtgr import nrutils
 from pygsl import spline
 from pyseobnr.auxiliary.mode_mixing.auxiliary_functions_modemixing import *
-from scipy.interpolate import CubicSpline
-from scipy.interpolate.fitpack2 import InterpolatedUnivariateSpline
+from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
 from scipy.optimize import root_scalar
 from scipy.signal import argrelmax, argrelmin
 
