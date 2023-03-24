@@ -31,8 +31,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
           p (double[:]): Canonical momenta  (prstar,pphi).
           chi1_v (double[:]): Dimensionless spin vector of the primary.
           chi2_v (double[:]): Dimensionless spin vector of the secondary.
-          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
-          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.
+          m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
           chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
@@ -166,8 +166,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
           p (double[:]): Canonical momenta  (prstar,pphi).
           chi1_v (double[:]): Dimensionless spin vector of the primary.
           chi2_v (double[:]): Dimensionless spin vector of the secondary.
-          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
-          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.
+          m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
           chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
@@ -475,8 +475,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
           p (double[:]): Canonical momenta  (prstar,pphi).
           chi1_v (double[:]): Dimensionless spin vector of the primary.
           chi2_v (double[:]): Dimensionless spin vector of the secondary.
-          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
-          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.
+          m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
           chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
@@ -1288,8 +1288,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
           p (double[:]): Canonical momenta  (prstar,pphi).
           chi1_v (double[:]): Dimensionless spin vector of the primary.
           chi2_v (double[:]): Dimensionless spin vector of the secondary.
-          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
-          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.
+          m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
           chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
@@ -1355,8 +1355,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
           p (double[:]): Canonical momenta  (prstar,pphi).
           chi1_v (double[:]): Dimensionless spin vector of the primary.
           chi2_v (double[:]): Dimensionless spin vector of the secondary.
-          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
-          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.
+          m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
           chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
@@ -1664,8 +1664,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
           p (double[:]): Canonical momenta  (prstar,pphi).
           chi1_v (double[:]): Dimensionless spin vector of the primary.
           chi2_v (double[:]): Dimensionless spin vector of the secondary.
-          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
-          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.
+          m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
           chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
@@ -1827,8 +1827,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
           p (double[:]): Canonical momenta  (prstar,pphi).
           chi1_v (double[:]): Dimensionless spin vector of the primary.
           chi2_v (double[:]): Dimensionless spin vector of the secondary.
-          m_1 (double): Primary mass component.Dimensionless spin vector of the primary.
-          m_2 (double): SecondaryPrimary mass component.Dimensionless spin vector of the secondary.
+          m_1 (double): Primary mass component.
+          m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
           chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
