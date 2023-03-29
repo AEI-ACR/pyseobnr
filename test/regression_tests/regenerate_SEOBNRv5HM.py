@@ -36,7 +36,7 @@ def gen_test_data(test_type):
     s2z = 0.1
     f_max = 1024.0
     f_min = 0.0157 / (Mt * np.pi * lal.MTSUN_SI)
-
+    deltaF = 0.125
     params_dict = {
         "mass1": m1,
         "mass2": m2,
@@ -47,6 +47,7 @@ def gen_test_data(test_type):
         "spin2y": s2y,
         "spin2z": s2z,
         "deltaT": dt,
+        "deltaF": deltaF,
         "f22_start": f_min,
         "phi_ref": phiRef,
         "distance": distance,

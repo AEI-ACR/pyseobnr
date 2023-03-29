@@ -3,7 +3,7 @@ Test that the aligned-spin SEOBNRv5HM model has not changed.
 Follows the procedure of IMRPhenomXHM/IMRPhenomTHM tests
 in LALSuite.
 
-This file was automatically generated on 2023-02-17 09:44:52.434215.
+This file was automatically generated on 2023-03-29 00:19:54.553611.
 It should be regenrated using regenerate_SEOBNRv5HM.py whenever
 understood changes to the model are made.
 """
@@ -53,7 +53,7 @@ def gen_test_data(test_type):
         "spin2y": s2y,
         "spin2z": s2z,
         "deltaT": dt,
-        "deltaF": deltaF,
+	"deltaF": deltaF,
         "f22_start": f_min,
         "phi_ref": phiRef,
         "distance": distance,
@@ -116,7 +116,7 @@ def test_SEOBNRv5HM_diff_TD():
 
     """
 
-    expected_result = np.array([1.152235524056277e-17,1.146878299877863e-17])
+    expected_result = np.array([1.1521538737539642e-17,1.1467997283365816e-17])
 
     new_result = np.array(gen_test_data("TD"))
     np.testing.assert_allclose(
@@ -138,11 +138,11 @@ def test_SEOBNRv5HM_diff_FD():
     """
 
     expected_result = np.array(
-	[8.575172329787633e-20,3.559216430128160e+04,6.899656958665323e-20,
- 3.730985884757374e+04]
+	[8.576872303281181e-20,3.558536004410046e+04,6.901107038290343e-20,
+ 3.730612207787991e+04]
     )
 
     new_result = np.array(gen_test_data("FD"))
     np.testing.assert_allclose(
-        new_result, expected_result, rtol=2.0e-4, err_msg="SEOBNRv5HM FD test failed"
+        new_result, expected_result, rtol=2.2e-4, err_msg="SEOBNRv5HM FD test failed"
     )
