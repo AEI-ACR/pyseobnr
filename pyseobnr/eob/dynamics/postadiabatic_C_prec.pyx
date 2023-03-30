@@ -47,7 +47,7 @@ cpdef precessing_final_spin(
     from the non-precessing NR fits.
 
     Args:
-        chi1_LN (double): Projection of the primary dimensionless pin onto LNhat
+        chi1_LN (double): Projection of the primary dimensionless spin onto LNhat
         chi2_LN (double): Projection of the secondary dimensionless spin onto LNhat
         chi1_v (double[:]): Primary dimensionless spin vector
         chi2_v (double[:]): Secondary dimensionless spin vector
