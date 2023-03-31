@@ -60,7 +60,7 @@ pages:
   needs: ["docs"]
   script:
     - mkdir public/
-    - mv docs/_build/html/* public/
+    - mv docs/html/* public/
   artifacts:
     paths:
       - public
