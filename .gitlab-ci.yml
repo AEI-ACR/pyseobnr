@@ -11,6 +11,7 @@ stages:
   - build
   - docs
   - test
+  - deploy
 # -- EOB code itself
 
 python:build:
@@ -53,6 +54,20 @@ docs:
     - PYTHON="$(which python)"
     # configure sphinx
     - !reference [".python:sphinx", before_script]
+
+pages:
+  stage: deploy
+  needs: ["docs"]
+  script:
+    - mkdir public/
+    - mv docs/_build/html/* public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - main
+
 
 test:
   stage: test
