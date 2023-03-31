@@ -16,12 +16,12 @@
 [project]
 	name = "pyseobnr"
 	description = "Gravitational wave modelling within the effective-one-body framework"
-	readme = "README.md"
+	readme = "README.rst"
 	authors = [
-		{ name = "Serguei Ossokine", email = "serguei.ossokine@aei.mpg.de" },
+		{ name = "Serguei Ossokine", email = "serguei.ossokine@tutanota.com" },
 		{ name = "Lorenzo Pompili", email = "lorenzo.pompili@ligo.org" },
 		{ name = "Deyan Mihaylov", email = "deyan.mihaylov@ligo.org" },
-		{ name = "Antoni Ramos Buades", email = "antoni.ramos.buades@aei.mpg.de" },
+		{ name = "Antoni Ramos Buades", email = "antoni.ramos-buades@ligo.org" },
 		{ name = "Michael Puerrer", email = "michael.puerrer@ligo.org" },
 		{ name = "Hector Estelles", email = "hector.estelles@ligo.org" },
 
@@ -55,8 +55,7 @@
 		"jax",
 		"jaxlib",
 		"rich",
-		"pygsl @ git+https://github.com/pygsl/pygsl.git",
-		#"pygsl @ git+https://github.com/SergeiOssokine/pygsl.git",
+		"pygsl",
 		"lalsuite",
 	]
 

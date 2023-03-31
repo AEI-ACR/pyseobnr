@@ -5,7 +5,7 @@ Standard interface
 ------------------
 
 ``pyseobnr`` provides an interface that closely follows the conventions used in in the
-new waveform interface, `PyGrav <https://git.ligo.org/waveforms/new-waveforms-interface/-/tree/master/python_interface>`_.
+new waveform interface, `gwsignal <>`_.
 
 In this interface, one first constructs a :py:class:`GenerateWaveform
 <pyseobnr.generate_waveform.GenerateWaveform>` class which serves as a container for
@@ -26,7 +26,7 @@ Mpc. For details see :py:class:`GenerateWaveform
 
 .. tip::
 
-    See also the relevant documentation in `PyGrav <https://git.ligo.org/waveforms/new-waveforms-interface/-/tree/master/python_interface>`_.
+    See also the relevant documentation in `gwsignal <>`_.
 
 Here is a simple example to get the modes:
 
