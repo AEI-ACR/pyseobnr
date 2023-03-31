@@ -59,8 +59,7 @@ pages:
   stage: deploy
   needs: ["docs"]
   script:
-    - mkdir public/
-    - mv docs/html/* public/
+    - mv -v html public
   artifacts:
     paths:
       - public
