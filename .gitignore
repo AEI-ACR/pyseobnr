@@ -1,1 +1,5 @@
+*.c
+*.so
 pyseobnr/_version.py
+build/
+pyseobnr.egg-info
