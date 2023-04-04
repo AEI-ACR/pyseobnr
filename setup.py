@@ -42,9 +42,6 @@ extensions = [
               include_dirs=[np.get_include(),"pyseobnr/eob/utils","pyseobnr/eob/hamiltonian"],
               extra_compile_args=['-O3']
               ),
-    Extension("pyseobnr.auxiliary.interpolate._ppoly", ["pyseobnr/auxiliary/interpolate/_ppoly.pyx"],
-              include_dirs=[np.get_include()],
-              extra_compile_args = ["-flto", "-O3", "-ftree-vectorize"]),
     Extension("pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C", ["pyseobnr/eob/hamiltonian/Hamiltonian_v5PHM_C.pyx"],
              include_dirs=[np.get_include(),"pyseobnr/eob/utils","pyseobnr/eob/hamiltonian"],
              extra_compile_args=['-O3']
