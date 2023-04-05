@@ -59,21 +59,78 @@ description of this license, or see the
 the full text.
 
 
+References
+==========
 
 We request that any academic report, publication, or other academic disclosure of results derived from the use of ``pyseobnr`` acknowledge the use of the software by an appropriate acknowledgment or citation.
 
-The code can be cited by citing `code repo <https://git.ligo.org/waveforms/software>`_  and the code paper: Mihaylov et al, "pySEOBNR: a software package for the next generation of effective-one-body multipolar waveform models", 2023
+The code can be cited by citing `code repo <https://git.ligo.org/waveforms/software>`_  and the code paper: Mihaylov et al, "pySEOBNR: a software package for the next generation of effective-one-body multipolar waveform models", 2023, `arXiv:2303.18203 <https://arxiv.org/abs/2303.18203>`_. A bibtex entry is provided::
+
+  @article{Mihaylov:2023bkc,
+    author = {Mihaylov, Deyan P. and Ossokine, Serguei and Buonanno, Alessandra and Estelles, Hector and Pompili, Lorenzo and P\"urrer, Michael and Ramos-Buades, Antoni},
+    title = "{pySEOBNR: a software package for the next generation of effective-one-body multipolar waveform models}",
+    eprint = "2303.18203",
+    archivePrefix = "arXiv",
+    primaryClass = "gr-qc",
+    month = "3",
+    year = "2023"
+  }
+
+
 
 In addition, if released models are used, the model papers should be cited:
 
-* For SEOBNRv5PHM, Ramos-Buades et al, "SEOBNRv5PHM: Next generation of accurate and efficient multipolar precessing-spin effective-one-body waveforms for binary black holes", 2023
-* For SEOBNRv5HM, Pompili et al, "Laying the foundation of the effective-one-body waveform models SEOBNRv5: improved accuracy and efficiency for spinning non-precessing binary black holes", 2023
+* For SEOBNRv5PHM, Ramos-Buades et al, "SEOBNRv5PHM: Next generation of accurate and efficient multipolar precessing-spin effective-one-body waveforms for binary black holes", 2023, `arXiv:2303.18046 <https://arxiv.org/abs/2303.18046>`_::
+
+    @article{Ramos-Buades:2023ehm,
+    author = "Ramos-Buades, Antoni and Buonanno, Alessandra and Estell\'es, H\'ector and Khalil, Mohammed and Mihaylov, Deyan P. and Ossokine, Serguei and Pompili, Lorenzo and Shiferaw, Mahlet",
+    title = "{SEOBNRv5PHM: Next generation of accurate and efficient multipolar precessing-spin effective-one-body waveforms for binary black holes}",
+    eprint = "2303.18046",
+    archivePrefix = "arXiv",
+    primaryClass = "gr-qc",
+    month = "3",
+    year = "2023"
+    }
+    
+* For SEOBNRv5HM, Pompili et al, "Laying the foundation of the effective-one-body waveform models SEOBNRv5: improved accuracy and efficiency for spinning non-precessing binary black holes", 2023, `arXiv:2303.18039 <https://arxiv.org/abs/2303.18039>`_::
+
+    @article{Pompili:2023tna,
+    author = "Pompili, Lorenzo and others",
+    title = "{Laying the foundation of the effective-one-body waveform models SEOBNRv5: improved accuracy and efficiency for spinning non-precessing binary black holes}",
+    eprint = "2303.18039",
+    archivePrefix = "arXiv",
+    primaryClass = "gr-qc",
+    month = "3",
+    year = "2023"
+    }
 
 If you build on the existing models, please cite:
 
-* Khalil et al, "Theoretical groundwork supporting the precessing-spin two-body dynamics of the effective-one-body waveform models SEOBNRv5", 2023
-* Van de Meent et al, "Enhancing the SEOBNRv5 effective-one-body waveform model with second-order gravitational self-force fluxes", 2023
+* Khalil et al, "Theoretical groundwork supporting the precessing-spin two-body dynamics of the effective-one-body waveform models SEOBNRv5", 2023, `arXiv:2303.18143 <https://arxiv.org/abs/2303.18143>`_::
+
+    @article{Khalil:2023kep,
+    author = "Khalil, Mohammed and Buonanno, Alessandra and Estell\'es, H\'ector and Mihaylov, Deyan P. and Ossokine, Serguei and Pompili, Lorenzo and Ramos-Buades, Antoni",
+    title = "{Theoretical groundwork supporting the precessing-spin two-body dynamics of the effective-one-body waveform models SEOBNRv5}",
+    eprint = "2303.18143",
+    archivePrefix = "arXiv",
+    primaryClass = "gr-qc",
+    month = "3",
+    year = "2023"
+    }
 
 
-.. |pipeline status| image:: https://git.ligo.org/serguei.ossokine/pyseobnr/badges/main/pipeline.svg
-   :target: https://git.ligo.org/serguei.ossokine/pyseobnr/commits/main
+* Van de Meent et al, "Enhancing the SEOBNRv5 effective-one-body waveform model with second-order gravitational self-force fluxes", 2023, `arXiv:2303.18026 <https://arxiv.org/abs/2303.18026>`_::
+
+    @article{vandeMeent:2023ols,
+    author = "van de Meent, Maarten and Buonanno, Alessandra and Mihaylov, Deyan P. and Ossokine, Serguei and Pompili, Lorenzo and Warburton, Niels and Pound, Adam and Wardell, Barry and Durkan, Leanne and Miller, Jeremy",
+    title = "{Enhancing the SEOBNRv5 effective-one-body waveform model with second-order gravitational self-force fluxes}",
+    eprint = "2303.18026",
+    archivePrefix = "arXiv",
+    primaryClass = "gr-qc",
+    month = "3",
+    year = "2023"
+    }
+
+
+.. |pipeline status| image:: https://git.ligo.org/waveforms/software/pyseobnr/badges/main/pipeline.svg
+   :target: https://git.ligo.org/waveforms/software/pyseobnr/commits/main
