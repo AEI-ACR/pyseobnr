@@ -1336,7 +1336,7 @@ class SEOBNRv5PHM_opt(Model):
 
                 sYlm = custom_swsh(betaTot, alphaTot, self.max_ell_returned)
                 # Construct polarizations
-                hpc = np.zeros(imr_full[(2, 2)].size, dtype=np.complex)
+                hpc = np.zeros(imr_full[(2, 2)].size, dtype=complex)
                 for ell, emm in imr_full.keys():
                     # sYlm = SWSH(qTot,-2,[ell,emm])
                     hpc += (
