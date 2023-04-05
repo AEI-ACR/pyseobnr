@@ -14,8 +14,13 @@ Welcome to pyseobnr's documentation!
    source/basic_usage
    source/expert_mode
 
+
+
+
 API
 ---
+Throughout the code we refer to several differnt technical documents, that can be found `here <https://dcc.ligo.org/LIGO-T2300060/public>`_
+
 .. autosummary::
    :toctree: api
    :template: custom-module-template.rst
