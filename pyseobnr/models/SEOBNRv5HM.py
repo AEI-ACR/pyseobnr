@@ -7,7 +7,7 @@ import lal
 import numpy as np
 import quaternion
 import scri
-from pygsl import spline
+from pygsl_lite import spline
 from pyseobnr.eob.dynamics.integrate_ode import augment_dynamics, compute_dynamics_opt
 from pyseobnr.eob.dynamics.integrate_ode_prec import compute_dynamics_quasiprecessing
 from pyseobnr.eob.dynamics.postadiabatic_C import Kerr_ISCO, compute_combined_dynamics
@@ -148,7 +148,7 @@ class SEOBNRv5HM_opt(Model):
         self.am = self.m_1 * self.chi_1 - self.m_2 * self.chi_2
         self.dt = self.settings["dt"]
         self.delta_T = self.dt / (self.M * lal.MTSUN_SI)
-        self.f_nyquist = 0.5/self.delta_T
+        self.f_nyquist = 0.5 / self.delta_T
 
         # print(f"In SI units, dt = {self.dt}. In geometric units, with M={self.M}, delta_T={self.delta_T}")
         self.prefixes = compute_newtonian_prefixes(self.m_1, self.m_2)
@@ -304,7 +304,12 @@ class SEOBNRv5HM_opt(Model):
         self.H.calibration_coeffs = cfs
 
     def _evaluate_model(self):
-        r_ISCO, _ = Kerr_ISCO(self.chi_1, self.chi_2, self.m_1, self.m_2,)
+        r_ISCO, _ = Kerr_ISCO(
+            self.chi_1,
+            self.chi_2,
+            self.m_1,
+            self.m_2,
+        )
         if self.NR_deltaT > 0:
             r_stop = 0.98 * r_ISCO
         else:
@@ -509,7 +514,10 @@ class SEOBNRv5HM_opt(Model):
             t_original = dynamics[:, 0]
             phi_orb = dynamics[:, 2]
             hlms_interp = interpolate_modes_fast(
-                t_original, t_new, hlms_joined, phi_orb,
+                t_original,
+                t_new,
+                hlms_joined,
+                phi_orb,
             )
             del hlms_joined
             # Step 9: construct the full IMR waveform
@@ -609,11 +617,10 @@ class SEOBNRv5PHM_opt(Model):
 
         # Do not use a omega_start which implies r0< 10.5, if that is
         # the case change starting frequency to correspond to r0=10.5M
-        if (self.omega_start)**(-2./3.) < 10.5:
-            self.omega_start = (10.5)**(-3./2.)
+        if (self.omega_start) ** (-2.0 / 3.0) < 10.5:
+            self.omega_start = (10.5) ** (-3.0 / 2.0)
 
         self.f_start = omega_start / (self.M * lal.MTSUN_SI * np.pi)
-
 
         # Deal with reference and starting frequencies
         if omega_ref:
@@ -646,7 +653,7 @@ class SEOBNRv5PHM_opt(Model):
 
         self.dt = self.settings["dt"]
         self.delta_T = self.dt / (self.M * lal.MTSUN_SI)
-        self.f_nyquist = 0.5/self.delta_T
+        self.f_nyquist = 0.5 / self.delta_T
 
         self.prefixes = compute_newtonian_prefixes(self.m_1, self.m_2)
 
@@ -875,7 +882,9 @@ class SEOBNRv5PHM_opt(Model):
                     atol=1e-8,  # 1e-12,
                     step_back=self.step_back,
                     initial_conditions=self.settings["initial_conditions"],
-                    initial_conditions_postadiabatic_type=self.settings["initial_conditions_postadiabatic_type"],
+                    initial_conditions_postadiabatic_type=self.settings[
+                        "initial_conditions_postadiabatic_type"
+                    ],
                 )
             else:
                 (
@@ -976,7 +985,12 @@ class SEOBNRv5PHM_opt(Model):
 
             # Step 2, ii): compute the reference point based on Kerr r_ISCO of remnant
             # with final spin
-            r_ISCO, _ = Kerr_ISCO(chi1LN_om_r10M, chi2LN_om_r10M, self.m_1, self.m_2,)
+            r_ISCO, _ = Kerr_ISCO(
+                chi1LN_om_r10M,
+                chi2LN_om_r10M,
+                self.m_1,
+                self.m_2,
+            )
 
             self.r_ISCO = r_ISCO
             r_fine = dynamics_fine[:, 1]
@@ -1145,7 +1159,7 @@ class SEOBNRv5PHM_opt(Model):
             hlms_low = compute_hlms_new(dynamics_low[:, 1:], self.eob_pars)
 
             # Apply the NQC corrections to inspiral modes
-            #t_low = dynamics_low[:, 0]
+            # t_low = dynamics_low[:, 0]
             omega_orb_low = dynamics_low[:, 6]
 
             # Polar dynamics, r,pr,omega_orb
@@ -1158,7 +1172,10 @@ class SEOBNRv5PHM_opt(Model):
             t_new = np.arange(dynamics[0, 0], dynamics[-1, 0], self.delta_T)
             # Step 8: interpolate the modes onto the desired spacing
             hlms_interp = interpolate_modes_fast(
-                dynamics[:, 0], t_new, hlms_joined, dynamics[:, 2],
+                dynamics[:, 0],
+                t_new,
+                hlms_joined,
+                dynamics[:, 2],
             )
 
             idx = np.argmin(np.abs(t_new - t_attach))
