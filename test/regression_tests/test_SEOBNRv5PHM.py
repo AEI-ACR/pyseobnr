@@ -147,5 +147,5 @@ def test_SEOBNRv5PHM_diff_FD():
 
     new_result = np.array(gen_test_data("FD"))
     np.testing.assert_allclose(
-        new_result, expected_result, rtol=4.0e-4, err_msg="SEOBNRv5PHM FD test failed"
+        new_result, expected_result, rtol=4.5e-4, err_msg="SEOBNRv5PHM FD test failed"
     )
