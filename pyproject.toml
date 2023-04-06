@@ -43,7 +43,7 @@
 		"jax",
 		"jaxlib",
 		"rich",
-		"pygsl",
+		"pygsl_lite",
 		"lalsuite",
 	]
 

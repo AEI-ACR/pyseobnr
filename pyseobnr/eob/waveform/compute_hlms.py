@@ -7,7 +7,7 @@ from typing import Any, Dict
 
 import numpy as jnp
 from lalinference.imrtgr import nrutils
-from pygsl import spline
+from pygsl_lite import spline
 from pyseobnr.auxiliary.mode_mixing.auxiliary_functions_modemixing import *
 from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
 from scipy.optimize import root_scalar
@@ -105,7 +105,7 @@ def compute_IMR_modes(
     lmax_nyquist,
     mixed_modes=[(3, 2), (4, 3)],
     final_state=None,
-    qnm_rotation=0.,
+    qnm_rotation=0.0,
 ):
     """This computes the IMR modes given the inspiral modes and the
     attachment time.
@@ -243,9 +243,9 @@ def compute_IMR_modes(
         # discontinuity, and one would need to go back to the
         # previous prescription.
 
-        if m%2 == 1:
+        if m % 2 == 1:
             IVfits = InputValueFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
-            omega_max = IVfits.omega()[ell,m]
+            omega_max = IVfits.omega()[ell, m]
 
         attach_params = dict(
             amp=amp_max,
@@ -327,7 +327,7 @@ def compute_mixed_mode(
     fits_dict,
     f_nyquist,
     lmax_nyquist,
-    qnm_rotation = 0.,
+    qnm_rotation=0.0,
 ):
     """
     Computes the (3,2) and (4,3) modes, including mode-mixing in the ringdown.
@@ -350,7 +350,7 @@ def compute_mixed_mode(
         f_nyquist (float): Nyquist frequency, needed for checking that RD frequency is resolved
         lmax_nyquist (int): Determines for which modes the nyquist test is applied for
         qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame (Eq. 33 of Hamilton et al.)
-        
+
 
     Returns:
         np.ndarray: the merger-ringdown waveform for the mixed modes
@@ -408,14 +408,18 @@ def compute_mixed_mode(
     # discontinuity, and one would need to go back to the
     # previous prescription.
 
-    if m%2 == 1:
+    if m % 2 == 1:
         IVfits = InputValueFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
-        om = IVfits.omega()[ell,m]
-        om_mm =  IVfits.omega()[m,m]
+        om = IVfits.omega()[ell, m]
+        om_mm = IVfits.omega()[m, m]
 
     # Spherical mode we need in the ringdown
     attach_params = dict(
-        amp=h_mm, damp=hd_mm, omega=om_mm, final_mass=final_mass, final_spin=final_spin,
+        amp=h_mm,
+        damp=hd_mm,
+        omega=om_mm,
+        final_mass=final_mass,
+        final_spin=final_spin,
     )
 
     hmm_spherical_ringdown = compute_MR_mode_free(
@@ -448,11 +452,31 @@ def compute_mixed_mode(
 
     # Time derivative of amplitude at peak
     hd_ellm0 = hdot_ellm0_nu(
-        ell, m, final_spin, h, h_mm, hd, hd_mm, om, om_mm, phi_lm, phi_mm,
+        ell,
+        m,
+        final_spin,
+        h,
+        h_mm,
+        hd,
+        hd_mm,
+        om,
+        om_mm,
+        phi_lm,
+        phi_mm,
     )
     # Frequency at peak
     om_ellm0 = omega_ellm0(
-        ell, m, final_spin, h, h_mm, hd, hd_mm, om, om_mm, phi_lm, phi_mm,
+        ell,
+        m,
+        final_spin,
+        h,
+        h_mm,
+        hd,
+        hd_mm,
+        om,
+        om_mm,
+        phi_lm,
+        phi_mm,
     )
 
     attach_params.update(
@@ -547,8 +571,6 @@ def NQC_correction(
             and np.abs(chi_2) < 1e-4
         ) or (m % 2 and np.abs(m_1 - m_2) < 1e-4 and np.abs(chi_1 - chi_2) < 1e-4):
             continue
-
-
 
         else:
 

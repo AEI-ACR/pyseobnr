@@ -13,7 +13,7 @@ from libc.math cimport log, sqrt, exp, abs,fabs, tgamma,sin,cos, tanh, sinh, asi
 from .initial_conditions_aligned_opt import computeIC_opt as computeIC
 
 
-from pygsl import  roots, errno
+from pygsl_lite import  roots, errno
 from scipy import optimize
 from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
 from scipy import integrate
