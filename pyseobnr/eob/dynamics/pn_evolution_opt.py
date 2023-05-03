@@ -603,7 +603,8 @@ def compute_quasiprecessing_PNdynamics_opt(
         elif v >= 1.0:  #  v/c >= 1!
             yout = 0
 
-        elif ddomega <= 0.0 or abs(ddomega) < 1e-9:  #  // d^2omega/dt^2 <= 0!
+        elif ddomega <= 0.0 or (abs(ddomega) < 1e-9 and r<6.0):  #  // d^2omega/dt^2 <= 0!
+            #printf(f"ddomega <= 0.0 :  omega = {omega}, spinTaylor_stoppingTest.omegas[-1] = {spinTaylor_stoppingTest.omegas[-1]}")
             yout = 0
 
         # Empirical bound on the PN integration (typically it ends earlier)
