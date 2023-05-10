@@ -388,7 +388,7 @@ class SEOBNRv5HM_opt(Model):
                     logger.error(
                         "Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!"
                     )
-                    raise ValueError
+                    raise ValueError("Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!")
                 # Solve for time when f_22 = f_ref
                 intrp = CubicSpline(t_d, f_22)
                 guess = t_d[np.argmin(np.abs(f_22 - self.f_ref))]
@@ -400,7 +400,7 @@ class SEOBNRv5HM_opt(Model):
                     logger.error(
                         "Failed to find the time corresponding to requested f_ref."
                     )
-                    raise ValueError
+                    raise ValueError("Failed to find the time corresponding to requested f_ref.")
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
                 phase_shift = intrp_phase(t_correct)
@@ -933,7 +933,7 @@ class SEOBNRv5PHM_opt(Model):
                     logger.error(
                         "Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!"
                     )
-                    raise ValueError
+                    raise ValueError("Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!")
                 # Solve for time when f_22 = f_ref
                 intrp = CubicSpline(t_d, f_22)
                 guess = t_d[np.argmin(np.abs(f_22 - self.f_ref))]
@@ -946,7 +946,7 @@ class SEOBNRv5PHM_opt(Model):
                     logger.error(
                         "Failed to find the time corresponding to requested f_ref."
                     )
-                    raise ValueError
+                    raise ValueError("Failed to find the time corresponding to requested f_ref.")
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
                 phase_shift = intrp_phase(t_correct)
