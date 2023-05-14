@@ -138,7 +138,7 @@ def SEOBEulerJ2PFromDynamics(
             aux = quaternion.quaternion(0.0, 0.0, 1.0, 0.0)
     else:
         aux = None
-
+    
     # Note that because we are working in the J frame the final spin
     # direction is just along z axis, by definition.
     quatJ2P = minimal_quat(quaternion.z, LN_in_J_quat, aux, t, omega)
@@ -384,6 +384,7 @@ def inspiral_merger_quaternion_angles(
     Jfhat_attach: np.ndarray,
     splines: Dict[Any, Any],
     t_ref: float = None,
+    test_norm: bool = True,
 ):
     """Wrapper function to compute the angles/quaternions necessary to perform the rotations
     from the co-precessing frame (P-frame) to the observer inertial frame (I-frame) passing
@@ -413,6 +414,11 @@ def inspiral_merger_quaternion_angles(
     e1J, e2J, e3J = SEOBBuildJframeVectors(Jf_hat_v5)
     # LN on the final dynamics time grid
     tmp_LN = splines["everything"](omega_dynamics)[:, 10:13]
+
+    # test normalization
+    if test_norm:
+        tmp_LN_norm = np.sqrt(np.einsum("ij,ij->i", tmp_LN, tmp_LN))
+        tmp_LN = (tmp_LN.T / tmp_LN_norm).T
 
     # LN as expressed in J frame
     Ze1J = np.dot(tmp_LN, e1J)

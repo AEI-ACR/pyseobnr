@@ -645,6 +645,7 @@ class SEOBNRv5PHM_opt(Model):
         self.beta_approx = self.settings["beta_approx"]
         self.rd_approx = self.settings["rd_approx"]
         self.rd_smoothing = self.settings["rd_smoothing"]
+        self.test_norm = self.settings["test_norm"]
 
         self.backend = self.settings.get("backend", "dopri5")
         # z-component because LN_0 = [0,0,1]
@@ -725,6 +726,7 @@ class SEOBNRv5PHM_opt(Model):
             beta_approx=0,
             rd_approx=True,
             rd_smoothing=False,
+            test_norm=True,
         )
         return settings
 
@@ -857,7 +859,9 @@ class SEOBNRv5PHM_opt(Model):
 
     def _evaluate_model(self):
         try:
-
+            #print(
+            #    f"Waveform parameters: q={self.q},chi_1={self.chi1_v},chi_2={self.chi2_v},omega_ref={self.omega_ref}, omega_start = {self.omega_start}, Mt = {self.M}"
+            #)
             # Generate PN and EOB dynamics
             if not self.settings["postadiabatic"]:
                 (
@@ -1198,6 +1202,7 @@ class SEOBNRv5PHM_opt(Model):
                 Jfhat_attach,
                 splines,
                 t_ref=t_correct,
+                test_norm=self.test_norm
             )
 
             # Evaluate the term necessary to rotate the QNM consistently
