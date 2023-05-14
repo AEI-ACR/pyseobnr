@@ -384,7 +384,6 @@ def inspiral_merger_quaternion_angles(
     Jfhat_attach: np.ndarray,
     splines: Dict[Any, Any],
     t_ref: float = None,
-    test_norm: bool = True,
 ):
     """Wrapper function to compute the angles/quaternions necessary to perform the rotations
     from the co-precessing frame (P-frame) to the observer inertial frame (I-frame) passing
@@ -415,10 +414,9 @@ def inspiral_merger_quaternion_angles(
     # LN on the final dynamics time grid
     tmp_LN = splines["everything"](omega_dynamics)[:, 10:13]
 
-    # test normalization
-    if test_norm:
-        tmp_LN_norm = np.sqrt(np.einsum("ij,ij->i", tmp_LN, tmp_LN))
-        tmp_LN = (tmp_LN.T / tmp_LN_norm).T
+    # Normalize LN_hat to ensure working with unit quaternions
+    tmp_LN_norm = np.sqrt(np.einsum("ij,ij->i", tmp_LN, tmp_LN))
+    tmp_LN = (tmp_LN.T / tmp_LN_norm).T
 
     # LN as expressed in J frame
     Ze1J = np.dot(tmp_LN, e1J)

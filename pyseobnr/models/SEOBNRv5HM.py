@@ -645,7 +645,6 @@ class SEOBNRv5PHM_opt(Model):
         self.beta_approx = self.settings["beta_approx"]
         self.rd_approx = self.settings["rd_approx"]
         self.rd_smoothing = self.settings["rd_smoothing"]
-        self.test_norm = self.settings["test_norm"]
 
         self.backend = self.settings.get("backend", "dopri5")
         # z-component because LN_0 = [0,0,1]
@@ -726,7 +725,6 @@ class SEOBNRv5PHM_opt(Model):
             beta_approx=0,
             rd_approx=True,
             rd_smoothing=False,
-            test_norm=True,
         )
         return settings
 
@@ -1202,7 +1200,6 @@ class SEOBNRv5PHM_opt(Model):
                 Jfhat_attach,
                 splines,
                 t_ref=t_correct,
-                test_norm=self.test_norm
             )
 
             # Evaluate the term necessary to rotate the QNM consistently
