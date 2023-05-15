@@ -21,7 +21,7 @@ The easiest way to get these is by using ``conda``. First, create a new ``conda`
 
    conda create -n pyseobnr python=3.9
    conda activate pyseobnr
-   conda install lalsuite
+   conda install -c conda-forge lalsuite
 
 You can install a released version of ``pyseobnr`` by running
 
