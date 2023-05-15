@@ -1,12 +1,18 @@
 All notable changes will be noted in this file, whenever a tagged
 version is made
 
-## [0.2.3] 10/02/2023
+## [0.2.4] 15/05/2023
+
+Bugfix release. Fixes a rare issue with quaternion overflow, which occured after attachment.
+
+
+
+## [0.2.3] 10/05/2023
 
 Bugfix release. Fixes a minor issue where the correct message was not included in ValueError,
 which was needed for `bilby` error handling
 
-## [0.2.2] 05/02/2023
+## [0.2.2] 02/05/2023
 
 Bugfix release. Fixes a bug in stopping conditions of PN integration at very low frequency.
 	
