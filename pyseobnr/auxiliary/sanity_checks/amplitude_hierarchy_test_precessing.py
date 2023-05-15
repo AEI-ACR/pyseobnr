@@ -35,7 +35,7 @@ def amplitude_hierarchy(q: float, chi1x: float,  chi1y: float,  chi1z: float,  c
 
     try:
 
-        ell_max = 5
+        ell_max = 4
         settings = {'ell_max':ell_max,'beta_approx':None,'M':mt,"dt":delta_t,"return_coprec":True,
         "postadiabatic": True,
         "postadiabatic_type": "analytic",
@@ -48,7 +48,7 @@ def amplitude_hierarchy(q: float, chi1x: float,  chi1y: float,  chi1z: float,  c
         hlms_cop = model.coprecessing_modes
 
         # Specify the modes so that the negative m modes are not included
-        modes_to_test = ["2,2","2,1","3,3","3,2","4,4","4,3","5,5"]
+        modes_to_test = ["2,2","2,1","3,3","3,2","4,4","4,3"]#,"5,5"]
         hlms_dict ={}
         for lm in modes_to_test:
             hlms_dict[lm] = hlms_cop[lm]

@@ -61,7 +61,7 @@ def generate_v5PHM_waveform(m1:float, m2:float,
                             f_min:float,
                             iota:float, phi:float, distance:float,
                             delta_t:float, approx:str,
-                            ell_max: int = 5):
+                            ell_max: int = 4):
 
     mtotal = m1+m2
     q = m1/m2
@@ -128,7 +128,7 @@ def generate_v5PHM_waveform(m1:float, m2:float,
 # Reproducible
 seed = 150914
 
-mode_list = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
+mode_list = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)]#, (5, 5)]
 
 def mismatch_v5P_strain(
     m1: float,

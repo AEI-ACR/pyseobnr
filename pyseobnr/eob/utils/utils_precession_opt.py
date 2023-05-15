@@ -138,7 +138,7 @@ def SEOBEulerJ2PFromDynamics(
             aux = quaternion.quaternion(0.0, 0.0, 1.0, 0.0)
     else:
         aux = None
-
+    
     # Note that because we are working in the J frame the final spin
     # direction is just along z axis, by definition.
     quatJ2P = minimal_quat(quaternion.z, LN_in_J_quat, aux, t, omega)
@@ -413,6 +413,10 @@ def inspiral_merger_quaternion_angles(
     e1J, e2J, e3J = SEOBBuildJframeVectors(Jf_hat_v5)
     # LN on the final dynamics time grid
     tmp_LN = splines["everything"](omega_dynamics)[:, 10:13]
+
+    # Normalize LN_hat to ensure working with unit quaternions
+    tmp_LN_norm = np.sqrt(np.einsum("ij,ij->i", tmp_LN, tmp_LN))
+    tmp_LN = (tmp_LN.T / tmp_LN_norm).T
 
     # LN as expressed in J frame
     Ze1J = np.dot(tmp_LN, e1J)

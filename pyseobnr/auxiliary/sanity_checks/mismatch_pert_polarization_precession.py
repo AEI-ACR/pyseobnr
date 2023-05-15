@@ -57,7 +57,7 @@ def generate_v5PHM_waveform(q:float, mtotal:float,
                             omega_start:float,
                             iota:float, phi:float, distance:float,
                             delta_t:float, approx:str,
-                            ell_max: int = 5,
+                            ell_max: int = 4,
                             initial_conditions = "adiabatic",
                             initial_conditions_postadiabatic_type = "analytic",
                             ):
@@ -148,7 +148,7 @@ def perturbation_mismatch_prec(m1:float, m2:float,
                             s1x:float, s1y:float, s1z:float,
                             s2x:float, s2y:float, s2z:float,
                             iota_s:float,
-                            ell_max=5,initial_conditions="adiabatic",omega0 = 0.02):
+                            ell_max=4,initial_conditions="adiabatic",omega0 = 0.02):
 
 
     Mt = m1+m2
@@ -315,7 +315,7 @@ if __name__ == "__main__":
         "--M-min", type=float, help="Maximum total mass", default="300.0"
     )
     p.add_argument(
-        "--ell-max", type=int, help="Maximum l-mode", default="5"
+        "--ell-max", type=int, help="Maximum l-mode", default="4"
     )
     p.add_argument(
         "--initial-conditions", type=str, help="Type of initial conditions to use for the non-PA evolution", default="adiabatic"

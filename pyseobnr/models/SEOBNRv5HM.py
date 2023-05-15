@@ -857,7 +857,9 @@ class SEOBNRv5PHM_opt(Model):
 
     def _evaluate_model(self):
         try:
-
+            #print(
+            #    f"Waveform parameters: q={self.q},chi_1={self.chi1_v},chi_2={self.chi2_v},omega_ref={self.omega_ref}, omega_start = {self.omega_start}, Mt = {self.M}"
+            #)
             # Generate PN and EOB dynamics
             if not self.settings["postadiabatic"]:
                 (
