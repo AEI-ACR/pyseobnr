@@ -87,6 +87,8 @@ class SEOBNRv5HM_opt(Model):
             chi_1 (float): z component of the dimensionless spin of primary
             chi_2 (float): z component of the dimensionless spin of secondary
             omega0 (float): Initial orbital frequency, in geomtric units
+            H (Hamiltonian): Hamiltonian class
+            RR (Callable): RR force
             settings (Dict[Any, Any], optional): The settings. Defaults to None.
         """
 
@@ -584,7 +586,8 @@ class SEOBNRv5PHM_opt(Model):
             chi2_y (float): y-component of the dimensionless spin of the secondary
             chi2_z (float): z-component of the dimensionless spin of the secondary
             omega_start (float): Initial orbital frequency, in geometric units
-            coeffs (Dict[str, Any], optional): Calibration coefficient. Defaults to None.
+            H (Hamiltonian): Hamiltonian class
+            RR (Callable): RR force
             settings (Dict[Any, Any], optional): The settings. Defaults to None.
             omega_ref (float): Reference orbital frequency at which the spins are defined, in geometric units
         """
