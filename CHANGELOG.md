@@ -1,6 +1,10 @@
 All notable changes will be noted in this file, whenever a tagged
 version is made
 
+## [0.2.5] 01/08/2023
+
+Bugfix release. Fixes a compatibility issue with Cython 3.0.0.
+
 ## [0.2.4] 15/05/2023
 
 Bugfix release. Fixes a rare issue with quaternion overflow, which occured after attachment.
