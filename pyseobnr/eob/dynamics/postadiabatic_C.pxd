@@ -1,15 +1,15 @@
 from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
 
 cpdef fin_diff_derivative(
-    x,
-    y,
-    n=?,
+    double[:] x,
+    double[:] y,
+    int n=?,
 )
 
 cpdef cumulative_integral(
-    x: np.array,
-    y: np.array,
-    order = ?,
+    double[:] x,
+    double[:] y,
+    int order=?,
 )
 
 cpdef Kerr_ISCO(
