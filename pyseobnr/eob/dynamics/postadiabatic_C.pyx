@@ -79,9 +79,9 @@ cdef double single_deriv(double[:] y,double h,double[:] coeffs):
 @cython.linetrace(True)
 @cython.cdivision(True)
 cpdef fin_diff_derivative(
-    x,
-    y,
-    n: int = 8,
+    double[:] x,
+    double[:] y,
+    int n=8,
 ):
     """
     Compute 8th order finite difference derivative,
@@ -646,9 +646,9 @@ cpdef compute_combined_dynamics(
 @cython.profile(True)
 @cython.linetrace(True)
 cpdef cumulative_integral(
-    x: np.array,
-    y: np.array,
-    order: int = 7,
+    double[:] x,
+    double[:] y,
+    int order=7,
 ):
     """
     Compute a cumulative integral numerically using sampled data
