@@ -172,7 +172,7 @@ class GenerateWaveform:
             f_max: Maximum frequency, in Hz - Default: 1024 Hz
             deltaF: Frequency spacing, in Hz - Default: 0.125
             mode_array: Mode content (only positive must be specified, e.g [(2,2),(2,1)]) - Default: None (all modes)
-            approximant: 'SEOBNRv5HM' or 'SEOBNRv5PHM' (not implemented yet), Default: 'SEOBNRv5HM'
+            approximant: 'SEOBNRv5HM' or 'SEOBNRv5PHM'. Default: 'SEOBNRv5HM'
 
         """
         self.validate_parameters(parameters)

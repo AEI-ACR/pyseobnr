@@ -3,6 +3,8 @@
 pyseobnr provides state-of-the-art gravitational waveforms using the
 effective-one-body (EOB) approach.
 
+For installation instructions, documentation, examples and more, visit the documentation `here <https://waveforms.docs.ligo.org/software/pyseobnr//>`__.
+
 Installation
 ============
 
