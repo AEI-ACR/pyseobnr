@@ -191,7 +191,7 @@ class GenerateWaveform:
             raise ValueError("Masses have to be positive!")
 
         Mtot = mass1 + mass2
-        if Mtot < 0.001 or Mtot > 1e6:
+        if Mtot < 0.001 or Mtot > 1e12:
             raise ValueError("Unreasonable value for total mass, aborting.")
 
         if mass1 * mass2 / Mtot ** 2 < 100.0 / (1 + 100) ** 2:
