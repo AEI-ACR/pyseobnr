@@ -125,6 +125,9 @@ LOOKUP_TABLE[:] = [
 
 
 
+
+
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.profile(True)
@@ -210,6 +213,7 @@ cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int
     return prefix
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cpdef compute_newtonian_prefixes(double m1, double m2):
@@ -226,6 +230,7 @@ cpdef compute_newtonian_prefixes(double m1, double m2):
             prefixes[l][m] = calculate_multipole_prefix(m1, m2, l, m)
     return prefixes
 
+@cython.cpow(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
@@ -244,6 +249,7 @@ cpdef double evaluate_nqc_correction_flux(double r, double pr,  double omega, do
     )
     return mag
 
+@cython.cpow(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
@@ -275,6 +281,7 @@ cpdef compute_tail(double omega, double H, double[:,:] Tlm):
 
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1022,6 +1029,7 @@ cdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double ch
             f_coeffs[4,3][4] = ((18. - 108.*nu + 137.*nu**2)*chiA*chiS)/(6. - 12.*nu)
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1181,6 +1189,7 @@ cpdef public void compute_delta_coeffs(double nu,double dm, double a,double chiS
     # l=7 modes end
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1196,6 +1205,7 @@ cdef double complex compute_deltalm_single(double[] vs, double[] vhs,int l, int 
         delta += fl.delta_coeffs[l,m,j]*vs[j] + fl.delta_coeffs_vh[l,m,j]*vhs[j]
     return delta
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1221,6 +1231,7 @@ cdef void compute_delta(double v,double vh,double nu, EOBParams eob_pars):
 
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1237,6 +1248,7 @@ cdef double complex compute_extra_flm_terms(int l,int m,double vh,EOBParams eob_
         extra_term = I*vh3 * vh3 * eob_pars.flux_params.f_coeffs_vh[3,3][6]
     return extra_term
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1285,6 +1297,7 @@ cdef double complex compute_rholm_single(double[] vs,double vh, int l, int m, EO
 
 
 '''
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1306,6 +1319,7 @@ cdef void compute_rholm(double v,double vh,double nu, EOBParams eob_pars):
             eob_pars.flux_params.rholm[l,m] = compute_rholm_single(vs,vh,l,m,eob_pars)
 '''
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1325,6 +1339,7 @@ cdef void compute_rholm(double v,double vh,double nu, EOBParams eob_pars):
         for m in range(1,l+1):
             eob_pars.flux_params.rholm[l,m] = compute_rholm_single(vs,vh,l,m,eob_pars)
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1347,6 +1362,7 @@ cdef double  EOBFluxCalculateNewtonianMultipoleAbs(
     return multipole
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1364,6 +1380,7 @@ cdef void update_rho_coeffs(double[:,:,:] rho_coeffs, double[:,:,:] extra_coeffs
                 if fabs(temp)>1e-15:
                     rho_coeffs[l,m,i] += temp
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -1434,6 +1451,7 @@ cdef double compute_flux(double r,double phi,double pr,double pphi,double omega,
             flux += m*m*omega2*cabs(hlm)**2
     return flux/(8*pi)
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -2059,6 +2077,7 @@ cpdef double compute_refactorized_flux(
 
     return flux
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -2108,6 +2127,7 @@ cdef class SEOBNRv5RRForce(RadiationReactionForce):
 
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -2133,6 +2153,7 @@ cdef double complex EOBFluxCalculateNewtonianMultipole(
     return multipole
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -2179,6 +2200,7 @@ cdef double complex compute_mode(double v_phi2,double phi, double Slm, double[] 
 
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -2294,6 +2316,7 @@ cdef double min_threshold(int l,int m):
         return 2000
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
@@ -2400,6 +2423,7 @@ cpdef compute_special_coeffs(double[:,:] dynamics, double t_attach, EOBParams eo
 
 
 
+@cython.cpow(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
@@ -2418,6 +2442,7 @@ cpdef compute_factors(double[::1] phi_orb,int m_max, double complex[:,:]result):
 
 
 
+@cython.cpow(True)
 @cython.wraparound(False)
 @cython.cdivision(True)
 @cython.nonecheck(False)
