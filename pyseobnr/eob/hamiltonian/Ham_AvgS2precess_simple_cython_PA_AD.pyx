@@ -13,7 +13,7 @@ from libc.math cimport log, sqrt, exp, abs, tgamma,sin,cos
 
 
 
-
+@cython.cpow(True)
 cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
     cdef public CalibCoeffs calibration_coeffs
     def __cinit__(self,EOBParams params):
