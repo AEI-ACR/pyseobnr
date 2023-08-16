@@ -1,6 +1,10 @@
 All notable changes will be noted in this file, whenever a tagged
 version is made
 
+## [0.2.6] 16/08/2023
+
+Bugifx release. Fixes another compatibility issue with Cython 3.0.0. Increase total mass upper limit to 1e12.
+
 ## [0.2.5] 01/08/2023
 
 Bugfix release. Fixes a compatibility issue with Cython 3.0.0.
