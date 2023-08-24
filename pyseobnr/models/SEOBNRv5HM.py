@@ -83,10 +83,10 @@ class SEOBNRv5HM_opt(Model):
         """Initialize the SEOBNRv5 approximant
 
         Args:
-            q (float): Mass ratio m1/m2 >= 1
+            q (float): Mass ratio :math:`m1/m2 \\ge 1`
             chi_1 (float): z component of the dimensionless spin of primary
             chi_2 (float): z component of the dimensionless spin of secondary
-            omega0 (float): Initial orbital frequency, in geomtric units
+            omega0 (float): Initial orbital frequency, in geometric units
             H (Hamiltonian): Hamiltonian class
             RR (Callable): RR force
             settings (Dict[Any, Any], optional): The settings. Defaults to None.
@@ -252,7 +252,7 @@ class SEOBNRv5HM_opt(Model):
 
     def _initialize_params(self, phys_pars):
         """
-        Re-initialize all parameters to make sure everthing is reset
+        Re-initialize all parameters to make sure everything is reset
         """
         self.eob_pars = EOBParams(phys_pars, {}, mode_array=self.computed_modes)
         self.eob_pars.flux_params.rho_initialized = False
@@ -559,7 +559,7 @@ class SEOBNRv5HM_opt(Model):
 
 
 class SEOBNRv5PHM_opt(Model):
-    """Represents an precessing SEOBNRv5PHM waveform with new MR choices."""
+    """Represents a precessing SEOBNRv5PHM waveform with new MR choices."""
 
     def __init__(
         self,
@@ -579,7 +579,7 @@ class SEOBNRv5PHM_opt(Model):
         """Initialize the SEOBNRv5PHM approximant
 
         Args:
-            q (float): Mass ratio m1/m2 >= 1
+            q (float): Mass ratio :math:`m1/m2 \\ge 1`
             chi1_x (float): x-component of the dimensionless spin of the primary
             chi1_y (float): y-component of the dimensionless spin of the primary
             chi1_z (float): z-component of the dimensionless spin of the primary
@@ -768,7 +768,7 @@ class SEOBNRv5PHM_opt(Model):
 
     def _initialize_params(self, phys_pars):
         """
-        Re-initialize all parameters to make sure everthing is reset
+        Re-initialize all parameters to make sure everything is reset
         """
         self.eob_pars = EOBParams(phys_pars, {}, mode_array=self.computed_modes)
         self.eob_pars.flux_params.rho_initialized = False
@@ -809,12 +809,12 @@ class SEOBNRv5PHM_opt(Model):
         keys = gsf_coeffs.keys()
         # The following is just a fancy way of passing the coeffs
         for key in keys:
-            tmp = re.findall("h(\d)(\d)_v(\d+)", key)
+            tmp = re.findall(r"h(\d)(\d)_v(\d+)", key)
             if tmp:
                 l, m, v = [int(x) for x in tmp[0]]
                 self.eob_pars.flux_params.extra_coeffs[l, m, v] = gsf_coeffs[key]
             else:
-                tmp = re.findall("h(\d)(\d)_vlog(\d+)", key)
+                tmp = re.findall(r"h(\d)(\d)_vlog(\d+)", key)
                 if tmp:
                     l, m, v = [int(x) for x in tmp[0]]
                     self.eob_pars.flux_params.extra_coeffs_log[l, m, v] = gsf_coeffs[
@@ -838,7 +838,7 @@ class SEOBNRv5PHM_opt(Model):
             waveform_modes (Dict[Any,Any]): Dictionary of modes with m>0
 
         Returns:
-            Dict[Any,Any]: Dictionary of modes with |m| !=0
+            Dict[Any,Any]: Dictionary of modes with :math:`|m| != 0`
         """
         result = deepcopy(waveform_modes)
         for key in waveform_modes.keys():
@@ -1084,7 +1084,7 @@ class SEOBNRv5PHM_opt(Model):
             self.eob_pars.p_params.chi_1 = chi1LN_attach
             self.eob_pars.p_params.chi_2 = chi2LN_attach
 
-            # Remember to update _all_ derived spin quantites as well
+            # Remember to update _all_ derived spin quantities as well
             self.eob_pars.p_params.update_spins(
                 self.eob_pars.p_params.chi_1, self.eob_pars.p_params.chi_2
             )
@@ -1267,7 +1267,8 @@ class SEOBNRv5PHM_opt(Model):
 
             # Now:
             # 1) Compute the time-dependent quaternions from the P-frame to the J-frame using LN_hat
-            # 2) Compute the time-dependent quaternions at ringdown in the J-frame assuming simple precession around the final J
+            # 2) Compute the time-dependent quaternions at ringdown in the J-frame assuming simple precession around
+            #    the final J
             # 3) Compute the time-independent Euler angles from the J-frame to the I-frame
             self.euler_angles_attach = euler_angles_attach
             # Compute ringdown approximation of the Euler angles in the J-frame
@@ -1283,7 +1284,7 @@ class SEOBNRv5PHM_opt(Model):
                 beta_approx=self.beta_approx,
             )
 
-            # Construct the full rotation , by concatinating inspiral
+            # Construct the full rotation , by concatenating inspiral
             # and merger-ringdown
             self.quatJ2P_dyn = quatJ2P_dyn
             self.t_intrp = t_dyn

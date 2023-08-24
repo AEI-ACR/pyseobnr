@@ -1,15 +1,17 @@
+"""
+Mode mixing fitting function and coefficients from [Berti2014]_.
+
+Used to model mode mixing in the (3,2) and (4,3) modes.
+"""
+
 import numpy as np
 from numba import jit
 
-"""
-Mode mixing fitting function and coefficients from Berti, Klein https://arxiv.org/abs/1408.1860. 
-Used to model mode mixing in the (3,2) and (4,3) modes.
-"""
 
 @jit(nopython=True)
 def mu_fit(j: float, p1: float, p2: float, p3: float, p4: float) -> float:
     """
-    Equation 11 from https://arxiv.org/abs/1408.1860 to get the spherical-spheroidal mode mixing coefficients
+    Equation 11 from [Berti2014]_ to get the spherical-spheroidal mode mixing coefficients
 
     Args:
         j (float): dimensionless spin parameter
@@ -26,13 +28,15 @@ def mu_fit(j: float, p1: float, p2: float, p3: float, p4: float) -> float:
 @jit(nopython=True)
 def mu(m: int, l: int, lp: int, j: float) -> float:
     """
-    Equation 11 from https://arxiv.org/abs/1408.1860 applied to the (2,2), (3,2), (3,3) and (4,3) modes using the appropriate fitting parameters
+    Equation 11 from [Berti2014]_ applied to the (2,2), (3,2), (3,3) and (4,3) modes using the
+    appropriate fitting parameters
+
     Data files containing the fits https://git.ligo.org/waveforms/reviews/seobnrv5/-/blob/main/aligned/docs/swsh_fits.dat
     (copied from https://pages.jh.edu/eberti2/ringdown/ on 02/12/2022)
 
     Args:
         m (int): m index of the relevant mode
-        l (int): l index of the relevant mode
+        l (int): :math:`\\ell` index of the relevant mode
         lp (int): index of modes with the same m and lp<=l which give rise to mode mixing
         j (float): dimensionless spin parameter
 
@@ -88,19 +92,20 @@ def mu(m: int, l: int, lp: int, j: float) -> float:
         raise NotImplementedError("Coefficient not implemented.")
 
 
-# Auxiliary functions to obtain the spheroidal mode input values 
-# See Eq. 73 to Eq. 80 of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf
+# Auxiliary functions to obtain the spheroidal mode input values
+# See Eq. 73 to Eq. 80 of [SEOBNRv5HM-notes]_
+
 
 def rho(ell, m, j, h_ellm, h_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(73) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
-    
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(73) of [SEOBNRv5HM-notes]_
+
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
         float: the value of rho
@@ -110,14 +115,14 @@ def rho(ell, m, j, h_ellm, h_mm):
 
 def dphi(ell, m, j, phi_ellm, phi_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(74) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
-    
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(74) of [SEOBNRv5HM-notes]_
+
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        phi_ellm (float): phase of the (ell,m) mode at attachment time
-        phi_mm (float): phase of the (ell^{\prime} = m,m) mode at attachment time
+        phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
+        phi_mm (float): phase of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
         float: the value of dphi
@@ -127,16 +132,16 @@ def dphi(ell, m, j, phi_ellm, phi_mm):
 
 def F(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(75) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
-    
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(75) of [SEOBNRv5HM-notes]_
+
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
-        phi_ellm (float): phase of the (ell,m) mode at attachment time
-        phi_mm (float): phase of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
+        phi_mm (float): phase of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
         float: the value of F
@@ -148,18 +153,19 @@ def F(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
         * (np.sin(dphi(ell, m, j, phi_ellm, phi_mm))) ** 2
     )
 
+
 def alpha(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(76) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
-    
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(76) of [SEOBNRv5HM-notes]_
+
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
-        phi_ellm (float): phase of the (ell,m) mode at attachment time
-        phi_mm (float): phase of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
+        phi_mm (float): phase of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
         float: the value of alpha
@@ -172,16 +178,16 @@ def alpha(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
 @jit(nopython=True)
 def rho_dot(ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(77) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
-    
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(77) of [SEOBNRv5HM-notes]_
+
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
-        hdot_ellm (float): amplitude's first derivative of the (ell,m) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
         float: the value of rho_dot
@@ -191,35 +197,35 @@ def rho_dot(ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm):
 @jit(nopython=True)
 def dphi_dot(omega_ellm, omega_mm):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(78) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
-    
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(78) of [SEOBNRv5HM-notes]_
+
     Args:
-        omega_ellm (float): frequency of the (ell,m) mode at attachment time
-        omega_mm (float): frequency of the (ell^{\prime} = m,m) mode at attachment time
+        omega_ellm (float): frequency of the (:math:`\\ell,m`) mode at attachment time
+        omega_mm (float): frequency of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
         float: the value of dphi_dot
-    """    
+    """
     return omega_mm - omega_ellm
 
 def F_dot(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
 ):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(79) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
-    
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(79) of [SEOBNRv5HM-notes]_
+
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
-        hdot_ellm (float): amplitude's first derivative of the (ell,m) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (ell^{\prime} = m,m) mode at attachment time
-        omega_ellm (float): frequency of the (ell,m) mode at attachment time
-        omega_mm (float): frequency of the (ell^{\prime} = m,m) mode at attachment time
-        phi_ellm (float): phase of the (ell,m) mode at attachment time
-        phi_mm (float): phase of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        omega_ellm (float): frequency of the (:math:`\\ell,m`) mode at attachment time
+        omega_mm (float): frequency of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
+        phi_mm (float): phase of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
         float: the value of F_dot
@@ -238,24 +244,24 @@ def alpha_dot(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
 ):
     """
-    Auxiliary function to obtain the spheroidal mode input values, see Eq.(80) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf 
-    
+    Auxiliary function to obtain the spheroidal mode input values, see Eq.(80) of [SEOBNRv5HM-notes]_
+
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
-        hdot_ellm (float): amplitude's first derivative of the (ell,m) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (ell^{\prime} = m,m) mode at attachment time
-        omega_ellm (float): frequency of the (ell,m) mode at attachment time
-        omega_mm (float): frequency of the (ell^{\prime} = m,m) mode at attachment time
-        phi_ellm (float): phase of the (ell,m) mode at attachment time
-        phi_mm (float): phase of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        omega_ellm (float): frequency of the (:math:`\\ell,m`) mode at attachment time
+        omega_mm (float): frequency of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
+        phi_mm (float): phase of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
         float: the value of alpha_dot
-    """    
+    """
     return (
         rho(ell, m, j, h_ellm, h_mm) ** 2 * dphi_dot(omega_ellm, omega_mm)
         - rho(ell, m, j, h_ellm, h_mm)
@@ -266,25 +272,25 @@ def alpha_dot(
     ) / (F(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm) ** 2)
 
 
-# Spheroidal mode input values 
-# See Eq. 81 to Eq. 84 of https://git.ligo.org/waveforms/reviews/seobnrv5/-/blob/main/aligned/docs/SEOBNRv5HM.pdf
+# Spheroidal mode input values
+# See Eq. 81 to Eq. 84 of [SEOBNRv5HM-notes]_
 
 def h_ellm0_nu(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
     """
-    Computes the amplitude of the spheroidal (ell,m,0) mode at at attachment time
-    from the (ell,m) and (ell^{\prime} = m,m) spherical modes
+    Computes the amplitude of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
+    from the :math:`(\\ell,m)` and (:math:`\\ell^{\\prime} = m,m`) spherical modes
 
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
-        phi_ellm (float): phase of the (ell,m) mode at attachment time
-        phi_mm (float): phase of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
+        phi_mm (float): phase of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
-        float: the amplitude of the spheroidal (ell,m,0) mode at at attachment time
+        float: the amplitude of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
     """
     return (
         h_ellm
@@ -294,20 +300,20 @@ def h_ellm0_nu(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
 
 def phi_ellm0(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
     """
-    Computes the phase of the spheroidal (ell,m,0) mode at at attachment time
-    from the (ell,m) and (ell^{\prime} = m,m) spherical modes
+    Computes the phase of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
+    from the (:math:`\\ell,m`) and (:math:`\\ell^{\\prime} = m,m`) spherical modes
 
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
-        phi_ellm (float): phase of the (ell,m) mode at attachment time
-        phi_mm (float): phase of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
+        phi_mm (float): phase of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
-        float: the phase of the spheroidal (ell,m,0) mode at at attachment time
+        float: the phase of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
     """
     return (
         phi_ellm
@@ -319,24 +325,24 @@ def hdot_ellm0_nu(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
 ):  
     """
-    Computes the amplitude's first derivative of the spheroidal (ell,m,0) mode at at attachment time
-    from the (ell,m) and (ell^{\prime} = m,m) spherical modes
+    Computes the amplitude's first derivative of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
+    from the (:math:`\\ell,m`) and (:math:`\\ell^{\\prime} = m,m`) spherical modes
 
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
-        hdot_ellm (float): amplitude's first derivative of the (ell,m) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (ell^{\prime} = m,m) mode at attachment time
-        omega_ellm (float): frequency of the (ell,m) mode at attachment time
-        omega_mm (float): frequency of the (ell^{\prime} = m,m) mode at attachment time
-        phi_ellm (float): phase of the (ell,m) mode at attachment time
-        phi_mm (float): phase of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        omega_ellm (float): frequency of the (:math:`\\ell,m`) mode at attachment time
+        omega_mm (float): frequency of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
+        phi_mm (float): phase of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
-        float: the amplitude's first derivative of the spheroidal (ell,m,0) mode at at attachment time
+        float: the amplitude's first derivative of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
     """
     return (
         hdot_ellm * F(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm)
@@ -360,24 +366,24 @@ def omega_ellm0(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
 ):
     """
-    Computes the frequency of the spheroidal (ell,m,0) mode at at attachment time
-    from the (ell,m) and (ell^{\prime} = m,m) spherical modes
+    Computes the frequency of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
+    from the (:math:`\\ell,m`) and (:math:`\\ell^{\\prime} = m,m`) spherical modes
 
     Args:
-        ell (int): l index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
         j (float): dimensionless spin parameter
-        h_ellm (float): amplitude of the (ell,m) mode at attachment time
-        h_mm (float): amplitude of the (ell^{\prime} = m,m) mode at attachment time
-        hdot_ellm (float): amplitude's first derivative of the (ell,m) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (ell^{\prime} = m,m) mode at attachment time
-        omega_ellm (float): frequency of the (ell,m) mode at attachment time
-        omega_mm (float): frequency of the (ell^{\prime} = m,m) mode at attachment time
-        phi_ellm (float): phase of the (ell,m) mode at attachment time
-        phi_mm (float): phase of the (ell^{\prime} = m,m) mode at attachment time
+        h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
+        h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        omega_ellm (float): frequency of the (:math:`\\ell,m`) mode at attachment time
+        omega_mm (float): frequency of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
+        phi_mm (float): phase of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
 
     Returns:
-        float: the frequency of the spheroidal (ell,m,0) mode at at attachment time
+        float: the frequency of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
     """
     return omega_ellm + alpha_dot(
         ell,

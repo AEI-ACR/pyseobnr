@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Computes the aligned-spin initial conditions in polar coordinates. 
+Computes the aligned-spin initial conditions in polar coordinates.
 """
 
 import logging
@@ -23,12 +23,11 @@ def IC_cons(u, omega, H, chi_1, chi_2, m_1, m_2):
     part of the QC initial conditions, namely
     for r and pphi.
 
-    This is Eq(60) in
-    https://journals.aps.org/prd/pdf/10.1103/PhysRevD.104.024046
+    This is Eq(60) in [Khalil2021]_ .
 
     Args:
         u ([np.ndarray]): The unknowns, r,pphi
-        omega ([float): Desired starting orbital frequency, in gemoetric units
+        omega (float): Desired starting orbital frequency, in geometric units
         H (function): The Hamiltonian to use (an instance of Hamiltonian class)
         chi_1 (float): z-component of the primary spin
         chi_2 (float): z-component of the secondary spin
@@ -53,14 +52,13 @@ def IC_diss(u, r, pphi, H, RR, chi_1, chi_2, m_1, m_2, params):
     """Initial conditions for the "dissipative" part,
     namely pr.
 
-    This is Eq(68) in
-    https://journals.aps.org/prd/pdf/10.1103/PhysRevD.104.024046
+    This is Eq(68) in [Khalil2021]_ .
 
     Note that RR_f[1] is 1/Omega*dE/dt
 
     Args:
         u (float): Guess for pr
-        r (floart): Starting separation
+        r (float): Starting separation
         pphi (float): Starting angular momentum
         H (Hamiltonian): The Hamiltonian object to use
         RR (function): Function that returns the RR force. Must have same signature as the Hamiltonian
@@ -115,7 +113,7 @@ def computeIC_opt(omega, H, RR, chi_1, chi_2, m_1, m_2, **kwargs):
     res_cons = root(IC_cons, z, args=(omega, H, chi_1, chi_2, m_1, m_2), tol=6e-12)
     if not res_cons.success:
         logger.error(
-            f"The solution fo the conservative part of intial conditions failed for"
+            f"The solution fo the conservative part of initial conditions failed for"
             f" m1={m_1},m2={m_2},chi1={chi_1},chi2={chi_2},omega={omega}"
         )
 
@@ -131,8 +129,8 @@ def computeIC_opt(omega, H, RR, chi_1, chi_2, m_1, m_2, **kwargs):
     )
     if not res_diss.converged:
         logger.error(
-            "The solution fo the dissipative part of intial conditions failed for"
-            " m1={m1},m2={m2},chi1={chi_1},chi2={chi_2},omega={omega}"
+            "The solution fo the dissipative part of initial conditions failed for"
+            f" m1={m_1},m2={m_2},chi1={chi_1},chi2={chi_2},omega={omega}"
         )
     # Now do the dissipative bit: solve for pr
     pr0 = res_diss.root

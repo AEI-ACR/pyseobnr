@@ -7,7 +7,8 @@ import numpy as np
 class MergerRingdownFits:
     """
     Contains fits for coefficients in the merger-ringdown ansatze for all modes.
-    Class that wraps all necessary fits as methods. Each method returns a dict with keys being the desired mode. 
+
+    Class that wraps all necessary fits as methods. Each method returns a dict with keys being the desired mode.
 
     Args:
         m1 (float): mass of the primary
@@ -33,7 +34,7 @@ class MergerRingdownFits:
     def c1f(self):
         """
         Fits for the c1f coefficient entering the merger-ringdown amplitude ansatz.
-        See Eq(57) and Appendix B of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
+        See Eq(57) and Appendix B of [SEOBNRv5HM-notes]_ .
 
         Returns:
             dict: dictionary of c1f values with keys being the desired mode
@@ -53,7 +54,7 @@ class MergerRingdownFits:
     def c2f(self):
         """
         Fits for the c2f coefficient entering the merger-ringdown amplitude ansatz.
-        See Eq(57) and Appendix B of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
+        See Eq(57) and Appendix B of [SEOBNRv5HM-notes]_ .
 
         Returns:
             dict: dictionary of c2f values with keys being the desired mode
@@ -73,7 +74,7 @@ class MergerRingdownFits:
     def d1f(self):
         """
         Fits for the d1f coefficient entering the merger-ringdown phase ansatz.
-        See Eq(58) and Appendix B of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
+        See Eq(58) and Appendix B of [SEOBNRv5HM-notes]_ .
 
         Returns:
             dict: dictionary of c2f values with keys being the desired mode
@@ -92,7 +93,7 @@ class MergerRingdownFits:
     def d2f(self):
         """
         Fits for the d2f coefficient entering the merger-ringdown phase ansatz.
-        See Eq(58) and Appendix B of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
+        See Eq(58) and Appendix B of [SEOBNRv5HM-notes]_ .
 
         Returns:
             dict: dictionary of c2f values with keys being the desired mode

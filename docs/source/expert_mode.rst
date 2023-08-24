@@ -1,7 +1,7 @@
 Expert mode and debugging
 =========================
 
-The expert mode is inteded for users who either want to debug the models or for those
+The expert mode is intended for users who either want to debug the models or for those
 seeking results beyond the waveform modes. In this mode, the EOB waveform generator will
 return an extra output which is a model class that contains many additional details of
 the model.
@@ -24,7 +24,7 @@ One can invoke this as follows:
     >>> model
     <pyseobnr.models.SEOBNRv5HM.SEOBNRv5HM_opt at 0x7f876766c0a0>
 
-The model object contains a lot of information. Boradly speaking these can be split
+The model object contains a lot of information. Broadly speaking these can be split
 into:
 
 - Inputs and derived quantities: e.g masses, spins, etc and transformations thereof
@@ -32,7 +32,7 @@ into:
 - Intermediate results: e.g. waveform modes in particular frames
 - Additional output: e.g. the dynamics
 
-The last category is of most interest to those that want addditional information from
+The last category is of most interest to those that want additional information from
 the mode. As an example, one can easily access the dynamics with
 
 .. code-block:: python
@@ -41,6 +41,6 @@ the mode. As an example, one can easily access the dynamics with
 
 .. note::
 
-    The dynamics are represented internally in terms of *rescaled* quantites, i.e. the
+    The dynamics are represented internally in terms of *rescaled* quantities, i.e. the
     momenta are appropriate scaled by :math:`\mu`, while :math:`H` is scaled by :math:`\nu`. The code also
     internally uses the convention that the total mass of the system is 1.
