@@ -135,6 +135,7 @@ class SEOBNRv5HM_opt(Model):
             # If the reference frequency is _less_ than the starting frequency
             # then just change the starting frequency to the reference frequency
             if self.f_ref < self.f0:
+                logger.warning(f"f_ref < f_start: f_start={self.f0} changed to f_ref={self.f_ref}")
                 self.omega0 = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
                 self.f0 = self.omega0 / (self.M * lal.MTSUN_SI * np.pi)
 
@@ -641,6 +642,7 @@ class SEOBNRv5PHM_opt(Model):
             # If the reference frequency is _less_ than the starting frequency
             # then just change the starting frequency to the reference frequency
             if self.f_ref < self.f_start:
+                logger.warning(f"f_ref < f_start: f_start={self.f_start} changed to f_ref={self.f_ref}")
                 self.omega_start = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
                 self.f_start = self.omega_start / (self.M * lal.MTSUN_SI * np.pi)
 
