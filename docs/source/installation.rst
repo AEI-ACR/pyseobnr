@@ -23,7 +23,7 @@ clean environment (either a ``venv`` or a ``conda`` environment).
 
 .. code-block:: console
 
-    (.venv) $ git clone git@git.ligo.org:serguei.ossokine/pyseobnr.git
+    (.venv) $ git clone https://git.ligo.org/waveforms/software/pyseobnr.git
     (.venv) $ cd pyseobnr
     (.venv) $ pip install -U pip wheel setuptools numpy
     (.venv) $ pip install .
