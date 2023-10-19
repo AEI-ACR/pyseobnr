@@ -1,0 +1,173 @@
+stages:
+  - test
+  - docs
+
+
+#
+# Conda builds using LIGO container
+#
+
+# specific common configurations for builders
+.conda_build_default: &conda_build_default
+  image: containers.ligo.org/docker/base:conda
+  before_script:
+    - |
+      if [ -z "${CONDA_ROOT}" ]; then
+        if command -v conda &> /dev/null; then
+          CONDA_ROOT=$(conda info --base);
+        else
+          CONDA_ROOT="/opt/conda";
+        fi;
+      fi
+
+    - conda update -n base -c defaults conda
+    - conda install mamba libarchive
+
+    - mamba create --yes --name python311 python=3.11
+    # we need gcc because we will be compiling pyseobnr
+    # pygsl_lite will pull gsl
+    - |
+      mamba install \
+        --yes \
+        --channel conda-forge \
+        --channel bioconda \
+        --name python311 \
+          lalsuite \
+          gcc \
+          pygsl_lite
+
+    - pip install --upgrade pip
+    - pip install --upgrade setuptools coverage-badge parameterized
+
+    - . ${CONDA_ROOT}/etc/profile.d/conda.sh
+    - |
+      if [ -f ${CONDA_ROOT}/etc/profile.d/mamba.sh ]; then
+        . ${CONDA_ROOT}/etc/profile.d/mamba.sh;
+      fi
+
+
+conda-test:
+  <<: *conda_build_default
+  stage: test
+  script:
+    - conda activate python311
+    - pip install .
+    - mkdir .temp-tests
+    - pytest --junitxml=.temp-tests/junit.xml -vvv test
+
+  artifacts:
+    paths:
+      - .temp-tests/**/junit.xml
+    reports:
+      junit: .temp-tests/**/junit.xml
+
+conda-docs:
+  <<: *conda_build_default
+  stage: docs
+  variables:
+    SOURCEDIR: "docs"
+  
+  script:
+    - |
+      mamba install \
+        --yes \
+        --channel conda-forge \
+        --channel bioconda \
+        --name python311 \
+          make
+    - conda activate python311
+    - pip install .[docs]
+    - cd ${SOURCEDIR} && make html
+
+  after_script:
+    - mv docs/_build/html ./html
+
+  artifacts:
+    paths:
+      - ./html/
+
+    expire_in: 60 days
+
+
+#
+# pip / tox based builds
+#
+
+.default_installs: &default_installs
+  - DEBIAN_FRONTEND=noninteractive apt-get update
+
+# specific common configurations for builders
+.build_default: &build_default
+  before_script:
+    - *default_installs
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y libgsl-dev
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git python3-pip python3-venv
+  artifacts:
+    paths:
+      - .tox/.pkg*/**/*.whl
+      - .tox/**/junit-*.xml
+    reports:
+      junit: .tox/**/junit-*.xml
+
+.build_package_default_cmds: &build_package_default_cmds
+  - |
+    python3 -m venv ../.venv_test
+    . ../.venv_test/bin/activate
+    pip install -U wheel pip setuptools
+    pip install tox
+    tox -l
+
+# building pyseobnr and running the tests using tox
+tox-build-test:
+  stage: test
+  parallel:
+      matrix:
+        - image: ubuntu:20.04
+          tox_target: py39
+          packages: libgsl23 python3.9 libpython3.9-dev
+        - image: ubuntu:22.04
+          tox_target: py310
+          packages: libgsl27 python3.10 libpython3.10-dev
+        - image: ubuntu:22.04
+          tox_target: py311
+          packages: libgsl27 python3.11 libpython3.11-dev
+  image: $image
+  <<: *build_default
+  script:
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y $packages python3-pip python3-venv
+    - *build_package_default_cmds
+    - tox -e $tox_target
+
+# running the linting only
+tox-lint:
+  stage: docs
+  image: ubuntu:22.04
+  <<: *build_default
+  script:
+    - *build_package_default_cmds
+    - |
+      tox -e lint
+
+# generating the documentation after installation of the package
+tox-docs:
+  stage: docs
+  image: ubuntu:22.04
+  <<: *build_default
+  script:
+    - |
+      apt-get update
+      DEBIAN_FRONTEND=noninteractive \
+        apt-get install -y \
+          libpython3-dev python3-pip python3-venv \
+          libgsl27 \
+          libfftw3-dev
+    - *build_package_default_cmds
+    - |
+      tox -e docs
+
+  after_script:
+    - mv .tox/docs/tmp/docs_output ./html
+
+  artifacts:
+    paths:
+      - ./html/

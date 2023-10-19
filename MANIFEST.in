@@ -1,0 +1,4 @@
+exclude .gitlab
+exclude .gitignore
+exclude .gitlab-ci.yml
+exclude .pre-commit-config.yaml
