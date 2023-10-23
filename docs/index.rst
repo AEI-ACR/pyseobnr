@@ -13,13 +13,13 @@ Welcome to pyseobnr's documentation!
    source/installation
    source/basic_usage
    source/expert_mode
-
-
+   source/citations
 
 
 API
 ---
-Throughout the code we refer to several differnt technical documents, that can be found `here <https://dcc.ligo.org/LIGO-T2300060/public>`_
+Throughout the code we refer to several different technical documents, that can be found
+`here <https://dcc.ligo.org/LIGO-T2300060/public>`_
 
 .. autosummary::
    :toctree: api
@@ -30,4 +30,7 @@ Throughout the code we refer to several differnt technical documents, that can b
    pyseobnr.generate_waveform
    pyseobnr.eob.dynamics
    pyseobnr.eob.waveform
+   pyseobnr.eob.fits
 
+   pyseobnr.models
+   pyseobnr.auxiliary.mode_mixing.auxiliary_functions_modemixing

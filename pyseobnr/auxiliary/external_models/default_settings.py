@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """This file contains the default settings for various models
-Each default setting is a *function* the resturns a dictionary.
+Each default setting is a *function* that returns a dictionary.
 To be used by models in models.py
 """
 

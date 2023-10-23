@@ -1,6 +1,7 @@
 """
-Contains functions to evaluate the MR ansatze. 
-See Eq. (56) and following in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
+Contains functions to evaluate the MR ansatze.
+
+See Eq. (56) and following in [SEOBNRv5HM-notes]_ .
 """
 
 import numpy as np
@@ -12,7 +13,9 @@ def compute_MR_mode_free(
     t, m1, m2, chi1, chi2, attach_params, ell, m, fits_dict,f_nyquist,lmax_nyquist,t_match=0, phi_match=0, qnm_rotation=0.
 ):
     """
-    Evaluate the MR ansatze. See Eqs.(56, 57, 58) in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
+    Evaluate the MR ansatze.
+
+    See Eqs.(56, 57, 58) in [SEOBNRv5HM-notes]_ .
 
     Args:
         t (np.ndarray): ringdown time array

@@ -1,4 +1,9 @@
 # cython: language_level=3
+
+"""
+Optimized functions for waveform generation.
+"""
+
 cimport cython
 from libc.math cimport log, sqrt, exp, abs,fabs, tgamma,sin,cos, tanh, sinh, asinh
 from libc.math cimport M_PI as pi
@@ -134,8 +139,9 @@ LOOKUP_TABLE[:] = [
 @cython.linetrace(True)
 cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int m):
     """
-    Calculates the Newtonian multipole prefactors, see Eq. 25-27 in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
-    See also Sec. 2A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
+    Calculates the Newtonian multipole prefactors, see Eq. 25-27 in
+    [SEOBNRv5HM-notes]_.
+    See also Sec. 2A of [Damour2009]_.
     """
     cdef double complex n = 0.0
     cdef double complex prefix
@@ -218,7 +224,9 @@ cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int
 @cython.boundscheck(False)
 cpdef compute_newtonian_prefixes(double m1, double m2):
     """
-    Loop to set the Newtonian multipole prefactors, see Eq. 25-27 in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
+    Loop to set the Newtonian multipole prefactors.
+
+    See Eq. 25-27 in [SEOBNRv5HM-notes]_.
     """
     cdef double complex prefixes[9][9]
     for i in range(9):
@@ -236,7 +244,9 @@ cpdef compute_newtonian_prefixes(double m1, double m2):
 @cython.cdivision(True)
 cpdef double evaluate_nqc_correction_flux(double r, double pr,  double omega, double[:] coeffs):
     """
-    Calculate the NQC amplitude correction, see Eq. 35 in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
+    Calculate the NQC amplitude correction.
+
+    See Eq. 35 in [SEOBNRv5HM-notes]_.
     """
     cdef double sqrtR = sqrt(r)
     cdef double rOmega = r * omega
@@ -255,9 +265,13 @@ cpdef double evaluate_nqc_correction_flux(double r, double pr,  double omega, do
 @cython.cdivision(True)
 cpdef compute_tail(double omega, double H, double[:,:] Tlm):
     """
-    Calculate the resummed Tail effects, see Eq. 32 in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
-    See also Sec. 2B of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
-    and Eq. (42) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.87.084035
+    Calculate the resummed Tail effects.
+
+    See
+
+    * Eq. 32 in [SEOBNRv5HM-notes]_,
+    * Sec. 2B of [Damour2009]_,
+    * and Eq. (42) of [Damour2013]_.
     """
     cdef int m,j
     cdef double k, hathatk,hathatksq4,hathatk4pi,z2
@@ -287,21 +301,24 @@ cpdef compute_tail(double omega, double H, double[:,:] Tlm):
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-cdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double chiA,
+cpdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double chiA,
     double[:,:,:] rho_coeffs,double[:,:,:] rho_coeffs_log, double[:,:,:] f_coeffs,
     double complex[:,:,:] f_coeffs_vh, bint extra_PN_terms):
 
     """
     Compute the amplitude residual coefficients.
-    See Sec. 2C and 2D of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
-    See Eq. 59-63 of https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf) for new terms, rest copied from SEOBNRv4HM LAL code.
+
+    See Sec. 2C and 2D of [Damour2009]_ and Eq. 59-63 of [SEOBNRv5HM-theory]_ for new
+    terms.
+    The rest has been copied from SEOBNRv4HM LAL code.
 
     Coefficients can be found in:
-    - https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf and SEOBNRv5HM.pdf)
-    - Appendix A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.98.084028
-    - Eqs. (2.4) to (2.6) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.95.044028
-    - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.83.064003
-    - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.86.024011
+
+    * [SEOBNRv5HM-theory]_ and [SEOBNRv5HM-notes]_
+    * Appendix A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.98.084028
+    * Eqs. (2.4) to (2.6) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.95.044028
+    * https://journals.aps.org/prd/pdf/10.1103/PhysRevD.83.064003
+    * https://journals.aps.org/prd/pdf/10.1103/PhysRevD.86.024011
     """
 
     cdef double nu2 = nu*nu
@@ -1042,15 +1059,17 @@ cpdef public void compute_delta_coeffs(double nu,double dm, double a,double chiS
 
     """
     Compute the phase residual coefficients.
-    See Sec. 2B of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.79.064004
-    See Eq. 59-63 of https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf) for new terms, rest copied from SEOBNRv4HM LAL code
+
+    See Sec. 2B of [Damour2009]_ and Eq. 59-63 of [SEOBNRv5HM-theory]_ for new terms.
+    The rest has been copied from SEOBNRv4HM LAL code.
 
     Coefficients can be found in:
-    - https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5_theory.pdf and SEOBNRv5HM.pdf)
-    - Appendix A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.98.084028
-    - Eqs. (2.4) to (2.6) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.95.044028
-    - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.83.064003
-    - https://journals.aps.org/prd/pdf/10.1103/PhysRevD.86.024011
+
+    * [SEOBNRv5HM-theory]_ and [SEOBNRv5HM-notes]_
+    * Appendix A of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.98.084028
+    * Eqs. (2.4) to (2.6) of https://journals.aps.org/prd/pdf/10.1103/PhysRevD.95.044028
+    * https://journals.aps.org/prd/pdf/10.1103/PhysRevD.83.064003
+    * https://journals.aps.org/prd/pdf/10.1103/PhysRevD.86.024011
     """
 
     cdef double nu2 = nu*nu
@@ -1197,7 +1216,7 @@ cpdef public void compute_delta_coeffs(double nu,double dm, double a,double chiS
 @cython.initializedcheck(False)
 cdef double complex compute_deltalm_single(double[] vs, double[] vhs,int l, int m, FluxParams fl):
     """
-    Compute the  full \delta_{\ell m} contribution for a given mode
+    Compute the  full :math:`\\delta_{\\ell m}` contribution for a given mode
     """
     cdef int j
     cdef double complex delta = 0.0
@@ -1215,7 +1234,7 @@ cdef double complex compute_deltalm_single(double[] vs, double[] vhs,int l, int 
 @cython.linetrace(True)
 cdef void compute_delta(double v,double vh,double nu, EOBParams eob_pars):
     """
-    Compute the  full \delta_{\ell m} contribution for all modes
+    Compute the  full :math:`\\delta_{\\ell m}` contribution for all modes
     """
     cdef int i,j,l,m
     cdef double vs[PN_limit]
@@ -1237,10 +1256,11 @@ cdef void compute_delta(double v,double vh,double nu, EOBParams eob_pars):
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-
-cdef double complex compute_extra_flm_terms(int l,int m,double vh,EOBParams eob_pars):
+cpdef double complex compute_extra_flm_terms(int l,int m,double vh,EOBParams eob_pars):
     """
-    Compute the complex term in f_{33}. See last term in Eq(A10) of https://arxiv.org/pdf/1803.10701.pdf
+    Compute the complex term in :math:`f_{33}`.
+
+    See last term in Eq(A10) of [Cotesta2022]_
     """
     cdef double vh3 = vh**3
     cdef double complex extra_term = 0.0
@@ -1256,7 +1276,7 @@ cdef double complex compute_extra_flm_terms(int l,int m,double vh,EOBParams eob_
 @cython.initializedcheck(False)
 cdef double complex compute_rholm_single(double[] vs,double vh, int l, int m, EOBParams eob_pars):
     """
-    Compute the full \rho_{\ell m}​ contribution for a given mode
+    Compute the full :math:`\\rho_{\\ell m}` contribution for a given mode
     """
     cdef int j
     cdef double v = vs[1]
@@ -1346,7 +1366,7 @@ cdef void compute_rholm(double v,double vh,double nu, EOBParams eob_pars):
 @cython.nonecheck(False)
 @cython.profile(True)
 @cython.linetrace(True)
-cdef double  EOBFluxCalculateNewtonianMultipoleAbs(
+cpdef double  EOBFluxCalculateNewtonianMultipoleAbs(
     double x, double phi, int l, int m, double [:,:] params
 ):
     """
@@ -1388,9 +1408,11 @@ cdef void update_rho_coeffs(double[:,:,:] rho_coeffs, double[:,:,:] extra_coeffs
 @cython.initializedcheck(False)
 @cython.profile(True)
 @cython.linetrace(True)
-cdef double compute_flux(double r,double phi,double pr,double pphi,double omega,double omega_circ,double H,EOBParams eob_pars):
+cpdef double compute_flux(double r,double phi,double pr,double pphi,double omega,double omega_circ,double H,EOBParams eob_pars):
     """
-    Compute the full flux. See Eq(43) in the .
+    Compute the full flux.
+
+    See Eq(43) in [SEOBNRv5HM-notes]_.
     """
     cdef int l,m
     cdef double[:,:] Tlm = eob_pars.flux_params.Tlm
@@ -2163,7 +2185,8 @@ cdef double complex EOBFluxCalculateNewtonianMultipole(
 @cython.linetrace(True)
 cdef double complex compute_mode(double v_phi2,double phi, double Slm, double[] vs,double[] vhs,int l, int m, EOBParams eob_pars):
     """
-    Compute the given (l,m) mode at one instant in time. See Eq(24) in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
+    Compute the given (l,m) mode at one instant in time.
+    See Eq(24) in [SEOBNRv5HM-notes]_.
     """
 
     cdef double complex Tlm,hNewton,rholm,deltalm
@@ -2211,12 +2234,13 @@ cdef double complex compute_mode(double v_phi2,double phi, double Slm, double[] 
 cpdef compute_hlms(double[:,:] dynamics, EOBParams eob_pars):
     """
     Compute the inspiral modes for aligned *or* precessing binaries.
-    Note that:
-    - it is assumed that the special mode coefficients have already been
-    computed and set correctly in eob_pars.flux_params
-    - it is assumed that if the case is precessing, dynamics has been correctly
-    augmented with the projections of the spins
 
+    .. notes:
+
+        * it is assumed that the special mode coefficients have already been
+          computed and set correctly in eob_pars.flux_params
+        * it is assumed that if the case is precessing, dynamics has been correctly
+          augmented with the projections of the spins
     """
 
     cdef double r,pr,pphi,omega_circ,omega,v_phi,v_phi2,H,v,vh,phi,chi_1,chi_2
@@ -2327,7 +2351,9 @@ cdef double min_threshold(int l,int m):
 cpdef compute_special_coeffs(double[:,:] dynamics, double t_attach, EOBParams eob_pars,
     dict amp_fits, dict amp_thresholds, dict modes={(2,1):7,(4,3):7,(5,5):5}):
     """
-    Compute the "special" amplitude coefficients. See discussion after Eq. (33) in https://dcc.ligo.org/LIGO-T2300060 (SEOBNRv5HM.pdf).
+    Compute the "special" amplitude coefficients.
+
+    See discussion after Eq. (33) in [SEOBNRv5HM-notes]_.
     """
     # Step 0: spline the dynamics to the attachment point
 
@@ -2429,7 +2455,9 @@ cpdef compute_special_coeffs(double[:,:] dynamics, double t_attach, EOBParams eo
 @cython.cdivision(True)
 cpdef compute_factors(double[::1] phi_orb,int m_max, double complex[:,:]result):
     """
-    Trivial helper function that computes iterative e^{im\phi} which is used in interpolation, see `interpolate_modes_fast` in `compute_hlms.py`
+    Trivial helper function that computes iterative :math:`e^{im\\phi}`.
+
+    This is used in interpolation, see :py:func:`.compute_hlms.interpolate_modes_fast`.
     """
     cdef int N = phi_orb.shape[0]
     cdef int i,m

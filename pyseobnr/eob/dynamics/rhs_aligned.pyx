@@ -16,12 +16,15 @@ cpdef get_rhs(double t,double[::1] z,Hamiltonian_C H,RadiationReactionForce RR,
     """
     Compute the RHS of the EOB evolution equations.
     In particular this function returns
-    \dot{r},\dot{\phi},\dot{p}_{r},\dot{p}_{\phi}
-    See for example Eq(2) of arXiv:2112.06952.
-    The Hamiltonian is given by Eq(14) in v5HM doc
-    and explicitly spelled out in Section I.C of v5 theory doc.
-    and the RR force is descibed in Eq(43) of v5HM doc, both
-    contained in DCC:T2300060
+    :math:`\\dot{r}`, :math:`\\dot{\phi}` , :math:`\\dot{p}_{r}` and :math:`\\dot{p}_{\\phi}` .
+
+    See for example Eq(2) of [Buades2021]_ .
+
+    The Hamiltonian is given by Eq(14) in [SEOBNRv5HM]_ doc
+    and explicitly spelled out in Section I.C of [SEOBNRv5HM-theory]_
+    and the RR force is described in Eq(43) of [SEOBNRv5HM]_ document, both
+    contained in [DCC_T2300060]_ .
+
     """
     cdef double[::1] q = z[:2]
     cdef double[::1] p = z[2:]
@@ -65,7 +68,8 @@ cpdef augment_dynamics(double[:,:] dynamics, double chi_1, double chi_2, double 
         q = row[1:3]
         p = row[3:5]
         p_c[1] = p[1]
-        # Evaluate a few things: H, omega,omega_circ
+
+        # Evaluate a few things: H, omega, omega_circ
 
         dyn[:] = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
         omega = dyn[3]
