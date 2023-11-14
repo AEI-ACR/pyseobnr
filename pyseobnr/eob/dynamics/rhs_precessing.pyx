@@ -28,7 +28,7 @@ cpdef get_rhs_prec(double t,double[::1] z,Hamiltonian_v5PHM_C H,RadiationReactio
     """
     Compute the RHS of the EOB evolution equations.
     In particular this function returns
-    \dot{r},\dot{\phi},\dot{p}_{r},\dot{p}_{\phi}
+    :math:`\\dot{r}`, :math:`\\dot{\\phi}`, :math:`\\dot{p}_{r}`, :math:`\\dot{p}_{\\phi}`.
     """
     cdef double[::1] q = z[:2]
     cdef double[::1] p = z[2:]

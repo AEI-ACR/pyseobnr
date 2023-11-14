@@ -3,3 +3,7 @@
 pyseobnr/_version.py
 build/
 pyseobnr.egg-info
+docs/_build
+__pycache__
+docs/api
+.tox

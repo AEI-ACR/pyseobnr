@@ -5,7 +5,7 @@ Standard interface
 ------------------
 
 ``pyseobnr`` provides an interface that closely follows the conventions used in in the
-new waveform interface, `gwsignal <>`_.
+`gwsignal`_ waveform interface.
 
 In this interface, one first constructs a :py:class:`GenerateWaveform
 <pyseobnr.generate_waveform.GenerateWaveform>` class which serves as a container for
@@ -26,16 +26,20 @@ Mpc. For details see :py:class:`GenerateWaveform
 
 .. tip::
 
-    See also the relevant documentation in `gwsignal <>`_.
+    See also the relevant documentation in `gwsignal`_.
+
+.. _gwsignal: https://gwsignal.docs.ligo.org/gwsignal-docs/index.html
 
 Here is a simple example to get the modes:
 
 .. code-block:: python
 
-    # Start with the usual parameter definitions
+    # import the library
+    from pyseobnr import GenerateWaveform
 
+    # Start with the usual parameter definitions
     # Masses in solar masses
-    >>> m1 = 50.
+    m1 = 50.
     m2 = 30.
     s1x,s1y,s1z = 0.,0.,0.5
     s2x,s2y,s2z = 0.,0.,0.8
@@ -49,27 +53,30 @@ Here is a simple example to get the modes:
     phiRef = 0.
     approximant = "SEOBNRv5HM"
 
-    params_dict = {'mass1' : m1,
-                'mass2' : m2,
-                'spin1x' : s1x,
-                'spin1y' : s1y,
-                'spin1z' : s1z,
-                'spin2x' : s2x,
-                'spin2y' : s2y,
-                'spin2z' : s2z,
-                'deltaT' : deltaT,
-                'f22_start' : f_min,
-                'phi_ref' : phiRef,
-                'distance' : distance,
-                'inclination' : inclination,
-                'f_max' : f_max,
-                'approximant' : approximant}
+    params_dict = {
+        "mass1": m1,
+        "mass2": m2,
+        "spin1x": s1x,
+        "spin1y": s1y,
+        "spin1z": s1z,
+        "spin2x": s2x,
+        "spin2y": s2y,
+        "spin2z": s2z,
+        "deltaT": deltaT,
+        "f22_start": f_min,
+        "phi_ref": phiRef,
+        "distance": distance,
+        "inclination": inclination,
+        "f_max": f_max,
+        "approximant": approximant,
+    }
 
     wfm_gen = GenerateWaveform(params_dict) # We call the generator with the parameters
     # Generate mode dictionary
     times, hlm = wfm_gen.generate_td_modes()
 
     # Plot some modes
+    from matplotlib import pyplot as plt
 
     plt.figure()
     plt.plot(times,hlm[(2,2)].real)
@@ -86,7 +93,7 @@ Here is a simple example to get the modes:
     plt.show()
 
 
-To get the polarizations in the frquency domain:
+To get the polarizations in the frequency domain:
 
 
 .. code-block:: python
@@ -100,8 +107,8 @@ To get the polarizations in the frquency domain:
 EOB internal interface
 ----------------------
 
-Internally, ``pyseobnr`` computes the waveforms in geometric units and follows sligtly
-different convetions (that agree with previous models in the ``SEOBNR`` family).
+Internally, ``pyseobnr`` computes the waveforms in geometric units and follows slightly
+different conventions (that agree with previous models in the ``SEOBNR`` family).
 The output is a numpy array of times and a dictionary of modes. Note that for aligned-spin,
 the internal EOB generator only outputs modes with :math:`m>0`.
 

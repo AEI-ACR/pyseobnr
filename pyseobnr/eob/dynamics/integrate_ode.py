@@ -73,7 +73,7 @@ def compute_dynamics_opt(
 ):
     """
     Main function to integrate the dynamics
-    The RHS of the equations are given in Eq(2) of arXiv:2112.06952.
+    The RHS of the equations are given in Eq(2) of [Buades2021]_ .
     See rhs_aligned.pyx for more details.
     Uses GSL Dormand-Prince 8th order integrator.
     Args:
@@ -144,7 +144,7 @@ def compute_dynamics_opt(
         res_gsl.append(y)
         ts.append(t)
 
-        # Comute the RHS after the step is done
+        # Compute the RHS after the step is done
 
         r = y[0]
 

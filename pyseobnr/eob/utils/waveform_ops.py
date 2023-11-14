@@ -15,7 +15,7 @@ def frame_inv_amp(modes:Dict[Any,Any],ell_max:int=2,use_symm=True)->np.ndarray:
         use_symm (bool): Assume up-down aligned symmetry
 
     Returns:
-        np.ndarray: The frame-invariant ampltiude time series
+        np.ndarray: The frame-invariant amplitude time series
     """
     total = 0.0
 

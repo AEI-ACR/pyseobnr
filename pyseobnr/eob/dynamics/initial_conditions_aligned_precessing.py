@@ -32,7 +32,7 @@ def IC_cons_augm(u:np.ndarray,
 
     Args:
         u ([np.ndarray]): The unknowns, r,pphi
-        omega ([float): Desired starting orbital frequency, in gemoetric units
+        omega (float): Desired starting orbital frequency, in geometric units
         H (function): The Hamiltonian to use (an instance of Hamiltonian class)
         chi1_v (np.ndarray): Dimensionless spin vector of the primary
         chi2_v (np.ndarray): Dimensionless spin vector of the secondary
@@ -173,6 +173,6 @@ def computeIC_augm(omega: float,
     params.p_params.omega_circ = omega_circ
     params.p_params.H_val = H_val
 
-    #print(f"Ad. IC : r0 = {r0}, pphi0 = {pphi0}, pr0 = {pr0}")
+    # print(f"Ad. IC : r0 = {r0}, pphi0 = {pphi0}, pr0 = {pr0}")
 
     return r0, pphi0, pr0
