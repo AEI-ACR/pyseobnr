@@ -24,7 +24,6 @@ cdef class PhysicalParams:
         self.omega = dc["omega"]
         self.omega_circ = dc["omega"]
         self.H_val = dc["H_val"]
-        #self.omega_start = dc["omega_start"]
         self._compute_derived_quants()
 
     cpdef update_spins(self,double chi_1,double chi_2):

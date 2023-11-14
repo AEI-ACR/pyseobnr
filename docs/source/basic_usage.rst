@@ -4,7 +4,7 @@ Using pyseobnr
 Standard interface
 ------------------
 
-``pyseobnr`` provides an interface that closely follows the conventions used in in the
+``pyseobnr`` provides an interface that closely follows the conventions used in the
 `gwsignal`_ waveform interface.
 
 In this interface, one first constructs a :py:class:`GenerateWaveform

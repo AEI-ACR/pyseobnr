@@ -4,7 +4,7 @@ Follows the procedure of IMRPhenomXPHM/IMRPhenomTPHM tests
 in LALSuite.
 
 This file was automatically generated on 2023-03-23 20:31:34.581748.
-It should be regenrated using regenerate_SEOBNRv5PHM.py whenever
+It should be regenerated using regenerate_SEOBNRv5PHM.py whenever
 understood changes to the model are made.
 """
 
@@ -63,7 +63,7 @@ def gen_test_data(test_type):
         "inclination": inclination,
         "f_max": f_max,
         "approximant": approximant,
-        "postadiabatic": True
+        "postadiabatic": True,
     }
     wfm_gen = GenerateWaveform(params_dict)  # We call the generator with the parameters
     params_dict2 = params_dict.copy()
@@ -103,6 +103,7 @@ def gen_test_data(test_type):
         hc_diff = sum_sqr_diff(hc1.data.data, hc2.data.data)
         return hp_diff, hc_diff
 
+
 # -- test functions ---------------------
 
 
@@ -119,7 +120,7 @@ def test_SEOBNRv5PHM_diff_TD():
 
     """
 
-    expected_result = np.array([9.286455953988354e-18,8.842800671532437e-18])
+    expected_result = np.array([9.286455953988354e-18, 8.842800671532437e-18])
 
     new_result = np.array(gen_test_data("TD"))
     np.testing.assert_allclose(
@@ -141,8 +142,12 @@ def test_SEOBNRv5PHM_diff_FD():
     """
 
     expected_result = np.array(
-	[9.652274107044372e-20,3.391378195301547e+04,8.605764565737375e-20,
- 3.440922572212310e+04]
+        [
+            9.652274107044372e-20,
+            3.391378195301547e04,
+            8.605764565737375e-20,
+            3.440922572212310e04,
+        ]
     )
 
     new_result = np.array(gen_test_data("FD"))

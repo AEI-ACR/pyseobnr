@@ -31,7 +31,7 @@ clean environment (either a ``venv`` or a ``conda`` environment).
 .. tip::
 
     If you are actively developing the code, consider using ``pip install -e .`` to
-    avoid having to reinstall after ever change to the code.
+    avoid having to reinstall after every change to the code.
 
 Installing optional dependencies to run checks
 ----------------------------------------------
