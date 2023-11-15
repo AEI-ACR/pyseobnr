@@ -262,7 +262,7 @@ cpdef compute_pr(
 ):
     """
     Compute the value to pr at odd PA orders.
-    This is done by numericall solving Eq(2.6) of
+    This is done by numerical solving Eq(2.6) of
     arXiv:2105.06983 at every radial grid point
     """
 
@@ -727,7 +727,7 @@ def compute_adiabatic_parameter(
     params,
 ):
     """
-    Compute the adiabatic parameter \dot{\Omega}/2\Omega^{2}
+    Compute the adiabatic parameter :math:`\\frac{\\dot{\\Omega}}{2 \\Omega^{2}}` .
     """
     omega = np.zeros(dynamics.shape[0])
     dr_dt = np.zeros(dynamics.shape[0])

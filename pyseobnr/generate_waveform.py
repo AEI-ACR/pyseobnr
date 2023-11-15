@@ -86,10 +86,10 @@ def generate_modes_opt(
 
     Args:
         q (float): Mass ratio >=1
-        chi1 (Union[float,np.ndarray]): Dimensionless spin of primary. If float, interpreted as z component
-        chi2 (Union[float,np.ndarray]): Dimensionless spin of secondary. If float, interpreted as z component
+        chi1 (Union[float,np.ndarray]): Dimensionless spin of primary. If ``float``, interpreted as z component
+        chi2 (Union[float,np.ndarray]): Dimensionless spin of secondary. If ``float``, interpreted as z component
         omega_start (float): Starting orbital frequency, in geometric units
-        omega_ref (float, optional): Reference orbital frequency, in geometric untis.
+        omega_ref (float, optional): Reference orbital frequency, in geometric units.
                                      Defaults to None, in which case equals omega_start.
         approximant (str, optional): The approximant to use. Defaults to "SEOBNRv5HM".
         settings (Dict[Any,Any], optional): Additional settings to pass to model. Defaults to None.
@@ -100,8 +100,8 @@ def generate_modes_opt(
         NotImplementedError: If the approximant requested does not exist
 
     Returns:
-        Tuple: Either (time,dictionary of modes) or (time,dcitionary of modes,model) if
-               debug=True
+        Tuple: Either (time,dictionary of modes) or (time, dictionary of modes, model) if
+        ``debug=True``
     """
     if q < 1.0:
         raise ValueError("mass-ratio has to be positive and with convention q>=1")
@@ -134,7 +134,7 @@ def generate_modes_opt(
         )
         model()
     else:
-        raise NotImplementedError(f"Approximant {approximant} is to available")
+        raise NotImplementedError(f"Approximant '{approximant}' is not available")
     if debug:
         return model.t, model.waveform_modes, model
     else:

@@ -56,7 +56,7 @@ write_to = "pyseobnr/_version.py"
 [project.optional-dependencies]
 	checks = [
 		'bilby',
-		'waveform_tools @  git+https://sergei_ossokine@bitbucket.org/sergei_ossokine/waveform_tools.git',
+		'waveform_tools @ git+https://sergei_ossokine@bitbucket.org/sergei_ossokine/waveform_tools.git',
 		'gwsurrogate',
 		'pathos',
 		'scikit-optimize',
@@ -75,4 +75,4 @@ write_to = "pyseobnr/_version.py"
 minversion = "6.0"
 testpaths = [
     "test"
-        ]
+	]

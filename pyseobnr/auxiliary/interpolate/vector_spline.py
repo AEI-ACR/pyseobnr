@@ -3,7 +3,7 @@ from scipy.interpolate import CubicSpline
 
 class VectorSpline:
     """This is just a cubic spline for every
-    vector component separetly. Added to make
+    vector component separately. Added to make
     it clear what is happening
     """
     def __init__(self, t:np.ndarray, v:np.ndarray):

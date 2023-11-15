@@ -19,12 +19,12 @@ class Hamiltonian:
 
     @abstractmethod
     def grad(self):
-        """Return the gradient of the Hamiltonian with resepct to dynamical vars"""
+        """Return the gradient of the Hamiltonian with respect to dynamical vars"""
         pass
 
     @abstractmethod
     def hessian(self):
-        """Return the Hessian of the Hamiltonian with resepct to dynamical vars. Needed for IC"""
+        """Return the Hessian of the Hamiltonian with respect to dynamical vars. Needed for IC"""
         pass
 
 
@@ -40,10 +40,10 @@ class Hamiltonian_v5PHM:
 
     @abstractmethod
     def grad(self):
-        """Return the gradient of the Hamiltonian with resepct to dynamical vars"""
+        """Return the gradient of the Hamiltonian with respect to dynamical vars"""
         pass
 
     @abstractmethod
     def hessian(self):
-        """Return the Hessian of the Hamiltonian with resepct to dynamical vars. Needed for IC"""
+        """Return the Hessian of the Hamiltonian with respect to dynamical vars. Needed for IC"""
         pass

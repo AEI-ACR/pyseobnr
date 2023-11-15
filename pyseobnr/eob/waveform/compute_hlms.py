@@ -49,9 +49,12 @@ def interpolate_modes_fast(
     phi_orb: np.ndarray,
     m_max: int = 5,
 ) -> Dict[str, Any]:
-    """Construct intertial frame modes on a new regularly
-    spaced time grid. Does this by employing a carrier
-    signal. See the idea in https://arxiv.org/pdf/2003.12079.pdf
+    """Construct inertial frame modes on a new regularly
+    spaced time grid.
+
+    Does this by employing a carrier
+    signal, see the idea in [Cotesta2020]_ .
+
     Uses a custom version of CubicSpline that is faster, but
     cannot handle derivatives or integrals.
 
@@ -115,10 +118,10 @@ def compute_IMR_modes(
         hlms (np.ndarray): Dictionary containing the inspiral modes
         t_for_compute (np.ndarray): The fine dynamics time array
         hlms_for_compute (np.ndarray): The waveform modes on the fine dynamics
-        m_1 (float): Mass of primary
-        m_2 (float): Mass of secondary
-        chi_1 (float): z-component of the primary dimensionless spin
-        chi_2 (float): z-component of the secondary dimensionless spin
+        m1 (float): Mass of primary
+        m2 (float): Mass of secondary
+        chi1 (float): z-component of the primary dimensionless spin
+        chi2 (float): z-component of the secondary dimensionless spin
         t_attach (float): Attachment time
         f_nyquist (float): Nyquist frequency, needed for checking that RD frequency is resolved
         lmax_nyquist (int): Determines for which modes the nyquist test is applied for
@@ -141,7 +144,7 @@ def compute_IMR_modes(
     hIMR = {}
 
     # First find the closest point on the time grid which is
-    # *before* the attachmnent time. We do this twice,
+    # *before* the attachment time. We do this twice,
     # because for the (5,5) mode the attachment time is
     # different from other modes
 
@@ -150,7 +153,7 @@ def compute_IMR_modes(
     if t[idx] > t_attach:
         idx -= 1
 
-    # Time at the grid-point just before the attacment point
+    # Time at the grid-point just before the attachment point
     t_match = t[idx]
 
     # (5,5) mode
@@ -236,7 +239,7 @@ def compute_IMR_modes(
         omega_max = intrp_phase.derivative()(t_a)
 
         # To improve the stability of the merger-ringdown for odd-m configurations
-        # with a minimum in the ampliutde close to the attachment point,
+        # with a minimum in the amplitude close to the attachment point,
         # we directly use the Input Value fits for the frequency,
         # instead of reading its value from the inspiral phase.
         # If the NQCs were *not* applied this would lead to a
@@ -331,7 +334,8 @@ def compute_mixed_mode(
 ):
     """
     Computes the (3,2) and (4,3) modes, including mode-mixing in the ringdown.
-    See Sec. II C of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf, especially Eqs.(71, 72)
+
+    See Sec. II C of the [SEOBNRv5HM-notes]_ , especially Eqs.(71, 72)
 
     Args:
         m1 (float): mass of the primary
@@ -345,7 +349,7 @@ def compute_mixed_mode(
         final_mass (float): mass of the remnant
         final_spin (float): dimensionless spin of the remnant
         t_match (float): inspiral time at which the merger-ringdown waveform is attached
-        t_ringdown (np.ndarray): rindgown time array
+        t_ringdown (np.ndarray): ringdown time array
         fits_dict (dict): dictionary of fit coefficients in the ringdown anzatz
         f_nyquist (float): Nyquist frequency, needed for checking that RD frequency is resolved
         lmax_nyquist (int): Determines for which modes the nyquist test is applied for
@@ -401,7 +405,7 @@ def compute_mixed_mode(
     om_mm = intrp_phase.derivative()(t_match)
 
     # To improve the stability of the merger-ringdown for configurations
-    # with a minimum in the ampliutde close to the attachment point,
+    # with a minimum in the amplitude close to the attachment point,
     # we directly use the Input Value fits for the frequency,
     # instead of reading its value from the inspiral phase.
     # If the NQCs were *not* applied this would lead to a
@@ -528,7 +532,7 @@ def NQC_correction(
     Args:
         inspiral_modes (Dict): Dictionary of inspiral modes (interpolated)
         t_modes (np.ndarray): Time array for inspiral modes
-        dynamics (np.ndarray): Dynamics array from ODE solver (unequally spaced)
+        polar_dynamics (np.ndarray): Dynamics array from ODE solver (unequally spaced)
         t_peak (float): The time of the peak of the orbital frequency
         nrDeltaT (float): The shift from peak of the orbital frequency to peak of (2,2) mode
         m_1 (float): Mass of the primary

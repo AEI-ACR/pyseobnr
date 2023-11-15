@@ -1,5 +1,7 @@
 """
-Contains functions that are used in evaluating different waveform fits. Also includes computation of NQCs
+Contains functions that are used in evaluating different waveform fits.
+
+Also includes computation of NQCs
 """
 
 from typing import Any, Dict
@@ -20,11 +22,13 @@ for mode in modes_qnm:
 
 def compute_QNM(ell: int, m: int, n: int, af: float, Mf: float):
     """Return the complex QNM frequencies by interpolating
-    existing solutions. Note that for negative spins we use
-    the _positive_ spin negative m call internally
+    existing solutions.
+
+    Note that for negative spins we use
+    the _positive_ spin negative ``m`` call internally
 
     Args:
-        ell (int): ell of the desired QNM
+        ell (int): :math:`\\ell` of the desired QNM
         m (int): m of the desired QNM
         n (int): overtone. Only n=0 is supported
         af (float): final spin of the BH
@@ -45,7 +49,9 @@ def EOBCalculateRDAmplitudeConstraintedCoefficient1(
     c1f: float, c2f: float, sigmaR: float, amp: float, damp: float, eta: float
 ):
     """
-    Computes c1c coefficient in MR ansatze (Eq 59 in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf).
+    Computes c1c coefficient in MR ansatze.
+
+    See Eq(59) in [SEOBNRv5HM-notes]_ .
 
     Args:
         c1f (float): value of c1f
@@ -66,7 +72,9 @@ def EOBCalculateRDAmplitudeConstraintedCoefficient2(
     c1f: float, c2f: float, sigmaR: float, amp: float, damp: float, eta: float
 ):
     """
-    Computes c2c coefficient in MR ansatze (Eq 60 in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf).
+    Computes c2c coefficient in MR ansatze.
+
+    See Eq(60) in [SEOBNRv5HM-notes]_ .
 
     Args:
         c1f (float): value of c1f
@@ -89,7 +97,9 @@ def EOBCalculateRDPhaseConstraintedCoefficient1(
     d1f: float, d2f: float, sigmaI: float, omega: float
 ):
     """
-    Computes d1c coefficient in MR ansatze (Eq 61 in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf).
+    Computes d1c coefficient in MR ansatze.
+
+    See Eq(61) in [SEOBNRv5HM-notes]_ .
 
     Args:
         d1f (float): value of d1f
@@ -122,7 +132,10 @@ def EOBCalculateNQCCoefficients_freeattach(
     fits_dict: Dict[str, Any],
 ):
     """
-    Computes the NQC coefficients (see discussion in Sec. II A, around Eq(35), in https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf)
+    Computes the NQC coefficients
+
+    See discussion in Sec. II A, around Eq(35), in [SEOBNRv5HM-notes]_ .
+
     This is just like the SEOBNRv4HM function but allows nrDeltaT to be passed in, instead of
     internally calculated.
 
@@ -132,10 +145,11 @@ def EOBCalculateNQCCoefficients_freeattach(
         r (np.ndarray): r along the dynamics
         pr (np.ndarray): pr along the dynamics
         omega_orb (np.ndarray): omega_orb along the dynamics
-        ell (int): ell index of the relevant mode
+        ell (int): :math:`\\ell` index of the relevant mode
         m (int): m index of the relevant mode
-        time_peak (float): "reference" time with respect to which the attachment 
-            is defined, corresponding to t_ISCO for SEOBRNRv5HM (see Eq. 41 of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf)
+        time_peak (float): "reference" time with respect to which the attachment
+            is defined, corresponding to t_ISCO for SEOBRNRv5HM (see Eq. 41 of
+            [SEOBNRv5HM-notes]_ )
         time (np.ndarray): time array
         m1 (float): primary mass
         m2 (float): secondary mass
@@ -167,7 +181,7 @@ def EOBCalculateNQCCoefficients_freeattach(
     q3LM = q3 * amplitude
 
     # Compute the attachment time
-    # This is given by Eq.(41) of https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf
+    # This is given by Eq.(41) of [SEOBNRv5HM-notes]_
     # with time_peak <-> t_ISCO and nrDeltaT <-> - DeltaT_22
     # i.e. nrDeltaT > 0 means the attachment time is before t_ISCO
     nrTimePeak = time_peak - nrDeltaT

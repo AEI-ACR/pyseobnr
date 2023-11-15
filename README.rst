@@ -1,5 +1,8 @@
 |pipeline status|
 
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+
 pyseobnr provides state-of-the-art gravitational waveforms using the
 effective-one-body (EOB) approach.
 
@@ -43,7 +46,7 @@ If installing from source,  you can do:
 Installing dependencies for checks
 ----------------------------------
 
-If one wants to run sanity checks in ``pyseobnr/auxilary/sanity_checks``
+If one wants to run sanity checks in ``pyseobnr/auxiliary/sanity_checks``
 additional dependencies must be installed. This can be done simply by
 running
 
@@ -134,5 +137,7 @@ If you build on the existing models, please cite:
     }
 
 
+
 .. |pipeline status| image:: https://git.ligo.org/waveforms/software/pyseobnr/badges/main/pipeline.svg
    :target: https://git.ligo.org/waveforms/software/pyseobnr/commits/main
+
