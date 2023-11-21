@@ -1,4 +1,4 @@
-# cython: language_level=3, boundscheck=False, cdivision=True, profile=True, linetrace=True,initializedcheck=False
+# cython: language_level=3, boundscheck=False, cdivision=True, profile=True, linetrace=True, initializedcheck=False
 """
 Contains the actual RHS of the EOM, wrapped in cython. 
 This allows some of the cython functions used in the RHS to be called more efficiently.
@@ -23,8 +23,8 @@ ctypedef np.float64_t DTYPE_t
 cdef extern from "numpy/npy_math.h":
     bint npy_isnan(double x)
 
-cpdef get_rhs_prec(double t,double[::1] z,Hamiltonian_v5PHM_C H,RadiationReactionForce RR,
-    double m_1,double m_2,EOBParams params):
+cpdef get_rhs_prec(double t, double[::1] z, Hamiltonian_v5PHM_C H, RadiationReactionForce RR,
+    double m_1, double m_2, EOBParams params):
     """
     Compute the RHS of the EOB evolution equations.
     In particular this function returns

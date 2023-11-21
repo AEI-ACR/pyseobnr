@@ -194,7 +194,7 @@ def compute_dynamics_opt(
     if ts[idx_close] > t_desired:
         idx_close -= 1
 
-    # Gaurd against the case where when using PA dynamics,
+    # Guard against the case where when using PA dynamics,
     # there is less than step_back time between the start
     # of the ODE integration and the end of the dynamics
     # In that case make the fine dynamics be _all_ dynamics

@@ -1,78 +1,83 @@
 # -- build --------
 
 [build-system]
-	requires = [
-		"setuptools",
-		"setuptools_scm[toml]>=3.4.3",
-		"wheel",
-		"cython",
-		"numpy",
-		"scipy",
-	]
-	build-backend = "setuptools.build_meta"
+    build-backend = "setuptools.build_meta"
+    requires = [
+        "setuptools",
+        "setuptools_scm[toml]>=3.4.3",
+        "wheel",
+        "cython",
+        "numpy",
+        "scipy",
+    ]
 
-	# -- metadata -----
+# -- metadata -----
 
 [project]
-	name = "pyseobnr"
-	description = "Gravitational wave modelling within the effective-one-body framework"
-	readme = "README.rst"
-	authors = [
-		{ name = "Serguei Ossokine", email = "serguei.ossokine@tutanota.com" },
-		{ name = "Lorenzo Pompili", email = "lorenzo.pompili@ligo.org" },
-		{ name = "Deyan Mihaylov", email = "deyan.mihaylov@ligo.org" },
-		{ name = "Antoni Ramos Buades", email = "antoni.ramos-buades@ligo.org" },
-		{ name = "Michael Puerrer", email = "michael.puerrer@ligo.org" },
-		{ name = "Hector Estelles", email = "hector.estelles@ligo.org" },
+    authors = [
+        {name = "Serguei Ossokine", email = "serguei.ossokine@tutanota.com"},
+        {name = "Lorenzo Pompili", email = "lorenzo.pompili@ligo.org"},
+        {name = "Deyan Mihaylov", email = "deyan.mihaylov@ligo.org"},
+        {name = "Antoni Ramos Buades", email = "antoni.ramos-buades@ligo.org"},
+        {name = "Michael Puerrer", email = "michael.puerrer@ligo.org"},
+        {name = "Hector Estelles", email = "hector.estelles@ligo.org"},
+    ]
 
-	]
-	license = { text = "GPL-3.0-or-later" }
+    description = "Gravitational wave modelling within the effective-one-body framework"
+    license = {text = "GPL-3.0-or-later"}
+    name = "pyseobnr"
+    readme = "README.rst"
 
-	# requirements:
-	requires-python = ">=3.8"
-	dependencies = [
-		"numpy>=1.23.0",
-		"scipy>=1.8.0",
-		"matplotlib",
-		"h5py",
-		"numexpr",
-		"numba",
-		"qnm",
-		"scri",
-		"setuptools",
-		"jax",
-		"jaxlib",
-		"rich",
-		"pygsl_lite",
-		"lalsuite",
-	]
+    # requirements:
+    dependencies = [
+        "numpy>=1.23.0",
+        "scipy>=1.8.0",
+        "matplotlib",
+        "h5py",
+        "numexpr",
+        "numba",
+        "qnm",
+        "scri",
+        "setuptools",
+        "jax",
+        "jaxlib",
+        "rich",
+        "pygsl_lite",
+        "lalsuite",
+    ]
 
-	# dynamic properties set by tools:
-	dynamic = ["version"]
+    requires-python = ">=3.8"
+
+    # dynamic properties set by tools:
+    dynamic = ["version"]
 
 [tool.setuptools_scm]
 write_to = "pyseobnr/_version.py"
 
 [project.optional-dependencies]
-	checks = [
-		'bilby',
-		'waveform_tools @ git+https://sergei_ossokine@bitbucket.org/sergei_ossokine/waveform_tools.git',
-		'gwsurrogate',
-		'pathos',
-		'scikit-optimize',
-	]
+    checks = [
+        'bilby',
+        'waveform_tools @ git+https://sergei_ossokine@bitbucket.org/sergei_ossokine/waveform_tools.git',
+        'gwsurrogate',
+        'pathos',
+        'scikit-optimize',
+    ]
 
-	docs = [
-		'nbsphinx',
-		'numpydoc',
-		'sphinx',
-		'sphinx_rtd_theme',
-		'sphinx-tabs',
-		'cython',
-	]
+    docs = [
+        'nbsphinx',
+        'numpydoc',
+        'sphinx',
+        'sphinx_rtd_theme',
+        'sphinx-tabs',
+        'cython',
+        "sphinx_gallery",
+        "jupytext",
+        "jupyterlab",
+        "pandas",
+    ]
 
 [tool.pytest.ini_options]
-minversion = "6.0"
-testpaths = [
-    "test"
-	]
+    minversion = "6.0"
+    testpaths = [
+        "test",
+    ]

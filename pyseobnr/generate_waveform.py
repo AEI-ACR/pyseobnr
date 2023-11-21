@@ -24,7 +24,7 @@ def generate_prec_hpc_opt(
     debug: bool = False,
 ) -> Tuple:
     """Generate the GW wave polarizations for precessing model in an optimised way. In particular,
-    do not compute the inertial frame modes,instead write the polarizations directly summing
+    do not compute the inertial frame modes, instead write the polarizations directly summing
     over the co-precessing frame modes
 
     Args:
@@ -317,18 +317,18 @@ class GenerateWaveform:
             self.swap_masses = False
 
         if parameters["initial_conditions"] not in ["adiabatic", "postadiabatic"]:
-            raise ValueError("Unrecongised setting for initial conditions.")
+            raise ValueError("Unrecognised setting for initial conditions.")
 
         if parameters["initial_conditions_postadiabatic_type"] not in [
             "numeric",
             "analytic",
         ]:
             raise ValueError(
-                "Unrecongised setting for initial conditions postadiabatic type."
+                "Unrecognised setting for initial conditions postadiabatic type."
             )
 
         if parameters["postadiabatic_type"] not in ["numeric", "analytic"]:
-            raise ValueError("Unrecongised setting for dynamics postadiabatic type.")
+            raise ValueError("Unrecognised setting for dynamics postadiabatic type.")
 
         self.parameters = parameters
 

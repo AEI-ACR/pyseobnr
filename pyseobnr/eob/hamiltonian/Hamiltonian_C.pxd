@@ -1,5 +1,8 @@
+# cython: language_level=3
+
 cimport cython
 from pyseobnr.eob.utils.containers cimport EOBParams
+
 cdef class Hamiltonian_C:
     cdef public EOBParams EOBpars
     cpdef _call(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2)

@@ -1572,13 +1572,13 @@ cpdef compute_combined_dynamics_exp_v1(
 @cython.profile(True)
 @cython.linetrace(True)
 @cython.cdivision(True)
-cpdef double compute_prec_cycles(r_final:double,t_pn: np.array, omega_pn: np.array, lN_pn:np.array):
+cpdef double compute_prec_cycles(r_final: float,t_pn: np.array, omega_pn: np.array, lN_pn:np.array):
     """
     Estimate the number of precession cycles from LNhat, computed as the phase of the precession
     frequency at the final point of the radial grid divided by 2 pi.
 
     Args:
-        r_final (double): Last point of the radial grid.
+        r_final (float): Last point of the radial grid.
         t_pn (np.array): Time array of the PN evolution.
         omega_pn (np.array): Orbital frequency from the PN evolution.
         lN_pn (np.array): LNhat obtained from the PN evolution.

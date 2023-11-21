@@ -4,7 +4,7 @@ Using pyseobnr
 Standard interface
 ------------------
 
-``pyseobnr`` provides an interface that closely follows the conventions used in in the
+``pyseobnr`` provides an interface that closely follows the conventions used in the
 `gwsignal`_ waveform interface.
 
 In this interface, one first constructs a :py:class:`GenerateWaveform
@@ -34,23 +34,23 @@ Here is a simple example to get the modes:
 
 .. code-block:: python
 
-    # import the library
-    from pyseobnr import GenerateWaveform
+    import numpy as np
+    from pyseobnr.generate_waveform import GenerateWaveform
 
     # Start with the usual parameter definitions
     # Masses in solar masses
-    m1 = 50.
-    m2 = 30.
-    s1x,s1y,s1z = 0.,0.,0.5
-    s2x,s2y,s2z = 0.,0.,0.8
+    m1 = 50.0
+    m2 = 30.0
+    s1x, s1y, s1z = 0.0, 0.0, 0.5
+    s2x, s2y, s2z = 0.0, 0.0, 0.8
 
-    deltaT = 1./1024.
-    f_min = 20.
-    f_max = 512.
+    deltaT = 1.0 / 2048.0
+    f_min = 20.0
+    f_max = 1024.0
 
-    distance = 1000. # Mpc
-    inclination = np.pi/3.
-    phiRef = 0.
+    distance = 1000.0  # Mpc
+    inclination = np.pi / 3.0
+    phiRef = 0.0
     approximant = "SEOBNRv5HM"
 
     params_dict = {
@@ -71,38 +71,30 @@ Here is a simple example to get the modes:
         "approximant": approximant,
     }
 
-    wfm_gen = GenerateWaveform(params_dict) # We call the generator with the parameters
+    # We call the generator with the parameters
+    wfm_gen = GenerateWaveform(params_dict)
     # Generate mode dictionary
     times, hlm = wfm_gen.generate_td_modes()
-
-    # Plot some modes
-    from matplotlib import pyplot as plt
-
-    plt.figure()
-    plt.plot(times,hlm[(2,2)].real)
-    plt.xlabel("Time (seconds)")
-    plt.ylabel(r"$\Re[h_{22}]$")
-    plt.grid(True)
-    plt.show()
-
-    plt.figure()
-    plt.plot(times,hlm[(3,3)].imag)
-    plt.xlabel("Time (seconds)")
-    plt.ylabel(r"$\Im[h_{33}]$")
-    plt.grid(True)
-    plt.show()
-
 
 To get the polarizations in the frequency domain:
 
 
 .. code-block:: python
 
-
     # Generate Fourier-domain polarizations - As LAL COMPLEX16FrequencySeries
 
     hpf, hcf = wfm_gen.generate_fd_polarizations()
     freqs = hpf.deltaF*np.arange(hpf.data.length)
+
+
+The notebook below gives a complete example on how to use ``pyseobnr``:
+
+.. nblinkgallery::
+    :name: notebooks-introduction
+
+    notebooks/getting_started.md
+
+
 
 EOB internal interface
 ----------------------
