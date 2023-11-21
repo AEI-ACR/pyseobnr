@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 cimport cython
 from pyseobnr.eob.utils.containers cimport EOBParams
 

@@ -11,7 +11,7 @@ cdef class PhysicalParams:
     cdef public double[:] chi1_v
     cdef public double[:] chi2_v
     cdef public double[:] lN
-    cdef public double omega,omega_circ #,omega_start
+    cdef public double omega,omega_circ
     cpdef update_spins(self,double chi_1,double chi_2)
     cdef _compute_derived_quants(self)
 
