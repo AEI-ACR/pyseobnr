@@ -7,3 +7,5 @@ docs/_build
 __pycache__
 docs/api
 .tox
+.ipynb_checkpoints
+docs/source/notebooks/*.ipynb

@@ -15,6 +15,13 @@ Welcome to pyseobnr's documentation!
    source/expert_mode
    source/citations
 
+.. the notebooks in the markdown myst format
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Notebooks
+
+   source/notebooks/getting_started.md
 
 API
 ---

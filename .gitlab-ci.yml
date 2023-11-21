@@ -48,6 +48,7 @@ docs:
           swig
           gsl
           make
+          pandoc
     - conda activate docs
     # already in the REQUIREMENTS
     - pip install ".[docs]"
