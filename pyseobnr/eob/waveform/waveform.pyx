@@ -1054,7 +1054,7 @@ cpdef void compute_rho_coeffs(double nu,double dm, double a,double chiS,double c
 @cython.initializedcheck(False)
 @cython.profile(True)
 @cython.linetrace(True)
-cpdef public void compute_delta_coeffs(double nu,double dm, double a,double chiS,double chiA,
+cdef public void compute_delta_coeffs(double nu,double dm, double a,double chiS,double chiA,
     double complex[:,:,:] delta_coeffs, double complex[:,:,:] delta_coeffs_vh):
 
     """
@@ -2107,7 +2107,8 @@ cpdef double compute_refactorized_flux(
 @cython.initializedcheck(False)
 @cython.profile(True)
 @cython.linetrace(True)
-cpdef  (double,double) RR_force(double[::1] q,double[::1] p,double omega,double omega_circ,double H,EOBParams eob_par):
+cpdef (double,double) RR_force(double[::1] q, double[::1] p, double omega, double omega_circ,
+    double H, EOBParams eob_pars):
     """
     Compute the RR force in polar coordinates, from the flux
     """
@@ -2115,9 +2116,9 @@ cpdef  (double,double) RR_force(double[::1] q,double[::1] p,double omega,double 
     cdef double phi = q[1]
     cdef double pr = p[0]
     cdef double pphi = p[1]
-    cdef double nu = eob_par.p_params.nu
+    cdef double nu = eob_pars.p_params.nu
     # Note the multiplication of H by nu!
-    cdef double flux = compute_flux(r,phi,pr,pphi,omega,omega_circ,nu*H,eob_par)
+    cdef double flux = compute_flux(r,phi,pr,pphi,omega,omega_circ,nu*H,eob_pars)
     flux /= nu
     cdef double f_over_om = flux/omega
     cdef double Fr = -pr / pphi * f_over_om
@@ -2132,7 +2133,8 @@ cdef class RadiationReactionForce:
     """
     def __cinit__(self):
         pass
-    cpdef (double,double) RR(self, double[::1] q,double[::1] p,double omega,double omega_circ,double H,EOBParams eob_par):
+    cpdef (double,double) RR(self, double[::1] q, double[::1] p, double omega,
+        double omega_circ, double H, EOBParams eob_pars):
         pass
 
 
@@ -2142,9 +2144,10 @@ cdef class SEOBNRv5RRForce(RadiationReactionForce):
     """
     def __cinit__(self):
         pass
-    cpdef (double,double) RR(self, double[::1] q,double[::1] p,double omega,double omega_circ,double H,EOBParams eob_par):
-        return RR_force(q,p,omega,omega_circ,H,eob_par)
 
+    cpdef (double, double) RR(self, double[::1] q, double[::1] p, double omega, 
+        double omega_circ, double H, EOBParams eob_pars):
+        return RR_force(q, p, omega, omega_circ, H, eob_pars)
 
 
 
@@ -2326,7 +2329,6 @@ cpdef compute_hlms(double[:,:] dynamics, EOBParams eob_pars):
             modes[l,m] = temp_modes[l,m]
     return modes
 
-
 cdef double min_threshold(int l,int m):
     """
     The values for (2,1) and (5,5) are taken from SEOBNRv4HM. The
@@ -2486,3 +2488,4 @@ cpdef unrotate_leading_pn(double[::1]re_part,double[::1]im_part, double complex[
     #print(re_part.shape[0],im_part.shape[0],phi.shape[0],result.shape[0])
     for i in range(N):
         result[i] = (re_part[i]+I*im_part[i])*factor[i]
+

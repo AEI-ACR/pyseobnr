@@ -113,7 +113,7 @@ def computeIC_opt(omega, H, RR, chi_1, chi_2, m_1, m_2, **kwargs):
     res_cons = root(IC_cons, z, args=(omega, H, chi_1, chi_2, m_1, m_2), tol=6e-12)
     if not res_cons.success:
         logger.error(
-            f"The solution fo the conservative part of initial conditions failed for"
+            f"The solution for the conservative part of initial conditions failed for"
             f" m1={m_1},m2={m_2},chi1={chi_1},chi2={chi_2},omega={omega}"
         )
 
@@ -129,7 +129,7 @@ def computeIC_opt(omega, H, RR, chi_1, chi_2, m_1, m_2, **kwargs):
     )
     if not res_diss.converged:
         logger.error(
-            "The solution fo the dissipative part of initial conditions failed for"
+            "The solution for the dissipative part of initial conditions failed for"
             f" m1={m_1},m2={m_2},chi1={chi_1},chi2={chi_2},omega={omega}"
         )
     # Now do the dissipative bit: solve for pr

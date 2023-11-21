@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
 
 cpdef fin_diff_derivative(
