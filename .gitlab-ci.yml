@@ -33,7 +33,7 @@ docs:
   needs: []
   variables:
     # install this project and its docs extra
-    REQUIREMENTS: ".[docs]"
+    REQUIREMENTS: ""  # ".[docs]"
     # location of the conf.py
     SOURCEDIR: "docs"
   before_script:
@@ -44,11 +44,13 @@ docs:
     - mamba create -n docs
           python=3.9
           gcc
+          gxx
           swig
           gsl
           make
     - conda activate docs
-    - pip install .[docs]
+    # already in the REQUIREMENTS
+    - pip install ".[docs]"
     - python setup.py build_ext --inplace # Ugly hack to make cython modules available
     # use the python from the docs environment for the sphinx build
     - PYTHON="$(which python)"
@@ -90,4 +92,3 @@ test:
     - conda activate tests
     - pip install .
     - pytest -vvv
-    
