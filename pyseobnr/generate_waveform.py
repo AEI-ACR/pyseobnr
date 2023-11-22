@@ -1,17 +1,17 @@
 from typing import Any, Dict, Tuple, Union
-from .eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
-    Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C as Ham_aligned_opt,
-)
-from .eob.waveform.waveform import SEOBNRv5RRForce
-from .models import SEOBNRv5HM
-
-from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
-    Ham_AvgS2precess_simple_cython_PA_AD as Ham_prec_pa_cy,
-)
 
 import lal
 import lalsimulation as lalsim
 import numpy as np
+
+from .eob.waveform.waveform import SEOBNRv5RRForce
+from .eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
+    Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C as Ham_aligned_opt,
+)
+from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
+    Ham_AvgS2precess_simple_cython_PA_AD as Ham_prec_pa_cy,
+)
+from .models import SEOBNRv5HM
 
 
 def generate_prec_hpc_opt(
@@ -109,7 +109,6 @@ def generate_modes_opt(
         raise ValueError("omega_start has to be positive")
 
     if approximant == "SEOBNRv5HM":
-
         if np.abs(chi1) > 1 or np.abs(chi2) > 1:
             raise ValueError("chi1 and chi2 have to respect Kerr limit (|chi|<=1)")
         RR_f = SEOBNRv5RRForce()
@@ -118,7 +117,6 @@ def generate_modes_opt(
         )
         model()
     elif approximant == "SEOBNRv5PHM":
-
         if np.linalg.norm(chi1) > 1 or np.linalg.norm(chi2) > 1:
             raise ValueError("chi1 and chi2 have to respect Kerr limit (|chi|<=1)")
         RR_f = SEOBNRv5RRForce()
@@ -178,7 +176,6 @@ class GenerateWaveform:
         self.validate_parameters(parameters)
 
     def validate_parameters(self, parameters):
-
         if "mass1" not in parameters:
             raise ValueError("mass1 has to be specified!")
         if "mass2" not in parameters:
@@ -194,9 +191,10 @@ class GenerateWaveform:
         if Mtot < 0.001 or Mtot > 1e12:
             raise ValueError("Unreasonable value for total mass, aborting.")
 
-        if mass1 * mass2 / Mtot ** 2 < 100.0 / (1 + 100) ** 2:
+        if mass1 * mass2 / Mtot**2 < 100.0 / (1 + 100) ** 2:
             raise ValueError(
-                "Internal function call failed: Input domain error. Model is only valid for systems with mass-ratio up to 100."
+                "Internal function call failed: Input domain error. Model is only valid for systems with "
+                "mass-ratio up to 100."
             )
 
         default_params = {
@@ -392,7 +390,7 @@ class GenerateWaveform:
                     ]
                 )
 
-        if self.parameters["mode_array"] != None:
+        if self.parameters["mode_array"] is not None:
             settings["return_modes"] = self.parameters[
                 "mode_array"
             ]  # Select mode array
@@ -435,7 +433,8 @@ class GenerateWaveform:
                 emm = int(ellm[2])
                 hlm_dict[(ell, -emm)] = pow(-1, ell) * fac * np.conj(mode)
 
-        # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a pi rotation on the orbital plane, which translates into a minus sign for the odd modes.
+        # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a pi rotation on the orbital plane,
+        # which translates into a minus sign for the odd modes.
         if self.swap_masses is True:
             for ell, emm in hlm_dict.keys():
                 if np.abs(emm) % 2 != 0:
@@ -451,7 +450,7 @@ class GenerateWaveform:
         incl = self.parameters["inclination"]
         phi = self.parameters["phi_ref"]
 
-        if self.parameters["polarizations_from_coprec"] == False:
+        if self.parameters["polarizations_from_coprec"] is False:
             hpc = 0.0
             times, hlm_dict = self.generate_td_modes()
             for ell, emm in hlm_dict:
@@ -504,7 +503,7 @@ class GenerateWaveform:
             if "r_size_input" in self.parameters:
                 settings.update(r_size_input=self.parameters["r_size_input"])
 
-            if self.parameters["mode_array"] != None:
+            if self.parameters["mode_array"] is not None:
                 settings["return_modes"] = self.parameters[
                     "mode_array"
                 ]  # Select mode array
@@ -604,7 +603,8 @@ class GenerateWaveform:
             m1 * lal.MSUN_SI, m2 * lal.MSUN_SI
         ) + lalsim.SimInspiralRingdownTimeBound((m1 + m2) * lal.MSUN_SI, spinkerr)
 
-        # extra time to include for all waveforms to take care of situations where the frequency is close to merger (and is sweeping rapidly): this is a few cycles at the low frequency
+        # extra time to include for all waveforms to take care of situations where the frequency is close to merger
+        # (and is sweeping rapidly): this is a few cycles at the low frequency
         textra = extra_cycles / f_min
         # compute a new lower frequency
         fstart = lalsim.SimInspiralChirpStartFrequencyBound(
@@ -617,7 +617,8 @@ class GenerateWaveform:
         hp_lal, hc_lal = self.generate_td_polarizations()
         self.parameters["f22_start"] = original_f_min
 
-        # condition the time domain waveform by tapering in the extra time at the beginning and high-pass filtering above original f_min
+        # condition the time domain waveform by tapering in the extra time at the beginning and high-pass filtering
+        # above original f_min
         lalsim.SimInspiralTDConditionStage1(
             hp_lal, hc_lal, extra_time_fraction * tchirp + textra, original_f_min
         )

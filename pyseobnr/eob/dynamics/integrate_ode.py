@@ -6,16 +6,14 @@ Contains functions associated with evolving the equations of motion
 import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.signal import argrelmin
-from .initial_conditions_aligned_opt import computeIC_opt
-from .rhs_aligned import get_rhs, augment_dynamics
-
-from jax.config import config
 from numba import jit
-
-config.update("jax_enable_x64", True)
 
 import pygsl_lite.errno as errno
 import pygsl_lite.odeiv2 as odeiv2
+
+from .initial_conditions_aligned_opt import computeIC_opt
+from .rhs_aligned import get_rhs, augment_dynamics
+
 
 step = odeiv2.pygsl_lite_odeiv2_step
 _control = odeiv2.pygsl_lite_odeiv2_control
@@ -26,7 +24,7 @@ class control_y_new(_control):
     def __init__(self, eps_abs, eps_rel):
         a_y = 1
         a_dydt = 1
-        _control.__init__(self, eps_abs, eps_rel, a_y, a_dydt, None)
+        super().__init__(eps_abs, eps_rel, a_y, a_dydt, None)
 
 
 @jit(nopython=True)
@@ -108,7 +106,6 @@ def compute_dynamics_opt(
         r_stop = 1.4
 
     if y_init is None:
-
         r0, pphi0, pr0 = computeIC_opt(
             omega0, H, RR, chi_1, chi_2, m_1, m_2, params=params
         )
@@ -131,7 +128,6 @@ def compute_dynamics_opt(
     peak_omega = False
     peak_pr = False
     while t < t1:
-
         # Take a step
         status, t, h, y = e.apply(c, s, sys, t, t1, h, y)
         if status != errno.GSL_SUCCESS:
