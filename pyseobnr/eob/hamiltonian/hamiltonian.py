@@ -2,9 +2,7 @@
 """
 Abstract Hamiltonian classes
 """
-from abc import ABC, abstractmethod
-import jax.numpy as jnp
-from jax import grad, jit, vmap
+from abc import abstractmethod
 
 
 class Hamiltonian:

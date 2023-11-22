@@ -6,16 +6,14 @@ Contains functions associated with evolving the equations of motion
 import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.signal import argrelmin
-from .initial_conditions_aligned_opt import computeIC_opt
-from .rhs_aligned import get_rhs, augment_dynamics
-
-from jax.config import config
 from numba import jit
-
-config.update("jax_enable_x64", True)
 
 import pygsl_lite.errno as errno
 import pygsl_lite.odeiv2 as odeiv2
+
+from .initial_conditions_aligned_opt import computeIC_opt
+from .rhs_aligned import get_rhs, augment_dynamics
+
 
 step = odeiv2.pygsl_lite_odeiv2_step
 _control = odeiv2.pygsl_lite_odeiv2_control

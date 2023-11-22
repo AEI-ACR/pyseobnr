@@ -39,8 +39,6 @@
         "qnm",
         "scri",
         "setuptools",
-        "jax",
-        "jaxlib",
         "rich",
         "pygsl_lite",
         "lalsuite",
