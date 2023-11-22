@@ -26,7 +26,7 @@ class control_y_new(_control):
     def __init__(self, eps_abs, eps_rel):
         a_y = 1
         a_dydt = 1
-        _control.__init__(self, eps_abs, eps_rel, a_y, a_dydt, None)
+        super().__init__(eps_abs, eps_rel, a_y, a_dydt, None)
 
 
 @jit(nopython=True)
@@ -108,7 +108,6 @@ def compute_dynamics_opt(
         r_stop = 1.4
 
     if y_init is None:
-
         r0, pphi0, pr0 = computeIC_opt(
             omega0, H, RR, chi_1, chi_2, m_1, m_2, params=params
         )
@@ -131,7 +130,6 @@ def compute_dynamics_opt(
     peak_omega = False
     peak_pr = False
     while t < t1:
-
         # Take a step
         status, t, h, y = e.apply(c, s, sys, t, t1, h, y)
         if status != errno.GSL_SUCCESS:
