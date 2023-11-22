@@ -8,10 +8,10 @@ It should be regenerated using regenerate_SEOBNRv5HM.py whenever
 understood changes to the model are made.
 """
 
-import pytest
 import numpy as np
-from pyseobnr.generate_waveform import generate_modes_opt, GenerateWaveform
 import lal
+
+from pyseobnr.generate_waveform import GenerateWaveform
 
 
 def get_amp_phase(h):
