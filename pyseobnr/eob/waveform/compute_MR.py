@@ -5,7 +5,13 @@ See Eq. (56) and following in [SEOBNRv5HM-notes]_ .
 """
 
 import numpy as np
-from ..fits.EOB_fits import *
+
+from ..fits.EOB_fits import (
+    EOBCalculateRDAmplitudeConstraintedCoefficient1,
+    EOBCalculateRDAmplitudeConstraintedCoefficient2,
+    EOBCalculateRDPhaseConstraintedCoefficient1,
+    compute_QNM,
+)
 from ..utils.utils_precession_opt import compute_omegalm_P_frame
 
 
@@ -24,6 +30,8 @@ def compute_MR_mode_free(
     t_match=0,
     phi_match=0,
     qnm_rotation=0.0,
+    domega=0.0,
+    dtau=0.0,
 ):
     """
     Evaluate the MR ansatze.
@@ -44,7 +52,10 @@ def compute_MR_mode_free(
         fits_dict (dict): dictionary of fit coefficients in the ringdown anzatz
         t_match (float): ringdown time at which the merger-ringdown waveform is started
         phi_match (float): value of the phase at t_match
-        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame (Eq. 33 of Hamilton et al.)
+        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame
+                            (Eq. 33 of Hamilton et al.)
+        domega (float): Fractional deviation of QNM frequency
+        dtau (float): Fractional deviation of QNM damping time
 
     Returns:
         np.ndarray: the merger-ringdown waveform
@@ -61,6 +72,20 @@ def compute_MR_mode_free(
     final_mass = attach_params["final_mass"]
     final_spin = attach_params["final_spin"]
     omega_complex = compute_QNM(ell, m, 0, final_spin, final_mass).conjugate()
+
+    # See Eq. (2.15) of https://arxiv.org/pdf/2212.09655.pdf
+    # No minus sign for taulm0 since we take the conjugate before
+    # For precessing cases this modifies the QNM frequencies in the J-frame
+    if dtau <= -1:
+        raise ValueError(
+            f"dtau must be larger than -1, otherwise the remnant rings up instead of ringing down. "
+            f"Got dtau = {dtau}. "
+        )
+    omegalm0 = np.real(omega_complex) * (1 + domega)
+    taulm0 = 1 / np.imag(omega_complex) * (1 + dtau)
+    omega_complex = omegalm0 + 1j / taulm0
+
+    # Compute the co-precessing frame QNM frequencies from the J-frame QNMs
     omega_complex = compute_omegalm_P_frame(omega_complex, m, qnm_rotation)
 
     # Sanity check on nyquist frequency

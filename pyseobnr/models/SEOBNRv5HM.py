@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import re
 from copy import deepcopy
@@ -202,6 +204,10 @@ class SEOBNRv5HM_opt(Model):
             self.PA_style = self.settings.get("PA_style", "analytic")
             self.PA_order = self.settings.get("PA_order", 8)
 
+        # Whether one is sampling over the deltaT parameter that determines the merger-ringdown attachment.
+        # This does not allow attaching the merger-ringdown at the last point of the dynamics.
+        self.deltaT_sampling = self.settings.get("deltaT_sampling", False)
+
     def _default_settings(self):
         settings = dict(
             M=50.0,  # Total mass in solar masses
@@ -260,6 +266,33 @@ class SEOBNRv5HM_opt(Model):
         )
         self.step_back = self.settings.get("step_back", 250.0)
 
+        # PA/ODE integration tolerances
+        self.tol_PA = self.settings.get("tol_PA", 1e-11)
+        self.rtol_ode = self.settings.get("rtol_ode", 1e-11)
+        self.atol_ode = self.settings.get("atol_ode", 1e-12)
+
+        default_deviation_dict = {f"{ell},{emm}": 0.0 for ell, emm in VALID_MODES}
+
+        # Plunge-merger deviations
+        self.dA_dict = default_deviation_dict | self.settings.get("dA_dict", {})
+        self.dw_dict = default_deviation_dict | self.settings.get("dw_dict", {})
+
+        self.dTpeak = self.settings.get("dTpeak", 0.0)
+
+        # EOB Hamiltonian deviation
+        self.da6 = self.settings.get("da6", 0.0)
+        self.ddSO = self.settings.get("ddSO", 0.0)
+
+        # QNM deviations
+        self.domega_dict = default_deviation_dict | self.settings.get("domega_dict", {})
+        self.dtau_dict = default_deviation_dict | self.settings.get("dtau_dict", {})
+        for value in self.dtau_dict.values():
+            if value <= -1:
+                raise ValueError(
+                    "dtau must be larger than -1, otherwise the remnant rings up instead "
+                    "of ringing down."
+                )
+
     def __call__(self):
         # Evaluate the model
 
@@ -292,10 +325,10 @@ class SEOBNRv5HM_opt(Model):
     def _set_H_coeffs(self):
         dc = {}
         # Actual coeffs inside the Hamiltonian
-        a6_fit = a6_NS(self.nu)
+        a6_fit = a6_NS(self.nu) + self.da6
         dSO_fit = dSO(self.nu, self.ap, self.am)
         dc["a6"] = a6_fit
-        dc["dSO"] = dSO_fit
+        dc["dSO"] = dSO_fit + self.ddSO
 
         cfs = CalibCoeffs(dc)
         self.H.calibration_coeffs = cfs
@@ -324,8 +357,8 @@ class SEOBNRv5HM_opt(Model):
                     self.chi_2,
                     self.m_1,
                     self.m_2,
-                    rtol=1e-11,
-                    atol=1e-12,
+                    rtol=self.rtol_ode,
+                    atol=self.atol_ode,
                     params=self.eob_pars,
                     backend="ode",
                     step_back=self.step_back,
@@ -341,7 +374,9 @@ class SEOBNRv5HM_opt(Model):
                         self.chi_2,
                         self.m_1,
                         self.m_2,
-                        tol=1e-11,
+                        tol=self.tol_PA,
+                        rtol_ode=self.rtol_ode,
+                        atol_ode=self.atol_ode,
                         params=self.eob_pars,
                         backend="ode",
                         step_back=self.step_back,
@@ -357,7 +392,9 @@ class SEOBNRv5HM_opt(Model):
                         self.chi_2,
                         self.m_1,
                         self.m_2,
-                        tol=1e-11,
+                        tol=self.tol_PA,
+                        rtol_ode=self.rtol_ode,
+                        atol_ode=self.atol_ode,
                         params=self.eob_pars,
                         backend="ode",
                         step_back=self.step_back,
@@ -440,6 +477,22 @@ class SEOBNRv5HM_opt(Model):
 
             # We define the attachment with respect to t_ISCO
             self.t_ISCO = t_ISCO
+            # --------------------------------------
+            # NOTE:
+            # self.NR_deltaT = - delta t^{22}_{ISCO}
+            # --------------------------------------
+
+            # ----------------------------------------------------------------------------
+            # NOTE: in v5, the t^{22}_{peak} is defined differently relative to the v4
+            # Cf. Eqs. (42) and (43) of 2303.18039.
+            # Here we are modifying the calibration parameters Delta t^{22}_{ISCO},
+            # which is *different* from the one in pSEOBNRv4HM_PA.
+            # Structure above:
+            #
+            # t_match = t_peak + ( nrDeltaT  + dTpeak - extra )
+            # ----------------------------------------------------------------------------
+
+            self.NR_deltaT = self.NR_deltaT + self.dTpeak
             t_attach = t_ISCO - self.NR_deltaT
             self.t_attach_predicted = t_attach
 
@@ -447,11 +500,17 @@ class SEOBNRv5HM_opt(Model):
             # dynamics we attach the MR at the last point
             self.attachment_check = 0.0
             if t_attach > t_fine[-1]:
-                self.attachment_check = 1.0
-                t_attach = t_fine[-1]
-                logger.debug(
-                    "NR_deltaT too negative, attaching the MR at the last point of the dynamics, careful!"
-                )
+                if self.deltaT_sampling is True:
+                    raise ValueError(
+                        "Error: NR_deltaT too negative, attaching the MR at the last point of the dynamics "
+                        "is not allowed for calibration."
+                    )
+                else:
+                    self.attachment_check = 1.0
+                    t_attach = t_fine[-1]
+                    logger.debug(
+                        "NR_deltaT too negative, attaching the MR at the last point of the dynamics, careful!"
+                    )
 
             self.t_attach = t_attach
 
@@ -494,6 +553,8 @@ class SEOBNRv5HM_opt(Model):
                 self.m_2,
                 self.chi_1,
                 self.chi_2,
+                dA_dict=self.dA_dict,
+                dw_dict=self.dw_dict,
             )
             self.nqc_coeffs = nqc_coeffs
             # Apply NQC corrections to high sampling modes
@@ -536,6 +597,9 @@ class SEOBNRv5HM_opt(Model):
                 self.f_nyquist,
                 self.lmax_nyquist,
                 mixed_modes=self.mixed_modes,
+                dw_dict=self.dw_dict,
+                domega_dict=self.domega_dict,
+                dtau_dict=self.dtau_dict,
             )
 
             amp_inv = frame_inv_amp(hlms_full, ell_max=self.max_ell_returned)
@@ -723,6 +787,13 @@ class SEOBNRv5PHM_opt(Model):
         # sign of the final spin
         self._sign_final_spin: int | None = None
 
+        # Whether one is sampling over the deltaT parameter that determines the merger-ringdown attachment.
+        # This does not allow attaching the merger-ringdown at the last point of the dynamics.
+        self.deltaT_sampling = self.settings.get("deltaT_sampling", False)
+
+        # Whether one is including QNM deviations in the precession rate computation
+        self.omega_prec_deviation = self.settings.get("omega_prec_deviation", True)
+
     def _default_settings(self):
         settings = dict(
             M=50.0,  # Total mass in solar masses
@@ -793,13 +864,35 @@ class SEOBNRv5PHM_opt(Model):
 
         self.eob_pars.aligned = False
 
+        # EOB Hamiltonian deviation
+        default_deviation_dict = {f"{ell},{emm}": 0.0 for ell, emm in VALID_MODES}
+
+        # Plunge-merger deviations
+        self.dA_dict = default_deviation_dict | self.settings.get("dA_dict", {})
+        self.dw_dict = default_deviation_dict | self.settings.get("dw_dict", {})
+
+        self.dTpeak = self.settings.get("dTpeak", 0.0)
+
+        # EOB Hamiltonian deviation
+        self.da6 = self.settings.get("da6", 0.0)
+        self.ddSO = self.settings.get("ddSO", 0.0)
+
+        # QNM deviations
+        self.domega_dict = default_deviation_dict | self.settings.get("domega_dict", {})
+        self.dtau_dict = default_deviation_dict | self.settings.get("dtau_dict", {})
+        for value in self.dtau_dict.values():
+            if value <= -1:
+                raise ValueError(
+                    "dtau must be larger than -1, otherwise the remnant rings up instead "
+                    "of ringing down."
+                )
+
     def _set_H_coeffs(self):
         dc = {}
         # Actual coeffs inside the Hamiltonian
-        a6_fit = a6_NS(self.nu)
-        # dSO_fit = dSO(self.nu, self.ap, self.am)
+        a6_fit = a6_NS(self.nu) + self.da6
         dc["a6"] = a6_fit
-        # dc["dSO"] = dSO_fit
+        dc["ddSO"] = self.ddSO
 
         cfs = CalibCoeffs(dc)
         self.H.calibration_coeffs = cfs
@@ -1050,6 +1143,8 @@ class SEOBNRv5PHM_opt(Model):
             self.NR_deltaT = NR_deltaT_NS(self.nu) + NR_deltaT(self.nu, ap, am)
             self.t_ISCO = t_ISCO
             self.omega_rISCO = om_rISCO
+
+            self.NR_deltaT = self.NR_deltaT + self.dTpeak
             t_attach = t_ISCO - self.NR_deltaT
 
             self.t_attach_predicted = t_attach
@@ -1058,11 +1153,17 @@ class SEOBNRv5PHM_opt(Model):
             # dynamics, we attach the MR at the last point
             self.attachment_check = 0.0
             if t_attach > t_fine[-1]:
-                self.attachment_check = 1.0
-                t_attach = t_fine[-1]
-                logger.debug(
-                    "NR_deltaT too negative, attaching the MR at the last point of the dynamics, careful!"
-                )
+                if self.deltaT_sampling is True:
+                    raise ValueError(
+                        "Error: NR_deltaT too negative, attaching the MR at the last point of the dynamics "
+                        "is not allowed for calibration."
+                    )
+                else:
+                    self.attachment_check = 1.0
+                    t_attach = t_fine[-1]
+                    logger.debug(
+                        "NR_deltaT too negative, attaching the MR at the last point of the dynamics, careful!"
+                    )
 
             self.t_attach = t_attach
             # For the following steps, we also need spins at the attachment point
@@ -1143,6 +1244,8 @@ class SEOBNRv5PHM_opt(Model):
                 self.m_2,
                 chi1LN_attach,
                 chi2LN_attach,
+                dA_dict=self.dA_dict,
+                dw_dict=self.dw_dict,
             )
 
             self.nqc_coeffs = nqc_coeffs
@@ -1229,8 +1332,15 @@ class SEOBNRv5PHM_opt(Model):
             sigmaQNM220 = compute_QNM(2, 2, 0, final_spin, final_mass).conjugate()
             sigmaQNM210 = compute_QNM(2, 1, 0, final_spin, final_mass).conjugate()
 
-            omegaQNM220 = sigmaQNM220.real
-            omegaQNM210 = sigmaQNM210.real
+            if self.omega_prec_deviation is True:
+                # We include fractional deviations to the J-frame QNM frequencies
+                # also in the precession rate computation (Eq. 13 in arXiv:2301.06558)
+                omegaQNM220 = sigmaQNM220.real * (1 + self.domega_dict["2,2"])
+                omegaQNM210 = sigmaQNM210.real * (1 + self.domega_dict["2,1"])
+            else:
+                omegaQNM220 = sigmaQNM220.real
+                omegaQNM210 = sigmaQNM210.real
+
             precRate = omegaQNM220 - omegaQNM210
 
             # Multiply by the sign of the final spin for retrograde cases
@@ -1254,6 +1364,9 @@ class SEOBNRv5PHM_opt(Model):
                 mixed_modes=self.mixed_modes,
                 final_state=[final_mass, final_spin],
                 qnm_rotation=qnm_rotation,
+                dw_dict=self.dw_dict,
+                domega_dict=self.domega_dict,
+                dtau_dict=self.dtau_dict,
             )
 
             t_full -= t_full[0]

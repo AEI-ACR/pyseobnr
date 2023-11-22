@@ -64,8 +64,10 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef CalibCoeffs c_coeffs = self.calibration_coeffs
         cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
-
+        cdef double dSO_GR = c_coeffs['dSO']
+        # Fractional deviation to the GR value for dSO
+        cdef double ddSO = c_coeffs['ddSO']
+        cdef double dSO = dSO_GR + ddSO
 
         # Extra quantities used in the Hamiltonian
         cdef double M = self.EOBpars.p_params.M
@@ -198,8 +200,10 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef CalibCoeffs c_coeffs = self.calibration_coeffs
         cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
-
+        cdef double dSO_GR = c_coeffs['dSO']
+        # Fractional deviation to the GR value for dSO
+        cdef double ddSO = c_coeffs['ddSO']
+        cdef double dSO = dSO_GR + ddSO
 
         # Extra quantities used in the Jacobian
         cdef double M = self.EOBpars.p_params.M
@@ -508,8 +512,10 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef CalibCoeffs c_coeffs = self.calibration_coeffs
         cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
-
+        cdef double dSO_GR = c_coeffs['dSO']
+        # Fractional deviation to the GR value for dSO
+        cdef double ddSO = c_coeffs['ddSO']
+        cdef double dSO = dSO_GR + ddSO
 
         # Extra quantities used in the Jacobian
         cdef double M = self.EOBpars.p_params.M
@@ -1319,7 +1325,10 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef CalibCoeffs c_coeffs = self.calibration_coeffs
         cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
+        cdef double dSO_GR = c_coeffs['dSO']
+        # Fractional deviation to the GR value for dSO
+        cdef double ddSO = c_coeffs['ddSO']
+        cdef double dSO = dSO_GR + ddSO
 
 
 
@@ -1386,7 +1395,10 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef CalibCoeffs c_coeffs = self.calibration_coeffs
         cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
+        cdef double dSO_GR = c_coeffs['dSO']
+        # Fractional deviation to the GR value for dSO
+        cdef double ddSO = c_coeffs['ddSO']
+        cdef double dSO = dSO_GR + ddSO
 
 
         # Extra quantities used in the Jacobian
@@ -1695,7 +1707,10 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef CalibCoeffs c_coeffs = self.calibration_coeffs
         cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
+        cdef double dSO_GR = c_coeffs['dSO']
+        # Fractional deviation to the GR value for dSO
+        cdef double ddSO = c_coeffs['ddSO']
+        cdef double dSO = dSO_GR + ddSO
 
 
         # Extra quantities used in the Jacobian
@@ -1859,7 +1874,10 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef CalibCoeffs c_coeffs = self.calibration_coeffs
         cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
+        cdef double dSO_GR = c_coeffs['dSO']
+        # Fractional deviation to the GR value for dSO
+        cdef double ddSO = c_coeffs['ddSO']
+        cdef double dSO = dSO_GR + ddSO
 
 
         # Extra quantities used in the auxiliary derivatives
