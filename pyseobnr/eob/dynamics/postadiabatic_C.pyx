@@ -262,7 +262,7 @@ cpdef compute_pr(
 ):
     """
     Compute the value to pr at odd PA orders.
-    This is done by numerical solving Eq(2.6) of
+    This is done by numerically solving Eq(2.6) of
     arXiv:2105.06983 at every radial grid point
     """
 
@@ -738,7 +738,6 @@ def compute_adiabatic_parameter(
 
         dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
         dH_dpr = dyn[2]
-
 
         csi = dyn[5]
         dr_dt[i] = dH_dpr * csi

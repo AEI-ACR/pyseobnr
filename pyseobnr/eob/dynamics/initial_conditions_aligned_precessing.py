@@ -1,34 +1,37 @@
-#!/usr/bin/env python3
 """
-Computes the quasi-precessing initial conditions in polar coordinates. 
+Computes the quasi-precessing initial conditions in polar coordinates.
+
 These have the same equations as the aligned-spin, however:
 - the Hamiltonian is different because it depends on several spin degrees of freedom
 - appropriate spin projections (and spins themselves) are passed to the Hamiltonian and the RR forces
 """
 
 from typing import Callable
-from ..hamiltonian import Hamiltonian
+
 import numpy as np
 from scipy.optimize import root, root_scalar
-from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
 
-def IC_cons_augm(u:np.ndarray,
-                 omega:float,
-                 H: Hamiltonian,
-                 chi1_v:np.ndarray,
-                 chi2_v:np.ndarray,
-                 chi1_LN:float,
-                 chi2_LN:float,
-                 chi1_L:float,
-                 chi2_L:float,
-                 m_1:float,
-                 m_2:float
-                 ):
-    """ The equations defining the 'conservative'
+from ..hamiltonian import Hamiltonian
+
+
+def IC_cons_augm(
+    u: np.ndarray,
+    omega: float,
+    H: Hamiltonian,
+    chi1_v: np.ndarray,
+    chi2_v: np.ndarray,
+    chi1_LN: float,
+    chi2_LN: float,
+    chi1_L: float,
+    chi2_L: float,
+    m_1: float,
+    m_2: float,
+):
+    """The equations defining the 'conservative'
     part of the QC initial conditions, namely
     for r and pphi.
 
-    These are Eq(4.8,4.9) in https://arxiv.org/pdf/gr-qc/0508067.pdf
+    These are Eq(4.8,4.9) in [Buonanno2005]_.
 
     Args:
         u ([np.ndarray]): The unknowns, r,pphi
@@ -58,27 +61,30 @@ def IC_cons_augm(u:np.ndarray,
     return diff
 
 
-def IC_diss_augm(u: np.ndarray,
-                 r: float,
-                 pphi: float,
-                 H: Hamiltonian,
-                 RR: Callable,
-                 chi1_v: np.ndarray,
-                 chi2_v: np.ndarray,
-                 chi1_LN: float,
-                 chi2_LN: float,
-                 chi1_L: float,
-                 chi2_L: float,
-                 m_1: float,
-                 m_2: float,
-                 params):
+def IC_diss_augm(
+    u: np.ndarray,
+    r: float,
+    pphi: float,
+    H: Hamiltonian,
+    RR: Callable,
+    chi1_v: np.ndarray,
+    chi2_v: np.ndarray,
+    chi1_LN: float,
+    chi2_LN: float,
+    chi1_L: float,
+    chi2_L: float,
+    m_1: float,
+    m_2: float,
+    params,
+):
     """Initial conditions for the "dissipative" part,
     namely pr
 
-    This is basically Eq(4.15) in https://arxiv.org/pdf/gr-qc/0508067.pdf
+    This is basically Eq(4.15) in [Buonanno2005]_.
+
     Args:
         u (float): Guess for pr
-        r (floart): Starting separation
+        r (float): Starting separation
         pphi (float): Starting angular momentum
         H (Hamiltonian): The Hamiltonian object to use
         RR (Callable): Function that returns the RR force. Must have same signature as the Hamiltonian
@@ -98,31 +104,37 @@ def IC_diss_augm(u: np.ndarray,
     pr = u
     q = np.array([r, 0.0])
     p = np.array([pr, pphi])
-    hess = H.hessian(q, p,chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
+    hess = H.hessian(q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
     d2Hdr2 = hess[0, 0]
     d2HdrdL = hess[3, 0]
     dLdr = -d2Hdr2 / d2HdrdL
     p_circ = np.array([0.0, p[1]])
-    dynamics = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
+    dynamics = H.dynamics(
+        q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L
+    )
     H_val = dynamics[4]
     omega = dynamics[3]
-    omega_circ = H.omega(q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
+    omega_circ = H.omega(
+        q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L
+    )
     RR_f = RR.RR(q, p, omega, omega_circ, H_val, params)
     csi = dynamics[5]
-
 
     rdot = 1 / csi * RR_f[1] / dLdr
     dHdpr = dynamics[2]
     return rdot - dHdpr
 
-def computeIC_augm(omega: float,
-                   H: Hamiltonian,
-                   RR: Callable,
-                   chi1_v: np.ndarray,
-                   chi2_v: np.ndarray,
-                   m_1: float,
-                   m_2: float,
-                   **kwargs):
+
+def computeIC_augm(
+    omega: float,
+    H: Hamiltonian,
+    RR: Callable,
+    chi1_v: np.ndarray,
+    chi2_v: np.ndarray,
+    m_1: float,
+    m_2: float,
+    **kwargs,
+):
     """Compute the initial conditions for an aligned-spin BBH binary
 
     Args:
@@ -148,13 +160,32 @@ def computeIC_augm(omega: float,
     z = [r_guess, np.sqrt(r_guess)]
 
     # The conservative bit: solve for r and pphi
-    res_cons = root(IC_cons_augm, z, args=(omega, H, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, chi2_L, m_1, m_2), tol=1e-12)
+    res_cons = root(
+        IC_cons_augm,
+        z,
+        args=(omega, H, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, chi2_L, m_1, m_2),
+        tol=1e-12,
+    )
     r0, pphi0 = res_cons.x
 
     res_diss = root_scalar(
         IC_diss_augm,
         bracket=[-3e-2, 0],
-        args=(r0, pphi0, H, RR, chi1_v, chi2_v, chi1_LN, chi2_LN, chi1_L, chi2_L, m_1, m_2,kwargs["params"]),
+        args=(
+            r0,
+            pphi0,
+            H,
+            RR,
+            chi1_v,
+            chi2_v,
+            chi1_LN,
+            chi2_LN,
+            chi1_L,
+            chi2_L,
+            m_1,
+            m_2,
+            kwargs["params"],
+        ),
         xtol=1e-12,
         rtol=1e-10,
     )
@@ -162,14 +193,17 @@ def computeIC_augm(omega: float,
     # Now do the dissipative bit: solve for pr
     pr0 = res_diss.root
 
-
     # Evaluate omega_circ and the Hamiltonian at the intial conditions
     q = np.array([r0, 0.0])
     p = np.array([pr0, pphi0])
     p_circ = np.array([0.0, p[1]])
-    dynamics = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
+    dynamics = H.dynamics(
+        q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L
+    )
     H_val = dynamics[4]
-    omega_circ = H.omega(q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
+    omega_circ = H.omega(
+        q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L
+    )
     params.p_params.omega_circ = omega_circ
     params.p_params.H_val = H_val
 

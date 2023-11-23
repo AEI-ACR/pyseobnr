@@ -9,8 +9,9 @@ understood changes to the model are made.
 """
 
 import numpy as np
-from pyseobnr.generate_waveform import GenerateWaveform
 import lal
+
+from pyseobnr.generate_waveform import GenerateWaveform
 
 
 def get_amp_phase(h):

@@ -39,8 +39,6 @@
         "qnm",
         "scri",
         "setuptools",
-        "jax",
-        "jaxlib",
         "rich",
         "pygsl_lite",
         "lalsuite",
@@ -74,6 +72,12 @@ write_to = "pyseobnr/_version.py"
         "jupytext",
         "jupyterlab",
         "pandas",
+    ]
+
+    tests = [
+        'pytest',
+        'pytest-sugar',
+        'pandas'
     ]
 
 [tool.pytest.ini_options]

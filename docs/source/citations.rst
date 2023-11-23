@@ -70,3 +70,8 @@ References
    DOI https://doi.org/10.48550/arXiv.1408.1860 .
 
    Link: https://arxiv.org/abs/1408.1860
+
+.. [Buonanno2005] *Transition from inspiral to plunge in precessing binaries of spinning black holes*,
+   Buonanno, Chen, Damour
+
+   Link: https://arxiv.org/pdf/gr-qc/0508067.pdf
