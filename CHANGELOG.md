@@ -1,6 +1,12 @@
 All notable changes will be noted in this file, whenever a tagged
 version is made
 
+## [0.2.7] 23/11/2023
+
+Maintenance release: code and documentation improvements, better test coverage.
+Removal of JAX dependency
+Now accepting "ModeArray" in the settings to remain compatible with Bilby: the previous "mode_array" is de-facto deprecated.
+
 ## [0.2.6] 16/08/2023
 
 Bugifx release. Fixes another compatibility issue with Cython 3.0.0. Increase total mass upper limit to 1e12.
@@ -12,8 +18,6 @@ Bugfix release. Fixes a compatibility issue with Cython 3.0.0.
 ## [0.2.4] 15/05/2023
 
 Bugfix release. Fixes a rare issue with quaternion overflow, which occured after attachment.
-
-
 
 ## [0.2.3] 10/05/2023
 

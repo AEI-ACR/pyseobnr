@@ -7,4 +7,4 @@ Hector Estelles, Deyan Mihaylov, Lorenzo Pompili, Antoni Ramos-Buades, Serguei O
 ```
 
 If your name is not here, please contact the people listed to remedy
-the sitation.
+the situation.
