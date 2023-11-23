@@ -169,7 +169,7 @@ class GenerateWaveform:
             deltaT: Time spacing, in seconds - Default: 1/2048 seconds
             f_max: Maximum frequency, in Hz - Default: 1024 Hz
             deltaF: Frequency spacing, in Hz - Default: 0.125
-            mode_array: Mode content (only positive must be specified, e.g [(2,2),(2,1)]) - Default: None (all modes)
+            ModeArray / mode_array: Mode content (only positive must be specified, e.g [(2,2),(2,1)]) - Default: None (all modes)
             approximant: 'SEOBNRv5HM' or 'SEOBNRv5PHM'. Default: 'SEOBNRv5HM'
 
         """
@@ -211,6 +211,7 @@ class GenerateWaveform:
             "f_ref": 20.0,
             "deltaT": 1.0 / 2048.0,
             "deltaF": 0.0,
+            "ModeArray": None,
             "mode_array": None,
             "approximant": "SEOBNRv5HM",
             "conditioning": 2,
@@ -328,6 +329,9 @@ class GenerateWaveform:
         if parameters["postadiabatic_type"] not in ["numeric", "analytic"]:
             raise ValueError("Unrecognised setting for dynamics postadiabatic type.")
 
+        if parameters["ModeArray"] is not None and parameters["mode_array"] is not None:
+            raise ValueError("Only one setting can be specified between ModeArray and mode_array.")
+
         self.parameters = parameters
 
     def generate_td_modes(self):
@@ -393,6 +397,10 @@ class GenerateWaveform:
         if self.parameters["mode_array"] is not None:
             settings["return_modes"] = self.parameters[
                 "mode_array"
+            ]  # Select mode array
+        if self.parameters["ModeArray"] is not None:
+            settings["return_modes"] = self.parameters[
+                "ModeArray"
             ]  # Select mode array
 
         if "lmax_nyquist" in self.parameters:
@@ -506,6 +514,10 @@ class GenerateWaveform:
             if self.parameters["mode_array"] is not None:
                 settings["return_modes"] = self.parameters[
                     "mode_array"
+                ]  # Select mode array
+            if self.parameters["ModeArray"] is not None:
+                settings["return_modes"] = self.parameters[
+                    "ModeArray"
                 ]  # Select mode array
 
             if "lmax_nyquist" in self.parameters:
