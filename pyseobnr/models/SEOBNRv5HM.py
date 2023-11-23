@@ -254,7 +254,7 @@ class SEOBNRv5HM_opt(Model):
         """
         Re-initialize all parameters to make sure everything is reset
         """
-        self.eob_pars = EOBParams(phys_pars, {}, mode_array=self.computed_modes)
+        self.eob_pars = EOBParams(phys_pars, {}, mode_array=list(self.computed_modes))
         self.eob_pars.flux_params.rho_initialized = False
         self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
         self.eob_pars.flux_params.prefixes_abs = np.abs(
@@ -770,7 +770,7 @@ class SEOBNRv5PHM_opt(Model):
         """
         Re-initialize all parameters to make sure everything is reset
         """
-        self.eob_pars = EOBParams(phys_pars, {}, mode_array=self.computed_modes)
+        self.eob_pars = EOBParams(phys_pars, {}, mode_array=list(self.computed_modes))
         self.eob_pars.flux_params.rho_initialized = False
         self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
         self.eob_pars.flux_params.prefixes_abs = np.abs(
