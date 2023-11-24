@@ -10,10 +10,10 @@ Install pyseobnr from source
 
 To install ``pyseobnr`` you will need a few non-python dependencies, at a minimum:
 
-- python >=3.8, <3.11
-- gcc
-- gsl
-- swig
+- ``python >=3.9, <3.12``
+- ``gcc``
+- ``gsl``
+- ``swig``
 
 All of these are easily installable with ``conda`` (or available in standard ``conda``
 envs provided by ``IGWN``), or your favorite package manager.
@@ -42,6 +42,14 @@ dependencies must be installed. This can be done simply by running
 .. code-block:: console
 
     (.venv) $ pip install ".[checks]"
+
+The ``waveform_tools`` package located `here <https://bitbucket.org/sergei_ossokine/waveform_tools>`_ has
+to be installed separately with the command
+
+.. code-block:: console
+
+    (.venv) $ pip install git+https://bitbucket.org/sergei_ossokine/waveform_tools
+
 
 Installing optional dependencies to build documentation
 -------------------------------------------------------

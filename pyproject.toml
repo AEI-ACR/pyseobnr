@@ -55,7 +55,6 @@ write_to = "pyseobnr/_version.py"
 [project.optional-dependencies]
     checks = [
         'bilby',
-        'waveform_tools @ git+https://sergei_ossokine@bitbucket.org/sergei_ossokine/waveform_tools.git',
         'gwsurrogate',
         'pathos',
         'scikit-optimize',
