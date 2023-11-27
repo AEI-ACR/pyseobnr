@@ -3,10 +3,10 @@
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
 
-pyseobnr provides state-of-the-art gravitational waveforms using the
+``pyseobnr`` provides state-of-the-art gravitational waveforms using the
 effective-one-body (EOB) approach.
 
-For installation instructions, documentation, examples and more, visit the documentation `here <https://waveforms.docs.ligo.org/software/pyseobnr//>`__.
+For installation instructions, documentation, examples and more, visit the documentation `here <https://waveforms.docs.ligo.org/software/pyseobnr/>`__.
 
 Installation
 ============
@@ -54,10 +54,17 @@ running
 
    pip install .[checks]
 
+You will have to install the ``waveform`` tools from `here <https://bitbucket.org/sergei_ossokine/waveform_tools>`__ manually though
+with eg. the following command
+
+::
+
+    pip install git+https://bitbucket.org/sergei_ossokine/waveform_tools
+
 License
 =======
 
-pyseobnr is released under the GNU General Public License v3.0 or later,
+``pyseobnr`` is released under the GNU General Public License v3.0 or later,
 see `here <https://choosealicense.com/licenses/gpl-3.0/>`__ for a
 description of this license, or see the
 `LICENSE <https://github.com/gwpy/gwpy/blob/main/LICENSE>`__ file for
@@ -69,7 +76,8 @@ References
 
 We request that any academic report, publication, or other academic disclosure of results derived from the use of ``pyseobnr`` acknowledge the use of the software by an appropriate acknowledgment or citation.
 
-The code can be cited by citing `code repo <https://git.ligo.org/waveforms/software>`_  and the code paper: Mihaylov et al, "pySEOBNR: a software package for the next generation of effective-one-body multipolar waveform models", 2023, `arXiv:2303.18203 <https://arxiv.org/abs/2303.18203>`_. A bibtex entry is provided::
+The code can be cited by citing `code repo <https://git.ligo.org/waveforms/software>`_  and the code paper: Mihaylov et al, "pySEOBNR: a software package for the next generation of 
+effective-one-body multipolar waveform models", 2023, `arXiv:2303.18203 <https://arxiv.org/abs/2303.18203>`_. A bibtex entry is provided::
 
   @article{Mihaylov:2023bkc,
     author = {Mihaylov, Deyan P. and Ossokine, Serguei and Buonanno, Alessandra and Estelles, Hector and Pompili, Lorenzo and P\"urrer, Michael and Ramos-Buades, Antoni},
@@ -135,7 +143,6 @@ If you build on the existing models, please cite:
     month = "3",
     year = "2023"
     }
-
 
 
 .. |pipeline status| image:: https://git.ligo.org/waveforms/software/pyseobnr/badges/main/pipeline.svg
