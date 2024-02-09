@@ -75,8 +75,12 @@ A ``tox`` environment is provided for easier development on variations of python
 
     (.venv) $ pip install tox
     (.venv) $ tox -l            # lists the environments
+    (.venv) $ CI_TEST_DYNAMIC_REGRESSIONS=1 \
+              tox -e py311      # runs additional tests
     (.venv) $ tox -e py311      # runs the tests for python 3.11
     (.venv) $ tox -e docs       # builds the documentation
+
+
 
 
 Platform specific instructions

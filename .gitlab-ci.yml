@@ -92,4 +92,5 @@ test:
   script:
     - conda activate tests
     - pip install .
+    - export CI_TEST_DYNAMIC_REGRESSIONS=1
     - pytest -vvv
