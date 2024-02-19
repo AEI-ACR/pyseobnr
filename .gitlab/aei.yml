@@ -60,6 +60,7 @@ conda-test:
     - conda activate python311
     - pip install .
     - mkdir .temp-tests
+    - export CI_TEST_DYNAMIC_REGRESSIONS=1
     - pytest --junitxml=.temp-tests/junit.xml -vvv test
 
   artifacts:
@@ -144,6 +145,7 @@ tox-build-test:
   script:
     - DEBIAN_FRONTEND=noninteractive apt-get install -y $packages python3-pip python3-venv
     - *build_package_default_cmds
+    - export CI_TEST_DYNAMIC_REGRESSIONS=1
     - tox -e $tox_target
 
 # running the linting only
