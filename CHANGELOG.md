@@ -1,6 +1,10 @@
 All notable changes will be noted in this file, whenever a tagged
 version is made
 
+## [0.2.8] 19/02/2024
+
+Bugfix release. Minor update for conda builds.
+
 ## [0.2.7] 23/11/2023
 
 Maintenance release: code and documentation improvements, better test coverage.
@@ -9,7 +13,7 @@ Now accepting "ModeArray" in the settings to remain compatible with Bilby: the p
 
 ## [0.2.6] 16/08/2023
 
-Bugifx release. Fixes another compatibility issue with Cython 3.0.0. Increase total mass upper limit to 1e12.
+Bugfix release. Fixes another compatibility issue with Cython 3.0.0. Increase total mass upper limit to 1e12.
 
 ## [0.2.5] 01/08/2023
 
