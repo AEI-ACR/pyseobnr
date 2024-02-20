@@ -1,6 +1,8 @@
 from pathlib import Path
+import os
 
 import pandas as pd
+import pytest
 
 from pyseobnr.generate_waveform import generate_modes_opt
 from .helpers import compare_frames
@@ -8,6 +10,10 @@ from .helpers import compare_frames
 folder_data = Path(__file__).parent.parent / "data"
 
 
+@pytest.mark.skipif(
+    "CI_TEST_DYNAMIC_REGRESSIONS" not in os.environ,
+    reason="regressions on dynamics are for specific systems only",
+)
 def test_regression_dynamic():
     """
     Checks the dynamic against a full data frame

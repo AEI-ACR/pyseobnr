@@ -71,12 +71,14 @@ write_to = "pyseobnr/_version.py"
         "jupytext",
         "jupyterlab",
         "pandas",
+        'pyarrow'
     ]
 
     tests = [
         'pytest',
         'pytest-sugar',
-        'pandas'
+        'pandas',
+        'pyarrow'
     ]
 
 [tool.pytest.ini_options]

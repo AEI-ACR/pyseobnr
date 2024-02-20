@@ -89,7 +89,16 @@ test:
           make
           pytest
           lalsuite
+
   script:
     - conda activate tests
     - pip install .
-    - pytest -vvv
+    - mkdir .temp-tests
+    - export CI_TEST_DYNAMIC_REGRESSIONS=1
+    - pytest --junitxml=.temp-tests/junit.xml -vvv
+
+  artifacts:
+    paths:
+      - .temp-tests/**/junit.xml
+    reports:
+      junit: .temp-tests/**/junit.xml
