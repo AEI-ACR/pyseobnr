@@ -57,6 +57,7 @@ def gen_test_data(test_type):
         "spin2z": s2z,
         "deltaT": dt,
         "deltaF": deltaF,
+        "f_ref": 20,
         "f22_start": f_min,
         "phi_ref": phiRef,
         "distance": distance,
