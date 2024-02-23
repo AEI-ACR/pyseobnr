@@ -85,3 +85,42 @@ def test_mode_arrays_settings(basic_settings):
         for func in calls_to_check:
             with pytest.raises(TypeError):
                 _ = getattr(wfm_gen, func)()
+
+
+def test_f_ref_behaviour(basic_settings):
+    """When not set, f_ref should be set to f22_start"""
+
+    assert "f_ref" not in basic_settings  # for this test to work
+
+    approximants = "SEOBNRv5HM", "SEOBNRv5PHM"
+
+    for approximant in approximants:
+        wfm_gen = GenerateWaveform(
+            basic_settings | {"approximant": approximant, "f_ref": 21, "f22_start": 20}
+        )
+
+        assert wfm_gen.parameters["f_ref"] == 21
+
+    # takes value of f22_start if not specified
+    for approximant in approximants:
+        wfm_gen = GenerateWaveform(
+            basic_settings | {"approximant": approximant, "f22_start": 21}
+        )
+
+        assert wfm_gen.parameters["f_ref"] == 21
+
+    # inherit default value
+    for approximant in approximants:
+        new_settings = basic_settings | {"approximant": approximant}
+        new_settings.pop("f22_start")
+        wfm_gen = GenerateWaveform(new_settings)
+
+        assert wfm_gen.parameters["f_ref"] == wfm_gen.parameters["f22_start"]
+
+    # sanity check
+    value_error = r"f_ref has to be positive!"
+    with pytest.raises(
+        ValueError,
+        match=value_error,
+    ):
+        _ = GenerateWaveform(basic_settings | {"f_ref": -1})

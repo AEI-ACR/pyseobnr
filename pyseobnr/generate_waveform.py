@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Dict, Tuple, Union
 
 import lal
@@ -173,6 +175,9 @@ class GenerateWaveform:
             approximant: 'SEOBNRv5HM' or 'SEOBNRv5PHM'. Default: 'SEOBNRv5HM'
 
         """
+
+        self.swap_masses: bool | None = None
+        self.parameters: dict[str, Any] | None = None
         self.validate_parameters(parameters)
 
     def validate_parameters(self, parameters):
@@ -208,7 +213,6 @@ class GenerateWaveform:
             "inclination": 0.0,
             "phi_ref": 0.0,
             "f22_start": 20.0,
-            "f_ref": 20.0,
             "deltaT": 1.0 / 2048.0,
             "deltaF": 0.0,
             "ModeArray": None,
@@ -226,6 +230,9 @@ class GenerateWaveform:
         for param in default_params.keys():
             if param not in parameters:
                 parameters[param] = default_params[param]
+
+        if "f_ref" not in parameters.keys():
+            parameters["f_ref"] = parameters["f22_start"]
 
         if parameters["approximant"] not in ["SEOBNRv5HM", "SEOBNRv5PHM"]:
             raise ValueError("Approximant not implemented!")
@@ -290,7 +297,7 @@ class GenerateWaveform:
 
         for param in ["f22_start", "f_ref", "f_max", "deltaT", "deltaF", "distance"]:
             if parameters[param] < 0:
-                raise ValueError(f"{param} have to be positive!")
+                raise ValueError(f"{param} has to be positive!")
 
         if mass2 > mass1:
             self.swap_masses = True
@@ -330,7 +337,9 @@ class GenerateWaveform:
             raise ValueError("Unrecognised setting for dynamics postadiabatic type.")
 
         if parameters["ModeArray"] is not None and parameters["mode_array"] is not None:
-            raise ValueError("Only one setting can be specified between ModeArray and mode_array.")
+            raise ValueError(
+                "Only one setting can be specified between ModeArray and mode_array."
+            )
 
         self.parameters = parameters
 
@@ -399,9 +408,7 @@ class GenerateWaveform:
                 "mode_array"
             ]  # Select mode array
         if self.parameters["ModeArray"] is not None:
-            settings["return_modes"] = self.parameters[
-                "ModeArray"
-            ]  # Select mode array
+            settings["return_modes"] = self.parameters["ModeArray"]  # Select mode array
 
         if "lmax_nyquist" in self.parameters:
             settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
