@@ -71,7 +71,8 @@ write_to = "pyseobnr/_version.py"
         "jupytext",
         "jupyterlab",
         "pandas",
-        'pyarrow'
+        'pyarrow',
+        'seaborn'
     ]
 
     tests = [
