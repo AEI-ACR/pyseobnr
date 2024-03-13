@@ -2,11 +2,12 @@
 This file contains the coefficients of fits of the amplitude
 to 2nd order self-force results
 """
-from typing import Any,Dict
+from typing import Any, Dict
+
 import numpy as np
 
 
-def GSF_amplitude_fits(nu:float)->Dict[str,Any]:
+def GSF_amplitude_fits(nu: float) -> Dict[str, Any]:
     """Return the GSF fit coefficients to the amplitude.
     Based only on non-spinning data.
     Note that these are multiplied by the symmetric

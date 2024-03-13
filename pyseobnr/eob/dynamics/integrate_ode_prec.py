@@ -8,26 +8,22 @@ import numpy as np
 import pygsl_lite.errno as errno
 import pygsl_lite.odeiv2 as odeiv2
 from numba import *
-from numba import jit, types
+from scipy.interpolate import CubicSpline
 
 from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
 from ..hamiltonian import Hamiltonian
+from ..utils.containers import EOBParams
 from ..utils.math_ops_opt import *
+from ..utils.utils import interpolate_dynamics, iterative_refinement
 from .initial_conditions_aligned_precessing import computeIC_augm
 from .pn_evolution_opt import (
-    rhs_wrapper,
+    build_splines_PN,
     compute_omega_orb,
     compute_quasiprecessing_PNdynamics_opt,
-    build_splines_PN,
+    rhs_wrapper,
 )
-from .integrate_ode import interpolate_dynamics, iterative_refinement
-from ..utils.containers import EOBParams
-from ..utils.math_ops_opt import my_norm
 
 # Test cythonization of PN equations
-
-from scipy.interpolate import CubicSpline
-from scipy.signal import argrelmin
 
 
 step = odeiv2.pygsl_lite_odeiv2_step
@@ -83,7 +79,6 @@ def check_terminal(
         return 3
 
     if r < 3:
-
         if drdt > 0:
             # print(f"drdt>0 : r = {r}, omega = {omega}, omega_previous = {omega_previous}")
             return 5
@@ -221,7 +216,6 @@ def compute_dynamics_prec_opt(
         y0 = np.array([r0, 0.0, pr0, pphi0])
 
     else:
-
         y0 = y_init.copy()
         r0 = y0[0]
 
@@ -274,7 +268,6 @@ def compute_dynamics_prec_opt(
     peak_pr = False
 
     while t < t1:
-
         # Take a step
         status, t, h, y = e.apply(c, s, sys, t, t1, h, y)
         if status != errno.GSL_SUCCESS:
@@ -304,7 +297,6 @@ def compute_dynamics_prec_opt(
 
         # Handle termination conditions
         if r <= 6:
-
             deriv = rhs_wrapper(t, y, [H, RR, m_1, m_2, params])
             drdt = deriv[0]
             omega = deriv[1]
@@ -316,7 +308,6 @@ def compute_dynamics_prec_opt(
                 break
 
             else:
-
                 omegas.append(omega)
                 dprdt = deriv[2]
                 omega_circ = params.p_params.omega_circ
@@ -505,7 +496,6 @@ def transition_dynamics_v2(
     t_fine_init = t_fine[0]
 
     if t_fine_init - t_low_last > 2:
-
         dt_low_last = t_low[-1] - t_low[-2]
         dt_fine = t_fine[1] - t_fine[0]
         dt_fine = 0.1
@@ -556,7 +546,6 @@ def transition_dynamics_v2(
             len(omega_low) + len(omega_middle) - 1
         )  # idx_restart -1  + window_length
     else:
-
         dynamics = dyn
         time = ts
         omega = omega_eob
@@ -654,12 +643,10 @@ def compute_dynamics_quasiprecessing(
     # Step 1: Compute PN dynamics
 
     if initial_conditions == "postadiabatic":
-
         combined_t, combined_y = compute_quasiprecessing_PNdynamics_opt(
             omega_ref, 0.9 * omega_start, m_1, m_2, chi_1, chi_2
         )
     else:
-
         combined_t, combined_y = compute_quasiprecessing_PNdynamics_opt(
             omega_ref, omega_start, m_1, m_2, chi_1, chi_2
         )

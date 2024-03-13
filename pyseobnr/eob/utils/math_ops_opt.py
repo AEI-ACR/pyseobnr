@@ -1,13 +1,14 @@
 """
-Contains hand-written vector operations wrapped in numba for speed. 
-For small operations, i.e. involving just 2 vectors these are faster 
+Contains hand-written vector operations wrapped in numba for speed.
+For small operations, i.e. involving just 2 vectors these are faster
 than NumPy since they do not incur overheads.
 """
 
-import numpy as np
-from numba import jit
-from numba import float64
 from math import sqrt
+
+import numpy as np
+from numba import float64, jit
+
 
 @jit(float64[:](float64[:], float64[:]), cache=True, nopython=True)
 def my_cross(a, b):
@@ -43,13 +44,13 @@ def my_dot(a, b):
 
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
+
 @jit(
-   float64(float64[:]),
-   cache=True,
-   nopython=True,
+    float64(float64[:]),
+    cache=True,
+    nopython=True,
 )
 def my_norm(a):
-
     """
     Function to compute the norm of a 3D array
 
@@ -59,6 +60,6 @@ def my_norm(a):
     Returns:
         (float): L2-norm of a
     """
-    norm = sqrt(a[0]*a[0] +  a[1]*a[1] +  a[2]*a[2])
+    norm = sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2])
 
-    return  norm
+    return norm

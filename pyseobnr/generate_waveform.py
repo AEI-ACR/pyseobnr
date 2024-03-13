@@ -1,19 +1,23 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Final, Literal, Tuple, Union, cast, get_args
 
 import lal
 import lalsimulation as lalsim
 import numpy as np
 
-from .eob.waveform.waveform import SEOBNRv5RRForce
 from .eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
     Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C as Ham_aligned_opt,
 )
 from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
     Ham_AvgS2precess_simple_cython_PA_AD as Ham_prec_pa_cy,
 )
+from .eob.waveform.waveform import SEOBNRv5RRForce
 from .models import SEOBNRv5HM
+from .models.model import Model
+
+#: Supported approximants
+SupportedApproximants = Literal["SEOBNRv5HM", "SEOBNRv5PHM"]
 
 
 def generate_prec_hpc_opt(
@@ -21,10 +25,10 @@ def generate_prec_hpc_opt(
     chi1: np.ndarray,
     chi2: np.ndarray,
     omega_start: float,
-    omega_ref: float = None,
-    settings: Dict[Any, Any] = None,
+    omega_ref: float | None = None,
+    settings: Dict[Any, Any] | None = None,
     debug: bool = False,
-) -> Tuple:
+) -> tuple[np.array, np.array] | tuple[np.array, np.array, Model]:
     """Generate the GW wave polarizations for precessing model in an optimised way. In particular,
     do not compute the inertial frame modes, instead write the polarizations directly summing
     over the co-precessing frame modes
@@ -74,13 +78,62 @@ def generate_prec_hpc_opt(
         return model.t, model.hpc
 
 
+def _check_spins(
+    chi1: Union[
+        float,
+        np.ndarray,
+        list,
+        tuple[
+            float,
+            float,
+            float,
+        ],
+    ],
+    chi2: Union[
+        float,
+        np.ndarray,
+        list,
+        tuple[
+            float,
+            float,
+            float,
+        ],
+    ],
+    approximant: SupportedApproximants,
+) -> tuple[float, float, float, float, float, float]:
+    chi1 = np.asarray(chi1, dtype=np.float64)
+    chi2 = np.asarray(chi2, dtype=np.float64)
+    if len(chi1.shape) == 0:
+        chi1 = np.array([0, 0, chi1], dtype=np.float64)
+    elif chi1.shape[0] > 3:
+        raise ValueError("Incorrect number of spin elements.")
+    if len(chi2.shape) == 0:
+        chi2 = np.array([0, 0, chi2], dtype=np.float64)
+    elif chi2.shape[0] > 3:
+        raise ValueError("Incorrect number of spin elements.")
+
+    if approximant == "SEOBNRv5HM" and (
+        (np.abs(chi1[:2]).max() > 1e-10) or (np.abs(chi2[:2]).max() > 1e-10)
+    ):
+        raise ValueError(
+            "In-plane spin components must be zero for calling non-precessing approximant."
+        )
+    if np.linalg.norm(chi1) > 1 or np.linalg.norm(chi2) > 1:
+        # raise ValueError("chi1 and chi2 have to respect Kerr limit (|chi|<=1)")
+        raise ValueError("Dimensionless spin magnitudes cannot be greater than 1!")
+
+    return cast(tuple[float, float, float], tuple(float(_) for _ in chi1)) + cast(
+        tuple[float, float, float], tuple(float(_) for _ in chi2)
+    )
+
+
 def generate_modes_opt(
     q: float,
     chi1: Union[float, np.ndarray],
     chi2: Union[float, np.ndarray],
     omega_start: float,
     omega_ref: float = None,
-    approximant: str = "SEOBNRv5HM",
+    approximant: SupportedApproximants = "SEOBNRv5HM",
     settings: Dict[Any, Any] = None,
     debug: bool = False,
 ) -> Tuple:
@@ -88,12 +141,14 @@ def generate_modes_opt(
 
     Args:
         q (float): Mass ratio >=1
-        chi1 (Union[float,np.ndarray]): Dimensionless spin of primary. If ``float``, interpreted as z component
-        chi2 (Union[float,np.ndarray]): Dimensionless spin of secondary. If ``float``, interpreted as z component
+        chi1 (Union[float,np.ndarray]): Dimensionless spin of primary.
+                                        If ``float``, interpreted as z component
+        chi2 (Union[float,np.ndarray]): Dimensionless spin of secondary.
+                                        If ``float``, interpreted as z component
         omega_start (float): Starting orbital frequency, in geometric units
         omega_ref (float, optional): Reference orbital frequency, in geometric units.
                                      Defaults to None, in which case equals omega_start.
-        approximant (str, optional): The approximant to use. Defaults to "SEOBNRv5HM".
+        approximant (SupportedApproximants, optional): The approximant to use. Defaults to "SEOBNRv5HM".
         settings (Dict[Any,Any], optional): Additional settings to pass to model. Defaults to None.
         debug (bool, optional): Run in debug mode . Defaults to False.
 
@@ -110,29 +165,41 @@ def generate_modes_opt(
     if omega_start < 0:
         raise ValueError("omega_start has to be positive")
 
+    chi1_x, chi1_y, chi1_z, chi2_x, chi2_y, chi2_z = _check_spins(
+        chi1, chi2, approximant=approximant
+    )
+
     if approximant == "SEOBNRv5HM":
-        if np.abs(chi1) > 1 or np.abs(chi2) > 1:
-            raise ValueError("chi1 and chi2 have to respect Kerr limit (|chi|<=1)")
         RR_f = SEOBNRv5RRForce()
         model = SEOBNRv5HM.SEOBNRv5HM_opt(
-            q, chi1, chi2, omega_start, Ham_aligned_opt, RR_f, settings=settings
+            q,
+            chi_1=chi1_z,
+            chi_2=chi2_z,
+            omega0=omega_start,
+            H=Ham_aligned_opt,
+            RR=RR_f,
+            settings=settings,
         )
         model()
+
     elif approximant == "SEOBNRv5PHM":
-        if np.linalg.norm(chi1) > 1 or np.linalg.norm(chi2) > 1:
-            raise ValueError("chi1 and chi2 have to respect Kerr limit (|chi|<=1)")
         RR_f = SEOBNRv5RRForce()
         model = SEOBNRv5HM.SEOBNRv5PHM_opt(
             q,
-            *chi1,
-            *chi2,
-            omega_start,
-            Ham_prec_pa_cy,
-            RR_f,
+            chi1_x=chi1_x,
+            chi1_y=chi1_y,
+            chi1_z=chi1_z,
+            chi2_x=chi2_x,
+            chi2_y=chi2_y,
+            chi2_z=chi2_z,
+            omega_start=omega_start,
+            H=Ham_prec_pa_cy,
+            RR=RR_f,
             omega_ref=omega_ref,
             settings=settings,
         )
         model()
+
     else:
         raise NotImplementedError(f"Approximant '{approximant}' is not available")
     if debug:
@@ -149,36 +216,59 @@ class GenerateWaveform:
 
     def __init__(self, parameters):
         """
-        Initialize class. The ``parameters`` dictionary can
-        contain the following:
+        Initialize the class with the given ``parameters``.
+
+        ``parameters`` is a dictionary which keys are defined as follow:
 
         Parameters
         ----------
 
-            mass1: Mass of companion 1, in solar masses - Required
-            mass2: Mass of companion 2, in solar masses - Required
-            spin1x: x-component of dimensionless spin of companion 1 - Default: 0
-            spin1y: y-component of dimensionless spin of companion 1 - Default: 0
-            spin1z: z-component of dimensionless spin of companion 1 - Default: 0
-            spin2x: x-component of dimensionless spin of companion 2 - Default: 0
-            spin2y: y-component of dimensionless spin of companion 2 - Default: 0
-            spin2z: z-component of dimensionless spin of companion 2 - Default: 0
-            distance: Distance to the source, in Mpc - Default: 100 Mpc
-            inclination: Inclination of the source, in radians - Default: 0
-            phi_ref: Orbital phase at the reference frequency, in radians - Default: 0
-            f22_start: Starting waveform generation frequency, in Hz - Default: 20 Hz
-            f_ref: The reference frequency, in Hz - Default: f22_start
-            deltaT: Time spacing, in seconds - Default: 1/2048 seconds
-            f_max: Maximum frequency, in Hz - Default: 1024 Hz
-            deltaF: Frequency spacing, in Hz - Default: 0.125
-            ModeArray/mode_array: Mode content (only positive must be specified, e.g [(2,2),(2,1)]) - Default: None (all modes)
-            approximant: 'SEOBNRv5HM' or 'SEOBNRv5PHM'. Default: 'SEOBNRv5HM'
+            float mass1:
+                Mass of companion 1, in solar masses - Required
+            float mass2:
+                Mass of companion 2, in solar masses - Required
+            float spin1x:
+                x-component of dimensionless spin of companion 1 - Default: 0
+            float spin1y:
+                y-component of dimensionless spin of companion 1 - Default: 0
+            float spin1z:
+                z-component of dimensionless spin of companion 1 - Default: 0
+            float spin2x:
+                x-component of dimensionless spin of companion 2 - Default: 0
+            float spin2y:
+                y-component of dimensionless spin of companion 2 - Default: 0
+            float spin2z:
+                z-component of dimensionless spin of companion 2 - Default: 0
+            float distance:
+                Distance to the source, in Mpc - Default: 100 Mpc
+            float inclination:
+                Inclination of the source, in radians - Default: 0
+            float phi_ref:
+                Orbital phase at the reference frequency, in radians - Default: 0
+            float f22_start:
+                Starting waveform generation frequency, in Hz - Default: 20 Hz
+            float f_ref:
+                The reference frequency, in Hz - Default: ``f22_start``
+            float deltaT:
+                Time spacing, in seconds - Default: 1/2048 seconds
+            float f_max:
+                Maximum frequency, in Hz - Default: 1024 Hz
+            float deltaF:
+                Frequency spacing, in Hz - Default: 0.125
+            list ModeArray:
+            list mode_array:
+                Mode content (only positive must be specified, e.g ``[(2,2),(2,1)]``).
+                Defaults to ``None`` (all modes).
+            str approximant:
+
+                * ``SEOBNRv5HM`` (default)
+                * ``SEOBNRv5PHM``
 
         """
 
-        self.swap_masses: bool | None = None
+        self.swap_masses: bool = False
         self.parameters: dict[str, Any] | None = None
-        self.validate_parameters(parameters)
+        self._validate_parameters(parameters)
 
     @property
     def model(self):
@@ -186,7 +276,7 @@ class GenerateWaveform:
             raise ValueError("A model object has not been created!")
         return self._model
 
-    def validate_parameters(self, parameters):
+    def _validate_parameters(self, parameters):
         if "mass1" not in parameters:
             raise ValueError("mass1 has to be specified!")
         if "mass2" not in parameters:
@@ -208,7 +298,7 @@ class GenerateWaveform:
                 "mass-ratio up to 100."
             )
 
-        default_params = {
+        default_params: Final = {
             "spin1x": 0.0,
             "spin1y": 0.0,
             "spin1z": 0.0,
@@ -233,14 +323,13 @@ class GenerateWaveform:
             "r_size_input": 12,
         }
 
-        for param in default_params.keys():
-            if param not in parameters:
-                parameters[param] = default_params[param]
+        # fills the provided parameters over the default ones
+        parameters = default_params | parameters
 
         if "f_ref" not in parameters.keys():
             parameters["f_ref"] = parameters["f22_start"]
 
-        if parameters["approximant"] not in ["SEOBNRv5HM", "SEOBNRv5PHM"]:
+        if parameters["approximant"] not in get_args(SupportedApproximants):
             raise ValueError("Approximant not implemented!")
 
         # Disable direct polarizations for aligned-spin model
@@ -271,35 +360,26 @@ class GenerateWaveform:
             ):
                 raise ValueError(f"{param} has to be a real number!")
 
-        if (
-            parameters["approximant"] == "SEOBNRv5HM"
-            and (
-                np.abs(parameters["spin1x"])
-                + np.abs(parameters["spin1y"])
-                + np.abs(parameters["spin2x"])
-                + np.abs(parameters["spin2y"])
-            )
-            > 1e-10
-        ):
-            raise ValueError(
-                "In-plane spin components must be zero for calling non-precessing approximant."
-            )
-
-        if (
-            np.sqrt(
-                parameters["spin1x"] ** 2
-                + parameters["spin1y"] ** 2
-                + parameters["spin1z"] ** 2
-            )
-            > 1
-            or np.sqrt(
-                parameters["spin2x"] ** 2
-                + parameters["spin2y"] ** 2
-                + parameters["spin2z"] ** 2
-            )
-            > 1
-        ):
-            raise ValueError("Dimensionless spin magnitudes cannot be greater than 1!")
+        (
+            parameters["spin1x"],
+            parameters["spin1y"],
+            parameters["spin1z"],
+            parameters["spin2x"],
+            parameters["spin2y"],
+            parameters["spin2z"],
+        ) = _check_spins(
+            chi1=(
+                parameters["spin1x"],
+                parameters["spin1y"],
+                parameters["spin1z"],
+            ),
+            chi2=(
+                parameters["spin2x"],
+                parameters["spin2y"],
+                parameters["spin2z"],
+            ),
+            approximant=parameters["approximant"],
+        )
 
         for param in ["f22_start", "f_ref", "f_max", "deltaT", "deltaF", "distance"]:
             if parameters[param] < 0:
@@ -325,8 +405,6 @@ class GenerateWaveform:
             aux_mass1 = parameters["mass1"]
             parameters["mass1"] = parameters["mass2"]
             parameters["mass2"] = aux_mass1
-        else:
-            self.swap_masses = False
 
         if parameters["initial_conditions"] not in ["adiabatic", "postadiabatic"]:
             raise ValueError("Unrecognised setting for initial conditions.")
@@ -358,22 +436,28 @@ class GenerateWaveform:
         m1, m2 = self.parameters["mass1"], self.parameters["mass2"]
         Mtot = m1 + m2
         dist = self.parameters["distance"]
-        approx = self.parameters["approximant"]
+        approx: SupportedApproximants = cast(
+            SupportedApproximants, self.parameters["approximant"]
+        )
 
         if approx == "SEOBNRv5HM":
             chi1 = self.parameters["spin1z"]
             chi2 = self.parameters["spin2z"]
         elif approx == "SEOBNRv5PHM":
-            chi1 = [
-                self.parameters["spin1x"],
-                self.parameters["spin1y"],
-                self.parameters["spin1z"],
-            ]
-            chi2 = [
-                self.parameters["spin2x"],
-                self.parameters["spin2y"],
-                self.parameters["spin2z"],
-            ]
+            chi1 = np.array(
+                [
+                    self.parameters["spin1x"],
+                    self.parameters["spin1y"],
+                    self.parameters["spin1z"],
+                ]
+            )
+            chi2 = np.array(
+                [
+                    self.parameters["spin2x"],
+                    self.parameters["spin2y"],
+                    self.parameters["spin2z"],
+                ]
+            )
 
         omega_start = np.pi * fmin * Mtot * lal.MTSUN_SI
         omega_ref = np.pi * f_ref * Mtot * lal.MTSUN_SI
@@ -409,12 +493,11 @@ class GenerateWaveform:
                     ]
                 )
 
+        # Select mode array
         if self.parameters["mode_array"] is not None:
-            settings["return_modes"] = self.parameters[
-                "mode_array"
-            ]  # Select mode array
+            settings["return_modes"] = self.parameters["mode_array"]
         if self.parameters["ModeArray"] is not None:
-            settings["return_modes"] = self.parameters["ModeArray"]  # Select mode array
+            settings["return_modes"] = self.parameters["ModeArray"]
 
         if "lmax_nyquist" in self.parameters:
             settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
@@ -428,7 +511,7 @@ class GenerateWaveform:
             approximant=approx,
             omega_ref=omega_ref,
             settings=settings,
-            debug=True
+            debug=True,
         )
 
         # Convert to physical units and LAL convention
@@ -447,16 +530,15 @@ class GenerateWaveform:
                 emm = int(ellm[2])
             hlm_dict[(ell, emm)] = fac * mode
 
-        if (
-            approx == "SEOBNRv5HM"
-        ):  # If aligned-spin model, compute negative modes using equatorial symmetry
+        # If aligned-spin model, compute negative modes using equatorial symmetry
+        if approx == "SEOBNRv5HM":
             for ellm, mode in h.items():
                 ell = int(ellm[0])
                 emm = int(ellm[2])
                 hlm_dict[(ell, -emm)] = pow(-1, ell) * fac * np.conj(mode)
 
-        # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a pi rotation on the orbital plane,
-        # which translates into a minus sign for the odd modes.
+        # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a
+        # pi rotation on the orbital plane, which translates into a minus sign for the odd modes.
         if self.swap_masses is True:
             for ell, emm in hlm_dict.keys():
                 if np.abs(emm) % 2 != 0:
@@ -487,16 +569,20 @@ class GenerateWaveform:
             f_ref = self.parameters.get("f_ref")
             m1, m2 = self.parameters["mass1"], self.parameters["mass2"]
             Mtot = m1 + m2
-            chi1 = [
-                self.parameters["spin1x"],
-                self.parameters["spin1y"],
-                self.parameters["spin1z"],
-            ]
-            chi2 = [
-                self.parameters["spin2x"],
-                self.parameters["spin2y"],
-                self.parameters["spin2z"],
-            ]
+            chi1 = np.array(
+                [
+                    self.parameters["spin1x"],
+                    self.parameters["spin1y"],
+                    self.parameters["spin1z"],
+                ]
+            )
+            chi2 = np.array(
+                [
+                    self.parameters["spin2x"],
+                    self.parameters["spin2y"],
+                    self.parameters["spin2z"],
+                ]
+            )
             dist = self.parameters["distance"]
             omega_start = np.pi * fmin * Mtot * lal.MTSUN_SI
             omega_ref = np.pi * f_ref * Mtot * lal.MTSUN_SI
@@ -525,14 +611,11 @@ class GenerateWaveform:
             if "r_size_input" in self.parameters:
                 settings.update(r_size_input=self.parameters["r_size_input"])
 
+            # Select mode array
             if self.parameters["mode_array"] is not None:
-                settings["return_modes"] = self.parameters[
-                    "mode_array"
-                ]  # Select mode array
+                settings["return_modes"] = self.parameters["mode_array"]
             if self.parameters["ModeArray"] is not None:
-                settings["return_modes"] = self.parameters[
-                    "ModeArray"
-                ]  # Select mode array
+                settings["return_modes"] = self.parameters["ModeArray"]
 
             if "lmax_nyquist" in self.parameters:
                 settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
@@ -545,7 +628,8 @@ class GenerateWaveform:
 
             # inclination and phiref for polarizations
             settings.update(inclination=incl)
-            # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a pi rotation on the orbital plane.
+            # If masses are swapped to satisfy the m1/m2>=1 convention,
+            # this implies a pi rotation on the orbital plane.
             if self.swap_masses:
                 phi += np.pi
             settings.update(phiref=np.pi / 2 - phi)
@@ -629,8 +713,9 @@ class GenerateWaveform:
             m1 * lal.MSUN_SI, m2 * lal.MSUN_SI
         ) + lalsim.SimInspiralRingdownTimeBound((m1 + m2) * lal.MSUN_SI, spinkerr)
 
-        # extra time to include for all waveforms to take care of situations where the frequency is close to merger
-        # (and is sweeping rapidly): this is a few cycles at the low frequency
+        # extra time to include for all waveforms to take care of situations where the
+        # frequency is close to merger (and is sweeping rapidly): this is a few cycles
+        # at the low frequency
         textra = extra_cycles / f_min
         # compute a new lower frequency
         fstart = lalsim.SimInspiralChirpStartFrequencyBound(
@@ -643,8 +728,8 @@ class GenerateWaveform:
         hp_lal, hc_lal = self.generate_td_polarizations()
         self.parameters["f22_start"] = original_f_min
 
-        # condition the time domain waveform by tapering in the extra time at the beginning and high-pass filtering
-        # above original f_min
+        # condition the time domain waveform by tapering in the extra time at the
+        # beginning and high-pass filtering above original f_min
         lalsim.SimInspiralTDConditionStage1(
             hp_lal, hc_lal, extra_time_fraction * tchirp + textra, original_f_min
         )

@@ -21,6 +21,18 @@ python:build:
   variables:
     SRCDIR: "./"
 
+# linting step
+linting:
+  stage: build
+  extends: .python:base
+  before_script:
+    - |
+      pip install -U wheel pip setuptools
+      pip install tox
+      tox -l
+  script:
+    - |
+      tox -e lint
 
 # -- documentation
 docs:

@@ -33,6 +33,7 @@ def SEOBBuildJframeVectors(Jhat_final: np.ndarray):
     is in the plane (e1J, e3J) and ex.e1J>0.
     In the case where e3J and x happen to be close to aligned, we continuously
     switch to another prescription with y playing the role of x.
+
     Same operation as in SEOBBuildJframeVectors in
     https://git.ligo.org/lscsoft/lalsuite/-/blob/master/lalsimulation/lib/LALSimIMRSpinPrecEOBv4P.c#L2833
     LALSimIMRSpinPrecEOBv4P.c.
@@ -64,7 +65,6 @@ def SEOBBuildJframeVectors(Jhat_final: np.ndarray):
 
         e1J = (exvec - exdote3J * e3J) / normfacx
     elif lambda_fac < 1e-5:
-
         normfacy = 1.0 / sqrt(1.0 - eydote3J * eydote3J)
         e1J = (eyvec - eydote3J * e3J) / normfacy
     else:
@@ -90,7 +90,7 @@ def SEOBBuildJframeVectors(Jhat_final: np.ndarray):
     e1J /= e1Jnorm
     e2J /= e2Jnorm
     e3J /= e3Jnorm
-    #print(f"e1J:{e1J},e2J:{e2J},e3J:{e3J}")
+    # print(f"e1J:{e1J},e2J:{e2J},e3J:{e3J}")
     return e1J, e2J, e3J
 
 
@@ -138,7 +138,7 @@ def SEOBEulerJ2PFromDynamics(
             aux = quaternion.quaternion(0.0, 0.0, 1.0, 0.0)
     else:
         aux = None
-    
+
     # Note that because we are working in the J frame the final spin
     # direction is just along z axis, by definition.
     quatJ2P = minimal_quat(quaternion.z, LN_in_J_quat, aux, t, omega)
@@ -151,7 +151,6 @@ def SEOBRotatehIlmFromhJlm_opt_v1(
     modes_lmax: int,
     quatI2J: quaternion,
 ) -> WaveformModes:
-
     """
      This function computes the hIlm Re/Im timeseries (fixed sampling) from hJlm
      Re/Im timeseries (same sampling). This is a simple rotation,
@@ -193,7 +192,8 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
         precRate (float): Precessing rate,  differences between the lowest overtone of the
                           (2,2) and (2,1) QNM frequencies. See Eq. (3.4) of 2004.09442.
         euler_angles_attach (np.ndarray): Euler angles (alpha,beta,gamma) at the attachment time.
-        euler_angles_derivative_attach (np.ndarray): Time derivative of the Euler angles (alpha,beta,gamma) at the attachment time.
+        euler_angles_derivative_attach (np.ndarray): Time derivative of the Euler angles (alpha,beta,gamma) at the
+            attachment time.
         t_attach (float): Attachment time of the dynamics and the ringdown
         idx (int): Index at which the attachment of the ringdown is performed
         rd_approx (bool): If True apply the approximation of the Euler angles, if False use constant angles
@@ -209,48 +209,90 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
     # Approximate the Euler angles assuming simple precession
     if rd_approx:
         if rd_smoothing:
+            # Smoothing: dalpha/dt and dgamma/dt are windowed with a Tanh function. The expressions for alpha and gamma
+            # are the integral of the windowed derivative
+            idx_smoothing = (
+                60  # The window is expensive so only applied on a subset of points
+            )
 
-            # Smoothing: dalpha/dt and dgamma/dt are windowed with a Tanh function. The expressions for alpha and gamma are the integral of the windowed derivative
-            idx_smoothing = 60 # The window is expensive so only applied on a subset of points
-
-            t_smooth = (t_full[idx[-1] + 1 : idx[-1] + 1 + idx_smoothing] - t_attach)
+            t_smooth = t_full[idx[-1] + 1 : idx[-1] + 1 + idx_smoothing] - t_attach
 
             # Parameters needed for the window
             dalphaAttach, dbetaAttach, dgammaAttach = euler_angles_derivative_attach
             dalphaRD = precRate
-            dgammaRD = -cos(betaAttach)*precRate
+            dgammaRD = -cos(betaAttach) * precRate
             sigma = 2.5
-            ti = 2.
+            ti = 2.0
 
             # Offsets to ensure continuity
-            t_offset = 0.0#t_smooth[0]
-            alpha_smooth_offset = 0.5*dalphaAttach*t_offset + 0.5*dalphaRD*t_offset + (-0.125*dalphaAttach*sigma + 0.125*dalphaRD*sigma)*np.log(np.cosh((4.*(t_offset - 1.*ti))/sigma))
-            gamma_smooth_offset = 0.5*dgammaAttach*t_offset + 0.5*dgammaRD*t_offset + (-0.125*dgammaAttach*sigma + 0.125*dgammaRD*sigma)*np.log(np.cosh((4.*(t_offset - 1.*ti))/sigma))
+            t_offset = 0.0  # t_smooth[0]
+            alpha_smooth_offset = (
+                0.5 * dalphaAttach * t_offset
+                + 0.5 * dalphaRD * t_offset
+                + (-0.125 * dalphaAttach * sigma + 0.125 * dalphaRD * sigma)
+                * np.log(np.cosh((4.0 * (t_offset - 1.0 * ti)) / sigma))
+            )
+            gamma_smooth_offset = (
+                0.5 * dgammaAttach * t_offset
+                + 0.5 * dgammaRD * t_offset
+                + (-0.125 * dgammaAttach * sigma + 0.125 * dgammaRD * sigma)
+                * np.log(np.cosh((4.0 * (t_offset - 1.0 * ti)) / sigma))
+            )
 
             # alpha and gamma smoothened
-            alphaJ2P = alphaAttach - alpha_smooth_offset + 0.5*dalphaAttach*t_smooth + 0.5*dalphaRD*t_smooth + (-0.125*dalphaAttach*sigma + 0.125*dalphaRD*sigma)*np.log(np.cosh((4.*(t_smooth - 1.*ti))/sigma))
-            gammaJ2P = gammaAttach - gamma_smooth_offset + 0.5*dgammaAttach*t_smooth + 0.5*dgammaRD*t_smooth + (-0.125*dgammaAttach*sigma + 0.125*dgammaRD*sigma)*np.log(np.cosh((4.*(t_smooth - 1.*ti))/sigma))
+            alphaJ2P = (
+                alphaAttach
+                - alpha_smooth_offset
+                + 0.5 * dalphaAttach * t_smooth
+                + 0.5 * dalphaRD * t_smooth
+                + (-0.125 * dalphaAttach * sigma + 0.125 * dalphaRD * sigma)
+                * np.log(np.cosh((4.0 * (t_smooth - 1.0 * ti)) / sigma))
+            )
+            gammaJ2P = (
+                gammaAttach
+                - gamma_smooth_offset
+                + 0.5 * dgammaAttach * t_smooth
+                + 0.5 * dgammaRD * t_smooth
+                + (-0.125 * dgammaAttach * sigma + 0.125 * dgammaRD * sigma)
+                * np.log(np.cosh((4.0 * (t_smooth - 1.0 * ti)) / sigma))
+            )
 
             # Time array for evaluating the unwindowed RD approximation
-            t_RD = t_full[idx[-1] +idx_smoothing + 1 : ]
+            t_RD = t_full[idx[-1] + idx_smoothing + 1 :]
 
             # Ensure continuity between windowed and unwindowed regions
             t_attach_2 = t_RD[0] - t_attach
-            alphaAttach2 = alphaAttach - alpha_smooth_offset + 0.5*dalphaAttach*t_attach_2 + 0.5*dalphaRD*t_attach_2 + (-0.125*dalphaAttach*sigma + 0.125*dalphaRD*sigma)*np.log(np.cosh((4.*(t_attach_2 - 1.*ti))/sigma))
-            gammaAttach2 = gammaAttach - gamma_smooth_offset + 0.5*dgammaAttach*t_attach_2 + 0.5*dgammaRD*t_attach_2 + (-0.125*dgammaAttach*sigma + 0.125*dgammaRD*sigma)*np.log(np.cosh((4.*(t_attach_2 - 1.*ti))/sigma))
+            alphaAttach2 = (
+                alphaAttach
+                - alpha_smooth_offset
+                + 0.5 * dalphaAttach * t_attach_2
+                + 0.5 * dalphaRD * t_attach_2
+                + (-0.125 * dalphaAttach * sigma + 0.125 * dalphaRD * sigma)
+                * np.log(np.cosh((4.0 * (t_attach_2 - 1.0 * ti)) / sigma))
+            )
+            gammaAttach2 = (
+                gammaAttach
+                - gamma_smooth_offset
+                + 0.5 * dgammaAttach * t_attach_2
+                + 0.5 * dgammaRD * t_attach_2
+                + (-0.125 * dgammaAttach * sigma + 0.125 * dgammaRD * sigma)
+                * np.log(np.cosh((4.0 * (t_attach_2 - 1.0 * ti)) / sigma))
+            )
 
-            #Evaluate unwindowed ringdown approximation
+            # Evaluate unwindowed ringdown approximation
             t_attach_RD = t_RD[0]
             t_full += t_full[0]
 
             cosbetaAttach = cos(betaAttach)
             tmp = (t_RD - t_attach_RD) * precRate
-            alphaJ2P = np.append(alphaJ2P,alphaAttach2 + tmp)
+            alphaJ2P = np.append(alphaJ2P, alphaAttach2 + tmp)
 
-            betaJ2P = np.ones(len(t_smooth)+len(t_RD)) *betaAttach
-            #betaJ2P = betaAttach + (t_full[idx[-1] + 1 :] - t_attach) * dbetaAttach
+            betaJ2P = np.ones(len(t_smooth) + len(t_RD)) * betaAttach
+            # betaJ2P = betaAttach + (t_full[idx[-1] + 1 :] - t_attach) * dbetaAttach
 
-            gammaJ2P = np.append(gammaJ2P,gammaAttach2 - cosbetaAttach * (t_RD - t_attach_RD) * precRate)
+            gammaJ2P = np.append(
+                gammaJ2P, gammaAttach2 - cosbetaAttach * (t_RD - t_attach_RD) * precRate
+            )
 
         else:
             t_RD = t_full[idx[-1] + 1 :]
@@ -273,7 +315,6 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
         gammaJ2P = np.unwrap(gammaJ2P)
 
     else:
-
         t_RD = t_full[idx[-1] + 1 :]
         alphaJ2P = np.ones(len(t_RD)) * alphaAttach
         betaJ2P = np.ones(len(t_RD)) * betaAttach
@@ -290,10 +331,10 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
 def minimal_rotation_mine(
     R: quaternion.quaternion,
     t: quaternion.quaternion,
-    v:quaternion.quaternion,
+    v: quaternion.quaternion,
     omega: np.ndarray,
     domega: np.ndarray,
-    iterations: int=2
+    iterations: int = 2,
 ):
     """
     Adjust frame so that there is no rotation about z' axis.
@@ -347,7 +388,7 @@ def minimal_quat(
     V: quaternion.quaternion,
     aux: quaternion.quaternion,
     t_dyn: np.ndarray,
-    omega: np.ndarray
+    omega: np.ndarray,
 ):
     """
     Compute the rotation that aligns V with v_final
@@ -432,13 +473,11 @@ def inspiral_merger_quaternion_angles(
     quatJ2I = quatI2J.conjugate()
     alpha_J2I, beta_J2I, gamma_J2I = quaternion.as_euler_angles(quatJ2I)
 
-
-
     quatJ2P_dyn = SEOBEulerJ2PFromDynamics(t_dynamics, omega_dynamics, LN_in_J)
     # Compute Euler angles from the quaternions
-    #eAngles_min = quaternion.as_euler_angles(quatJ2P_dyn).T
+    # eAngles_min = quaternion.as_euler_angles(quatJ2P_dyn).T
 
-    #gammaJ2P_dyn = np.unwrap(eAngles_min[2])
+    # gammaJ2P_dyn = np.unwrap(eAngles_min[2])
 
     # We still have the residual freedom from minimal rotation condition to perform a
     # global rotation around the J_f . We fix this freedom by demanding that
@@ -450,18 +489,18 @@ def inspiral_merger_quaternion_angles(
     # are the same rotation.
 
     if t_ref is None:
-        #gamma_ref = gammaJ2P_dyn[0]
+        # gamma_ref = gammaJ2P_dyn[0]
         q2JP_ref = quatJ2P_dyn[0]
     else:
-        #igammaJ2P_dyn = CubicSpline(t_dynamics, gammaJ2P_dyn)
-        #gamma_ref = igammaJ2P_dyn(t_ref)
-        q2JP_ref = quaternion.squad(quatJ2P_dyn,t_dynamics,t_ref)
+        # igammaJ2P_dyn = CubicSpline(t_dynamics, gammaJ2P_dyn)
+        # gamma_ref = igammaJ2P_dyn(t_ref)
+        q2JP_ref = quaternion.squad(quatJ2P_dyn, t_dynamics, t_ref)
 
     # We need to shift things so that gamma_J2P = gamma_J2I at reference time
     # The following is a rotation around final J
-    #quatJ2P_dyn2 = quatJ2P_dyn*np.exp((-gamma_ref / 2 + gamma_J2I / 2) * quaternion.z)
+    # quatJ2P_dyn2 = quatJ2P_dyn*np.exp((-gamma_ref / 2 + gamma_J2I / 2) * quaternion.z)
 
-    shift = q2JP_ref.conjugate()*quatJ2I
+    shift = q2JP_ref.conjugate() * quatJ2I
     quatJ2P_dyn *= shift
 
     eAngles_min = quaternion.as_euler_angles(quatJ2P_dyn).T
@@ -478,8 +517,11 @@ def inspiral_merger_quaternion_angles(
     gamma_attach = igammaJ2P_dyn(t_attach)
 
     euler_angles_attach = [alpha_attach, beta_attach, gamma_attach]
-    euler_angles_derivative_attach = [ialphaJ2P_dyn.derivative()(t_attach), ibetaJ2P_dyn.derivative()(t_attach), igammaJ2P_dyn.derivative()(t_attach)]
-
+    euler_angles_derivative_attach = [
+        ialphaJ2P_dyn.derivative()(t_attach),
+        ibetaJ2P_dyn.derivative()(t_attach),
+        igammaJ2P_dyn.derivative()(t_attach),
+    ]
 
     # Compute sign from the angle between the final total and orbital angular momenta to check if we
     # are in the prograde or retrograde case
@@ -488,7 +530,14 @@ def inspiral_merger_quaternion_angles(
     if cos_angle < 0:
         flip = -1
 
-    return t_dynamics, quatJ2P_dyn, quatI2J, euler_angles_attach,euler_angles_derivative_attach,flip
+    return (
+        t_dynamics,
+        quatJ2P_dyn,
+        quatI2J,
+        euler_angles_attach,
+        euler_angles_derivative_attach,
+        flip,
+    )
 
 
 def compute_omegalm_P_frame(omegalm: complex, m: int, rotation_term: float):
@@ -593,7 +642,10 @@ def custom_swsh(beta: np.ndarray, gamma: np.ndarray, lmax: int):
 
     return swsh
 
-def interpolate_quats(quat: quaternion.quaternion, t_intrp: np.ndarray, t_full: np.ndarray):
+
+def interpolate_quats(
+    quat: quaternion.quaternion, t_intrp: np.ndarray, t_full: np.ndarray
+):
     """
     Function to interpolate the quaternions from the co-precessing frame to the final
     J-frame into the equal-spacing and finer time grid of the waveform modes
