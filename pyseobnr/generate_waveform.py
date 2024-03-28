@@ -223,47 +223,53 @@ class GenerateWaveform:
         Parameters
         ----------
 
-            float mass1:
-                Mass of companion 1, in solar masses - Required
-            float mass2:
-                Mass of companion 2, in solar masses - Required
-            float spin1x:
-                x-component of dimensionless spin of companion 1 - Default: 0
-            float spin1y:
-                y-component of dimensionless spin of companion 1 - Default: 0
-            float spin1z:
-                z-component of dimensionless spin of companion 1 - Default: 0
-            float spin2x:
-                x-component of dimensionless spin of companion 2 - Default: 0
-            float spin2y:
-                y-component of dimensionless spin of companion 2 - Default: 0
-            float spin2z:
-                z-component of dimensionless spin of companion 2 - Default: 0
-            float distance:
-                Distance to the source, in Mpc - Default: 100 Mpc
-            float inclination:
-                Inclination of the source, in radians - Default: 0
-            float phi_ref:
-                Orbital phase at the reference frequency, in radians - Default: 0
-            float f22_start:
-                Starting waveform generation frequency, in Hz - Default: 20 Hz
-            float f_ref:
-                The reference frequency, in Hz - Default: ``f22_start``
-            float deltaT:
-                Time spacing, in seconds - Default: 1/2048 seconds
-            float f_max:
-                Maximum frequency, in Hz - Default: 1024 Hz
-            float deltaF:
-                Frequency spacing, in Hz - Default: 0.125
-            list ModeArray:
-            list mode_array:
-                Mode content (only positive must be specified, e.g ``[(2,2),(2,1)]``).
-                Defaults to ``None`` (all modes).
-            str approximant:
+        float mass1:
+            Mass of companion 1, in solar masses - Required
+        float mass2:
+            Mass of companion 2, in solar masses - Required
+        float spin1x:
+            x-component of dimensionless spin of companion 1 - Default: 0
+        float spin1y:
+            y-component of dimensionless spin of companion 1 - Default: 0
+        float spin1z:
+            z-component of dimensionless spin of companion 1 - Default: 0
+        float spin2x:
+            x-component of dimensionless spin of companion 2 - Default: 0
+        float spin2y:
+            y-component of dimensionless spin of companion 2 - Default: 0
+        float spin2z:
+            z-component of dimensionless spin of companion 2 - Default: 0
+        float distance:
+            Distance to the source, in Mpc - Default: 100 Mpc
+        float inclination:
+            Inclination of the source, in radians - Default: 0
+        float phi_ref:
+            Orbital phase at the reference frequency, in radians - Default: 0
+        float f22_start:
+            Starting waveform generation frequency, in Hz - Default: 20 Hz
+        float f_ref:
+            The reference frequency, in Hz - Default: ``f22_start``
+        float deltaT:
+            Time spacing, in seconds - Default: 1/2048 seconds
+        float f_max:
+            Maximum frequency, in Hz - Default: 1024 Hz
+        float deltaF:
+            Frequency spacing, in Hz - Default: 0.125
+        list ModeArray:
+        list mode_array:
+            Mode content (only positive must be specified, e.g ``[(2,2),(2,1)]``).
+            Defaults to ``None`` (all modes, see notes below).
+        str approximant:
 
-                * ``SEOBNRv5HM`` (default)
-                * ``SEOBNRv5PHM``
+            * ``SEOBNRv5HM`` (default)
+            * ``SEOBNRv5PHM``
 
+        Note
+        ----
+
+        The default modes are ``(2, 2)``, ``(2, 1)``, ``(3, 3)``, ``(3, 2)``,
+        ``(4, 4)`` and ``(4, 3)``. In particular ``(5, 5)`` is not included
+        and should be explicitly set through ``ModeArray``.
         """
 
         self.swap_masses: bool = False
