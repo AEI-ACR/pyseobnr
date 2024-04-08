@@ -5,24 +5,19 @@ Additional utility functions to manipulate various aspects of precession dynamic
 from math import cos, sqrt
 from typing import Any, Dict
 
-import lal
 import numpy as np
 import quaternion
-from numba import *
-from numba import jit, types
+from numba import jit
 from scipy.interpolate import CubicSpline
 from scri import WaveformModes
 
-from ..fits.EOB_fits import compute_QNM
-from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
-from ..hamiltonian import Hamiltonian
 from .math_ops_opt import my_cross, my_dot, my_norm
 
-#################################################################################################################
-
-###########              FUNCTIONS TO  APPLY THE MERGER RINGDOWN APPROXIMATION FOR THE ANGLES          ##########
-
-#################################################################################################################
+#
+#
+# FUNCTIONS TO APPLY THE MERGER RINGDOWN APPROXIMATION FOR THE ANGLES
+#
+#
 
 
 # This function does exactly the same as the LAL counterpart
@@ -152,12 +147,13 @@ def SEOBRotatehIlmFromhJlm_opt_v1(
     quatI2J: quaternion,
 ) -> WaveformModes:
     """
-     This function computes the hIlm Re/Im timeseries (fixed sampling) from hJlm
-     Re/Im timeseries (same sampling). This is a simple rotation,
-     sample-by-sample, with constant Wigner coefficients.
+    This function computes the hIlm Re/Im timeseries (fixed sampling) from hJlm
+    Re/Im timeseries (same sampling). This is a simple rotation,
+    sample-by-sample, with constant Wigner coefficients.
 
-     Args:
-        w_hJlm (WaveformModes): WaveformModes object from the scri python package. It contains waveform modes in the final J-frame
+    Args:
+        w_hJlm (WaveformModes): WaveformModes object from the scri python package.
+            It contains waveform modes in the final J-frame
         modes_lmax (int): Maximum value of l in modes (l,m)
         quatI2J (float): Quaternion between the I-frame and the J-frame
 
@@ -182,26 +178,31 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
     beta_approx: int = 0,
 ):
     """
-     This function computes the ringdown approximation of the Euler angles in
-     the J-frame, assuming simple precession around the final J-vector with a
-     precession frequency approximately equal to the differences between the
-     lowest overtone of the (2,2) and (2,1) QNM frequencies.
+    Computes the ringdown approximation of the Euler angles in
+    the J-frame, assuming simple precession around the final J-vector with a
+    precession frequency approximately equal to the differences between the
+    lowest overtone of the (2,2) and (2,1) QNM frequencies.
 
-     Args:
+    Args:
         t_full (np.ndarray): Time array of the waveform modes.
-        precRate (float): Precessing rate,  differences between the lowest overtone of the
-                          (2,2) and (2,1) QNM frequencies. See Eq. (3.4) of 2004.09442.
-        euler_angles_attach (np.ndarray): Euler angles (alpha,beta,gamma) at the attachment time.
-        euler_angles_derivative_attach (np.ndarray): Time derivative of the Euler angles (alpha,beta,gamma) at the
+        precRate (float): Precessing rate, differences between the lowest overtone of
+            the (2,2) and (2,1) QNM frequencies. See Eq. (3.4) of 2004.09442.
+        euler_angles_attach (np.ndarray): Euler angles (alpha,beta,gamma) at the
             attachment time.
+        euler_angles_derivative_attach (np.ndarray): Time derivative of the Euler
+            angles (alpha,beta,gamma) at the attachment time.
         t_attach (float): Attachment time of the dynamics and the ringdown
         idx (int): Index at which the attachment of the ringdown is performed
-        rd_approx (bool): If True apply the approximation of the Euler angles, if False use constant angles
-        rd_smoothing (bool): If True apply smoothing of the Euler angles, if False do not apply the smoothing
-        beta_approx (int): If 0 use constant beta angle, otherwise use small opening angle approximation
+        rd_approx (bool): If True apply the approximation of the Euler angles,
+            if ``False`` use constant angles
+        rd_smoothing (bool): If True apply smoothing of the Euler angles, if ``False``
+            do not apply the smoothing
+        beta_approx (int): If 0 use constant beta angle, otherwise use small opening
+            angle approximation
 
     Returns:
-        (quaternion.quaternion): Quaternion describing the ringdown approximation of the Euler angles in the J-frame
+        quaternion.quaternion: Quaternion describing the ringdown approximation of
+            the Euler angles in the J-frame
     """
     alphaAttach, betaAttach, gammaAttach = euler_angles_attach
     t_RD = t_full[idx[-1] + 1 :]
@@ -209,8 +210,9 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
     # Approximate the Euler angles assuming simple precession
     if rd_approx:
         if rd_smoothing:
-            # Smoothing: dalpha/dt and dgamma/dt are windowed with a Tanh function. The expressions for alpha and gamma
-            # are the integral of the windowed derivative
+            # Smoothing: dalpha/dt and dgamma/dt are windowed with a Tanh function.
+            # The expressions for alpha and gamma are the integral of the windowed
+            # derivative
             idx_smoothing = (
                 60  # The window is expensive so only applied on a subset of points
             )
@@ -338,10 +340,15 @@ def minimal_rotation_mine(
 ):
     """
     Adjust frame so that there is no rotation about z' axis.
+
     The output of this function is a frame that rotates the z axis onto the same z' axis as the
     input frame, but with minimal rotation about that axis.  This is done by pre-composing the input
     rotation with a rotation about the z axis through an angle gamma, where
+
+    .. code::
+
         dgamma/dt = 2*(dR/dt * z * R.conjugate()).w
+
     This ensures that the angular velocity has no component along the z' axis.
     Note that this condition becomes easier to impose the closer the input rotation is to a
     minimally rotating frame, which means that repeated application of this function improves its
@@ -360,7 +367,6 @@ def minimal_rotation_mine(
         (quaternion.quaternion): Quaternion with the minimum rotation condition applied on it.
 
     """
-    from scipy.interpolate import CubicSpline
 
     if iterations == 0:
         return R
@@ -426,7 +432,8 @@ def inspiral_merger_quaternion_angles(
     splines: Dict[Any, Any],
     t_ref: float = None,
 ):
-    """Wrapper function to compute the angles/quaternions necessary to perform the rotations
+    """
+    Wrapper function to compute the angles/quaternions necessary to perform the rotations
     from the co-precessing frame (P-frame) to the observer inertial frame (I-frame) passing
     through the final angular momentum frame (J-frame) for the inspiral part of the waveform
 
@@ -440,9 +447,10 @@ def inspiral_merger_quaternion_angles(
         t_ref (float, optional): Reference time if f_ref!=f_min. Defaults to None.
 
     Returns:
-        (tuple): Quantities required to perform the rotations from the co-precessing to the inertial frame (time of
-                of the dynamics, time dependent quaternion from the P-frame to the J-frame, Euler angles from the
-                J-frame to the I-frame, and the quaternions during the inspiral in the J-frame)
+        tuple: Quantities required to perform the rotations from the co-precessing to
+            the inertial frame (time of of the dynamics, time dependent quaternion from
+            the P-frame to the J-frame, Euler angles from the J-frame to the I-frame,
+            and the quaternions during the inspiral in the J-frame)
 
     """
 
@@ -548,11 +556,11 @@ def compute_omegalm_P_frame(omegalm: complex, m: int, rotation_term: float):
     Args:
         omegalm (complex): QNM frequency in the J-frame
         m (int): m index of the (l,m) waveform multipole
-        rotation_term (float): (1-abs(cos[beta]))*precRate, where the precRate is the difference between the lowest overtone
-                                of the 22 and 21 QNM frequencies
+        rotation_term (float): (1-abs(cos[beta]))*precRate, where the precRate is the
+            difference between the lowest overtone of the 22 and 21 QNM frequencies
 
     Returns:
-        (complex): QNM frequency in the P-frame
+        complex: QNM frequency in the P-frame
     """
 
     omega_complex_P_frame = omegalm - m * rotation_term

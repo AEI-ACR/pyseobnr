@@ -17,7 +17,7 @@ repos:
         name: Remove tailing whitespace
 
 -   repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 24.4.2
     hooks:
       - id: black
         language_version: python3
@@ -51,4 +51,5 @@ repos:
     rev: v0.15.0
     hooks:
     -   id: cython-lint
+        exclude: '^.*/_implementation\.(pyx|pxd)$'
     -   id: double-quote-cython-strings

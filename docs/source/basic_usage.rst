@@ -87,12 +87,15 @@ To get the polarizations in the frequency domain:
     freqs = hpf.deltaF*np.arange(hpf.data.length)
 
 
-The notebook below gives a complete example on how to use ``pyseobnr``:
+The notebooks below give several examples on how to use ``pyseobnr`` with different
+models:
 
 .. nblinkgallery::
     :name: notebooks-introduction
 
     notebooks/getting_started.md
+    notebooks/example_precession.md
+    notebooks/example_SEOBNRv5EHM.md
 
 
 

@@ -4,7 +4,6 @@ cdef extern from "eob_parameters.h":
     int ell_max
 
 
-
 cdef class PhysicalParams:
     cdef public double m_1,m_2,nu,M,X_1,X_2,delta,chi_1,chi_2,chi_S,chi_A,a,ap,am
     cdef public double chi1_L, chi2_L,a1,a2, H_val
@@ -64,6 +63,37 @@ cdef class FluxParams:
     # Include more PN information than in SEOBNRv4HM
     cdef public bint extra_PN_terms
 
+
+cdef class EccParams:
+
+    cdef public bint IC_messages
+    cdef public bint validate_separation
+    cdef public dict flags_ecc
+    cdef public int EccIC
+    cdef public double attachment_check_ecc
+    cdef public double attachment_check_qc
+    cdef public double eccentricity
+    cdef public double NR_deltaT
+    cdef public double omega_avg
+    cdef public double omega_inst
+    cdef public double omega_start_qc
+    cdef public double rel_anomaly
+    cdef public double r_final
+    cdef public double r_ISCO
+    cdef public double r_min
+    cdef public double r_start_guess
+    cdef public double r_start_ICs
+    cdef public double t_attach_ecc
+    cdef public double t_attach_ecc_predicted
+    cdef public double t_attach_qc
+    cdef public double t_attach_qc_predicted
+    cdef public double t_ISCO_ecc
+    cdef public double t_ISCO_qc
+    cdef public double t_max
+    cdef public double x_avg
+    cdef public str dissipative_ICs
+    cdef public str stopping_condition
+
 cdef class EOBParams:
     cdef public PhysicalParams p_params
     cdef public CalibCoeffs c_coeffs
@@ -71,3 +101,10 @@ cdef class EOBParams:
     cdef public Dynamics dynamics
     cdef public list mode_array
     cdef public bint aligned
+
+    cdef public EccParams ecc_params
+    """
+    Parameters for the eccentric model.
+
+        :type: :py:class:`.EccParams`
+    """

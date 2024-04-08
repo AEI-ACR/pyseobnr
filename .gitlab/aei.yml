@@ -41,7 +41,11 @@ stages:
         --name python311 \
           lalsuite \
           gcc \
-          pygsl_lite
+          gxx \
+          pygsl_lite \
+          scipy \
+          pycbc \
+          pandas pyarrow
 
     - pip install --upgrade pip
     - pip install --upgrade setuptools coverage-badge parameterized

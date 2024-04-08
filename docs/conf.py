@@ -38,6 +38,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.doctest",
     "sphinx_gallery.load_style",
+    "sphinx.ext.todo",
 ]
 
 nbsphinx_custom_formats = {
@@ -78,3 +79,7 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 
 html_logo = "_static/pyseobnr_120px.png"
+html_favicon = "_static/pyseobnr_120px.png"
+
+# todo management
+todo_include_todos = True

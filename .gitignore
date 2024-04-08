@@ -1,5 +1,6 @@
 *.c
 *.so
+*.cpp
 pyseobnr/_version.py
 build/
 pyseobnr.egg-info
@@ -9,3 +10,5 @@ docs/api
 .tox
 .ipynb_checkpoints
 docs/source/notebooks/*.ipynb
+settings.json
+pyseobnr/eob/waveform/*.h

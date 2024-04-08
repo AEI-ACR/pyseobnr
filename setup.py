@@ -94,6 +94,49 @@ extensions = [
         ],
         define_macros=[_numpy_no_deprecated_api],
     ),
+    Extension(
+        "pyseobnr.eob.dynamics.Keplerian_evolution_equations_flags._implementation",
+        [
+            "pyseobnr/eob/dynamics/Keplerian_evolution_equations_flags/_implementation.pyx"
+        ],
+        include_dirs=[np.get_include()],
+        extra_compile_args=["-O3"],
+    ),
+    Extension(
+        "pyseobnr.eob.dynamics.secular_evolution_equations_flags._implementation",
+        ["pyseobnr/eob/dynamics/secular_evolution_equations_flags/_implementation.pyx"],
+        include_dirs=[np.get_include()],
+        extra_compile_args=["-O3"],
+    ),
+    Extension(
+        "pyseobnr.eob.waveform.modes_ecc_corr_NS_v5EHM_v1_flags._implementation",
+        ["pyseobnr/eob/waveform/modes_ecc_corr_NS_v5EHM_v1_flags/_implementation.pyx"],
+        include_dirs=[np.get_include()],
+        extra_compile_args=["-O3"],
+    ),
+    Extension(
+        "pyseobnr.eob.waveform.RRforce_NS_v5EHM_v1_flags._implementation",
+        ["pyseobnr/eob/waveform/RRforce_NS_v5EHM_v1_flags/_implementation.pyx"],
+        include_dirs=[np.get_include()],
+        extra_compile_args=["-O3"],
+    ),
+    Extension(
+        "pyseobnr.eob.waveform.waveform_ecc",
+        ["pyseobnr/eob/waveform/waveform_ecc.pyx"],
+        include_dirs=[
+            np.get_include(),
+            "pyseobnr/eob/utils",
+        ],
+        extra_compile_args=["-O3"],
+        define_macros=[("CYTHON_EXTERN_C", 'extern "C"')],
+    ),
+    Extension(
+        "pyseobnr.eob.dynamics.rhs_aligned_ecc",
+        ["pyseobnr/eob/dynamics/rhs_aligned_ecc.pyx"],
+        include_dirs=[np.get_include(), "pyseobnr/eob/utils"],
+        extra_compile_args=["-O3"],
+        define_macros=[("CYTHON_TRACE", "1")],
+    ),
 ]
 
 
