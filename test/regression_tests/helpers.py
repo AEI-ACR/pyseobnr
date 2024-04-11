@@ -75,9 +75,14 @@ def compare_frames(
             reference_frame_projected[[column]] - test_frame_projected[[column]]
         ).abs()
 
-        fractional_diffs_column = diffs_column[column] / pd.concat(
-            (reference_frame_projected[column], test_frame_projected[column]), axis=1
-        ).max(axis=1)
+        fractional_diffs_column = (
+            100
+            * diffs_column[column]
+            / pd.concat(
+                (reference_frame_projected[column], test_frame_projected[column]),
+                axis=1,
+            ).max(axis=1)
+        )
 
         assert fractional_diffs_column.max().item() < percentage_tolerance, (
             f"column {column} exceeds fractional tolerance: "
