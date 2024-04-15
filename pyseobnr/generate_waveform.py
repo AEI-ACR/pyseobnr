@@ -180,6 +180,12 @@ class GenerateWaveform:
         self.parameters: dict[str, Any] | None = None
         self.validate_parameters(parameters)
 
+    @property
+    def model(self):
+        if not hasattr(self, "_model"):
+            raise ValueError("A model object has not been created!")
+        return self._model
+
     def validate_parameters(self, parameters):
         if "mass1" not in parameters:
             raise ValueError("mass1 has to be specified!")
@@ -414,7 +420,7 @@ class GenerateWaveform:
             settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
 
         settings.update(f_ref=self.parameters["f_ref"])
-        times, h = generate_modes_opt(
+        times, h, self._model = generate_modes_opt(
             q,
             chi1,
             chi2,
@@ -422,6 +428,7 @@ class GenerateWaveform:
             approximant=approx,
             omega_ref=omega_ref,
             settings=settings,
+            debug=True
         )
 
         # Convert to physical units and LAL convention
@@ -542,14 +549,14 @@ class GenerateWaveform:
             if self.swap_masses:
                 phi += np.pi
             settings.update(phiref=np.pi / 2 - phi)
-            times, hpc = generate_prec_hpc_opt(
+            times, hpc, self._model = generate_prec_hpc_opt(
                 q,
                 chi1,
                 chi2,
                 omega_start,
                 omega_ref=omega_ref,
                 settings=settings,
-                debug=False,
+                debug=True,
             )
             hpc *= fac
             times *= Mtot * lal.MTSUN_SI

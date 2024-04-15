@@ -1,10 +1,10 @@
-import math
-
 import numpy as np
 import pandas as pd
 
 
-def compare_frames(test_frame, reference_frame, known_differences, time_tolerance=5e-4):
+def compare_frames(
+    test_frame, reference_frame, known_differences_percentage, time_tolerance_percent=1
+):
     # sanity checks
     # all returned values are numbers
     assert test_frame.isna().any(axis=None).item() is False
@@ -24,9 +24,11 @@ def compare_frames(test_frame, reference_frame, known_differences, time_toleranc
     assert len(reference_frame.columns) == reference_frame.shape[1]
 
     # dynamics stop at more or less the same time
-    assert (
-        test_frame[["t"]].max() - reference_frame[["t"]].max()
-    ).abs().item() < time_tolerance
+    # this is a very rough check that values are not completely crazy
+    t1_end = test_frame[["t"]].max().item()
+    t2_end = reference_frame[["t"]].max().item()
+
+    assert abs(t1_end - t2_end) / max(t1_end, t2_end) < (time_tolerance_percent / 100)
 
     # we create a new index composite of both index, keep unique values
     new_index_t = np.array(
@@ -35,6 +37,7 @@ def compare_frames(test_frame, reference_frame, known_differences, time_toleranc
 
     # we now inject the time steps of the reference frame into the current frame
     test_frame_missing_values = test_frame.set_index("t").reindex(new_index_t)
+    reference_frame_missing_values = reference_frame.set_index("t").reindex(new_index_t)
 
     # we interpolate the missing values (method is important, index takes the time
     # point for performing the interpolation but is not precise enough)
@@ -45,35 +48,54 @@ def compare_frames(test_frame, reference_frame, known_differences, time_toleranc
         limit_area="inside",
     )
 
-    # all timesteps of the reference frame have now a proper value
-    if test_frame.t.max() > reference_frame.t.max():
-        assert (
-            test_frame_missing_values_interpolated.loc[reference_frame.t]
-            .isna()
-            .any(axis=None)
-            .item()
-            is False
+    reference_frame_missing_values_interpolated = reference_frame_missing_values.interpolate(
+        # method="index"
+        method="cubic",
+        order=3,
+        limit_area="inside",
+    )
+
+    # we keep the section common to both
+    test_frame_projected = test_frame_missing_values_interpolated[
+        test_frame_missing_values_interpolated.index <= min(t1_end, t2_end)
+    ]
+    reference_frame_projected = reference_frame_missing_values_interpolated[
+        reference_frame_missing_values_interpolated.index <= min(t1_end, t2_end)
+    ]
+
+    # all timesteps of both reference and test frames have now a proper value and they align
+    assert test_frame_projected.isna().any(axis=None).item() is False
+    assert reference_frame_projected.isna().any(axis=None).item() is False
+    assert (test_frame_projected.index == reference_frame_projected.index).all()
+
+    for idx_column, column in enumerate(reference_frame_projected.columns):
+        percentage_tolerance = known_differences_percentage[column]
+
+        diffs_column = (
+            reference_frame_projected[[column]] - test_frame_projected[[column]]
+        ).abs()
+
+        fractional_diffs_column = (
+            100
+            * diffs_column[column]
+            / pd.concat(
+                (reference_frame_projected[column], test_frame_projected[column]),
+                axis=1,
+            ).max(axis=1)
         )
-    else:
-        # drop the last element in this case
-        assert (
-            test_frame_missing_values_interpolated.loc[reference_frame.t]
-            .isna()
-            .iloc[:-1]
-            .any(axis=None)
-            .item()
-            is False
+
+        assert fractional_diffs_column.max().item() < percentage_tolerance, (
+            f"column {column} exceeds fractional tolerance: "
+            f"%g > {percentage_tolerance} at index %d and time %g "
+            "(reference=%g, test=%g)"
+        ) % (
+            fractional_diffs_column.max().item(),
+            fractional_diffs_column.argmax(),
+            fractional_diffs_column.idxmax().item(),
+            reference_frame_projected.iloc[fractional_diffs_column.argmax()][
+                [column]
+            ].item(),
+            test_frame_projected.iloc[fractional_diffs_column.argmax()][
+                [column]
+            ].item(),
         )
-
-    test_frame_projected = test_frame_missing_values_interpolated.loc[reference_frame.t]
-
-    # dynamics do not necessarily have the same subdivision
-    reference_frame_t = reference_frame.set_index("t")
-    for idx_column, column in enumerate(reference_frame_t.columns):
-        # transforms 5.755399e-05 to 1e-4
-        abs_diff = known_differences[column]
-        abs_diff = 10 ** math.ceil(math.log10(abs_diff))
-
-        assert (
-            reference_frame_t[[column]] - test_frame_projected[[column]]
-        ).abs().max().item() < abs_diff, f"column {column}"

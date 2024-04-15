@@ -1,0 +1,20 @@
+name: Mirror Repo
+# on: workflow_dispatch
+on:
+  schedule:
+    # nightly (3AM every day)
+    - cron:  '0 3 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Mirror
+      run: |
+        git clone --mirror https://git.ligo.org/waveforms/software/pyseobnr.git/ pyseobnr-mirror
+        ls -al
+        cd pyseobnr-mirror/
+        git remote add github "https://$GITHUB_ACTOR:$GITHUB_TOKEN@github.com/$GITHUB_REPOSITORY.git"
+        git push --mirror github
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
