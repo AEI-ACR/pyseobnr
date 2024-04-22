@@ -5,20 +5,28 @@ Contains functions associated with waveform construction, mostly for merger-ring
 from copy import deepcopy
 from typing import Any, Dict
 
-import numpy as jnp
+import numpy as np
 from lalinference.imrtgr import nrutils
 from pygsl_lite import spline
-from pyseobnr.auxiliary.mode_mixing.auxiliary_functions_modemixing import *
-from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
-from scipy.optimize import root_scalar
-from scipy.signal import argrelmax, argrelmin
+from scipy.interpolate import InterpolatedUnivariateSpline
 
-from ..fits.EOB_fits import *
+from ...auxiliary.mode_mixing.auxiliary_functions_modemixing import (
+    h_ellm0_nu,
+    hdot_ellm0_nu,
+    mu,
+    omega_ellm0,
+    phi_ellm0,
+)
+from ..fits.EOB_fits import (
+    EOBCalculateNQCCoefficients_freeattach,
+    EOBNonQCCorrection,
+    compute_QNM,
+)
 from ..fits.IV_fits import InputValueFits
 from ..fits.MR_fits import MergerRingdownFits
-from ..waveform.waveform import *
-from .compute_MR import compute_MR_mode_free
 from ..utils.utils_precession_opt import compute_omegalm_P_frame
+from .compute_MR import compute_MR_mode_free
+from .waveform import compute_factors, unrotate_leading_pn
 
 
 def concatenate_modes(hlms_1: Dict[Any, Any], hlms_2: Dict[Any, Any]) -> Dict[Any, Any]:
@@ -128,7 +136,8 @@ def compute_IMR_modes(
         mixed_modes (List): List of mixed modes to consider. Defaults to [(3,2),(4,3)]
         final_state (List): Final mass and spin of the remnant. Default to None. If None,
                             compute internally.
-        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame (Eq. 33 of Hamilton et al.)
+        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame
+                            (Eq. 33 of Hamilton et al.)
 
     Returns:
         dict: Dictionary containing the waveform modes
@@ -149,7 +158,7 @@ def compute_IMR_modes(
     # different from other modes
 
     # All modes except (5,5)
-    idx = jnp.argmin(jnp.abs(t - t_attach))
+    idx = np.argmin(np.abs(t - t_attach))
     if t[idx] > t_attach:
         idx -= 1
 
@@ -157,7 +166,7 @@ def compute_IMR_modes(
     t_match = t[idx]
 
     # (5,5) mode
-    idx_55 = jnp.argmin(jnp.abs(t - (t_attach - 10)))
+    idx_55 = np.argmin(np.abs(t - (t_attach - 10)))
     if t[idx_55] > t_attach - 10:
         idx_55 -= 1
     t_match_55 = t[idx_55]
@@ -165,7 +174,7 @@ def compute_IMR_modes(
     # The time spacing. This assumes that we have already
     # interpolated the modes to equal spacing
     dt = np.diff(t)[0]
-    N = int(10 / dt) + 1
+    # N = int(10 / dt) + 1
 
     # Figure out the duration of the ringdown. Taken to be 30
     # times the damping time of the (2,2) mode
@@ -174,7 +183,6 @@ def compute_IMR_modes(
     if final_state:
         final_mass, final_spin = final_state
     else:
-
         final_mass = nrutils.bbh_final_mass_non_precessing_UIB2016(m1, m2, chi1, chi2)
         final_spin = nrutils.bbh_final_spin_non_precessing_HBR2016(
             m1, m2, chi1, chi2, version="M3J4"
@@ -194,8 +202,8 @@ def compute_IMR_modes(
     # to the ringdown time-series so that ansatze in the ringdown is
     # correctly evaluated.
 
-    t_ringdown = jnp.arange(0, ringdown_time, dt) + (t_match + dt - t_attach)
-    t_ringdown_55 = jnp.arange(0, ringdown_time, dt) + (
+    t_ringdown = np.arange(0, ringdown_time, dt) + (t_match + dt - t_attach)
+    t_ringdown_55 = np.arange(0, ringdown_time, dt) + (
         t_match_55 + dt - (t_attach - 10)
     )
 
@@ -220,8 +228,8 @@ def compute_IMR_modes(
             t_ring = t_ringdown
         ell, m = ell_m
 
-        amp = jnp.abs(mode)
-        phase = jnp.unwrap(jnp.angle(mode))
+        amp = np.abs(mode)
+        phase = np.unwrap(np.angle(mode))
 
         idx_interp = np.argmin(np.abs(t_for_compute - t_a))
         left = np.max((0, idx_interp - N_interp))
@@ -353,7 +361,8 @@ def compute_mixed_mode(
         fits_dict (dict): dictionary of fit coefficients in the ringdown anzatz
         f_nyquist (float): Nyquist frequency, needed for checking that RD frequency is resolved
         lmax_nyquist (int): Determines for which modes the nyquist test is applied for
-        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame (Eq. 33 of Hamilton et al.)
+        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing
+                              frame (Eq. 33 of Hamilton et al.)
 
 
     Returns:
@@ -385,8 +394,8 @@ def compute_mixed_mode(
     N = 5
     left = np.max((0, idx_match - N))
     right = np.min((idx_match + N, len(t)))
-    amp = jnp.abs(mode_lm)
-    phase = jnp.unwrap(jnp.angle(mode_lm))
+    amp = np.abs(mode_lm)
+    phase = np.unwrap(np.angle(mode_lm))
     intrp_amp = InterpolatedUnivariateSpline(t[left:right], amp[left:right])
     intrp_phase = InterpolatedUnivariateSpline(t[left:right], phase[left:right])
     h = intrp_amp(t_match)
@@ -395,8 +404,8 @@ def compute_mixed_mode(
     om = intrp_phase.derivative()(t_match)
 
     # Now the (m,m) mode
-    amp = jnp.abs(mode_mm)
-    phase = jnp.unwrap(jnp.angle(mode_mm))
+    amp = np.abs(mode_mm)
+    phase = np.unwrap(np.angle(mode_mm))
     intrp_amp = InterpolatedUnivariateSpline(t[left:right], amp[left:right])
     intrp_phase = InterpolatedUnivariateSpline(t[left:right], phase[left:right])
     h_mm = intrp_amp(t_match)
@@ -566,7 +575,9 @@ def NQC_correction(
             extra = -10
         else:
             extra = 0
-        # NQC_coeffs = EOBCalculateNQCCoefficientsV4(amp,phase,r,pr,omega_orb,ell,m,t_peak,t_modes,m1,m2,chi1,chi2)
+        # NQC_coeffs = EOBCalculateNQCCoefficientsV4(
+        #     amp, phase, r, pr, omega_orb, ell, m, t_peak, t_modes, m1, m2, chi1, chi2
+        # )
         # For equal mass, non-spinning cases odd m modes vanish, so don't try to compute NQCs
         if (
             m % 2
@@ -577,7 +588,6 @@ def NQC_correction(
             continue
 
         else:
-
             # Compute the NQC coeffs
             NQC_coeffs = EOBCalculateNQCCoefficients_freeattach(
                 amp,

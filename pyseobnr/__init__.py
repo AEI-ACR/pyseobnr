@@ -1,9 +1,4 @@
-from . import eob
-from .eob.dynamics import *
-from .eob.hamiltonian import *
-from .eob.fits import *
-from . import generate_waveform
-
+from .generate_waveform import GenerateWaveform  # noqa
 
 try:
     from ._version import version as __version__
