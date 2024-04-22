@@ -86,3 +86,23 @@ write_to = "pyseobnr/_version.py"
     testpaths = [
         "test",
     ]
+
+[tool.isort]
+# .pre-commit-config.yaml will read from there
+profile = "black"
+src_paths = ["pyseobnr", "test"]
+sections = "FUTURE,STDLIB,FIRSTPARTY,THIRDPARTY,TESTS,TOOLKIT,LOCALFOLDER"
+extra_standard_library = "tomllib"
+known_tests = "pytest"
+known_toolkit = "pyseobnr"
+
+[tool.flake8]
+# remember to sync with .pre-commit-config.yaml
+ignore = ['E203', 'W503']
+skip_glob = ["*.jinja", "*.wl"]
+max-line-length = 110 # black will take care of most of this
+count = true
+
+[tool.cython-lint]
+max-line-length = 110
+ignore = ['E503', 'E504', 'E741']

@@ -12,8 +12,8 @@ stages:
   - docs
   - test
   - deploy
-# -- EOB code itself
 
+# -- EOB code itself
 python:build:
   extends: .python:build
   stage: build
@@ -21,9 +21,20 @@ python:build:
   variables:
     SRCDIR: "./"
 
+# linting step
+linting:
+  stage: build
+  extends: .python:base
+  before_script:
+    - |
+      pip install -U wheel pip setuptools
+      pip install tox
+      tox -l
+  script:
+    - |
+      tox -e lint
 
 # -- documentation
-
 docs:
   extends:
     - .conda:base
@@ -58,6 +69,7 @@ docs:
     # configure sphinx
     - !reference [".python:sphinx", before_script]
 
+# -- documentation deployment
 pages:
   stage: deploy
   needs: ["docs"]
@@ -70,7 +82,7 @@ pages:
   only:
     - main
 
-
+# -- unit tests under conda
 test:
   stage: test
   extends:
@@ -84,6 +96,7 @@ test:
     - mamba create -n tests
           python=3.9
           gcc
+          gxx
           swig
           gsl
           make
@@ -92,7 +105,7 @@ test:
 
   script:
     - conda activate tests
-    - pip install .
+    - pip install ".[tests]"
     - mkdir .temp-tests
     - export CI_TEST_DYNAMIC_REGRESSIONS=1
     - pytest --junitxml=.temp-tests/junit.xml -vvv

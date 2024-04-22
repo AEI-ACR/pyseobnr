@@ -6,18 +6,12 @@ from math import log
 from typing import Callable
 
 import numpy as np
-
-from numba import *
-from numba import jit, types
-from pyseobnr.auxiliary.interpolate.vector_spline import VectorSpline
+from numba import jit
 from scipy.integrate import solve_ivp
 from scipy.interpolate import CubicSpline
 
 from ..hamiltonian import Hamiltonian
-from .initial_conditions_aligned_precessing import computeIC_augm
-from ..utils.math_ops_opt import *
-
-# Test cythonization of PN equations
+from ..utils.math_ops_opt import my_cross, my_dot, my_norm
 from .rhs_precessing import get_rhs_prec
 
 
@@ -456,6 +450,7 @@ def prec_eqns_20102022(t, z, nu, m_1, m_2, X1, X2):
 
 ####################################################################################
 
+
 def compute_omega_orb(
     t: float,
     z: np.ndarray,
@@ -516,7 +511,6 @@ def rhs_wrapper(t, z, args):
     return get_rhs_prec(t, z, *args)
 
 
-
 def compute_quasiprecessing_PNdynamics_opt(
     omega_ref: float,
     omega_start: float,
@@ -526,7 +520,7 @@ def compute_quasiprecessing_PNdynamics_opt(
     chi_2: np.ndarray,
     rtol: float = 1e-10,
     atol: float = 1e-12,
-    backend: str="DOP853",
+    backend: str = "DOP853",
 ):
     """
     Compute the dynamics starting from omega_start, with spins
@@ -566,27 +560,23 @@ def compute_quasiprecessing_PNdynamics_opt(
     nu = m_1 * m_2 / mt / mt
     X1 = m_1 / mt
     X2 = m_2 / mt
-    delta = m_1 - m_2
 
     def spinTaylor_stoppingTest(t, y, *args):
         """
-            Function to evaluate stopping conditions of the spin-precessing PN evolution
+        Function to evaluate stopping conditions of the spin-precessing PN evolution
 
-            Args:
-                t (float): Time
-                y (np.ndarray): Solution of the evolution (LNhx, LNhy, LNhz, S1x, S1y, S1z, S2x, S2y, S2z, omega)
+        Args:
+            t (float): Time
+            y (np.ndarray): Solution of the evolution (LNhx, LNhy, LNhz, S1x, S1y, S1z, S2x, S2y, S2z, omega)
 
-            Returns:
-                (int) If 0 stop the evolution, otherwise continue
+        Returns:
+            (int) If 0 stop the evolution, otherwise continue
         """
 
         # Read the solution
         LNhx, LNhy, LNhz, S1x, S1y, S1z, S2x, S2y, S2z, omega = y
 
         r = omega ** (-2.0 / 3)
-
-        omegaEnd = 0.0
-        omegaStart = omega_ref
 
         omegadiff = omega - spinTaylor_stoppingTest.omegas[-1]
 
@@ -595,16 +585,21 @@ def compute_quasiprecessing_PNdynamics_opt(
 
         spinTaylor_stoppingTest.omegas.append(omega)
 
-        v = (omega)**(1./3.)
+        v = (omega) ** (1.0 / 3.0)
 
         if np.isnan(omega):
             yout = 0
 
-        elif v >= 1.0:  #  v/c >= 1!
+        elif v >= 1.0:  # v/c >= 1!
             yout = 0
 
-        elif ddomega <= 0.0 or (abs(ddomega) < 1e-9 and r<6.0):  #  // d^2omega/dt^2 <= 0!
-            #printf(f"ddomega <= 0.0 :  omega = {omega}, spinTaylor_stoppingTest.omegas[-1] = {spinTaylor_stoppingTest.omegas[-1]}")
+        elif ddomega <= 0.0 or (
+            abs(ddomega) < 1e-9 and r < 6.0
+        ):  # // d^2omega/dt^2 <= 0!
+            # print(
+            #     f"ddomega <= 0.0 :  omega = {omega}, spinTaylor_stoppingTest.omegas[-1] = "
+            #     f"{spinTaylor_stoppingTest.omegas[-1]}"
+            # )
             yout = 0
 
         # Empirical bound on the PN integration (typically it ends earlier)
@@ -633,7 +628,6 @@ def compute_quasiprecessing_PNdynamics_opt(
         method=backend,
     )
 
-
     if omega_start < omega_ref:
         # We want to start at a lower frequency than omega_ref
         # Thus we first integrate backwards in time
@@ -660,7 +654,6 @@ def compute_quasiprecessing_PNdynamics_opt(
         # Set t=0 at the lowest frequency
         combined_t -= combined_t[0]
     else:
-
         combined_t = res_forward.t[:]
         combined_y = res_forward.y.T[:]
 
@@ -676,6 +669,7 @@ def compute_quasiprecessing_PNdynamics_opt(
         combined_y = combined_y[:-1]
 
     return combined_t, combined_y
+
 
 def build_splines_PN(
     combined_t: np.ndarray,
@@ -753,19 +747,19 @@ def build_splines_PN(
 
 
 def compute_Lvec_35PN_vec_opt(
-                              q:float,
-                              nu:float,
-                              X1:float,
-                              X2:float,
-                              v: np.ndarray,
-                              S1: np.ndarray,
-                              S2: np.ndarray,
-                              Lh: np.ndarray,
-                              S1sq: np.ndarray,
-                              S2sq: np.ndarray,
-                              S1S2: np.ndarray,
-                              lNS1: np.ndarray,
-                              lNS2: np.ndarray
+    q: float,
+    nu: float,
+    X1: float,
+    X2: float,
+    v: np.ndarray,
+    S1: np.ndarray,
+    S2: np.ndarray,
+    Lh: np.ndarray,
+    S1sq: np.ndarray,
+    S2sq: np.ndarray,
+    S1S2: np.ndarray,
+    lNS1: np.ndarray,
+    lNS2: np.ndarray,
 ):
     """
     Compute orbital angular momentum vector, L, up to 4PN using the Newtonian orbital angular momentum
@@ -784,8 +778,10 @@ def compute_Lvec_35PN_vec_opt(
         S1sq (np.ndarray): Dot product of the spin vector of the primary
         S2sq (np.ndarray): Dot product of the spin vector of the secondary
         S1S2 (np.ndarray): Dot product of the spin vectors of the primary and the secondary
-        lNS1 (np.ndarray): Dot product of the Newtonian orbital angular momentum unit vector and the spin vectors of the primary
-        lNS2 (np.ndarray): Dot product of the Newtonian orbital angular momentum unit vector and the spin vectors of the secondary
+        lNS1 (np.ndarray): Dot product of the Newtonian orbital angular momentum unit vector and the spin
+                           vectors of the primary
+        lNS2 (np.ndarray): Dot product of the Newtonian orbital angular momentum unit vector and the spin
+                           vectors of the secondary
 
     Returns:
         (dict): Dictionary containing the splines in orbital frequency of the vector components of
@@ -799,7 +795,7 @@ def compute_Lvec_35PN_vec_opt(
     v5 = v4 * v
     v6 = v5 * v
     v7 = v6 * v
-    v8 = v7 * v
+    # v8 = v7 * v
     logv = np.log(v)
 
     nu2 = nu * nu
