@@ -12,12 +12,8 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 
 # Pre-cache the QNM interpolants
 modes_qnm = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
-qnm_cache = {}
-qnm_cache_mm = {}
-for mode in modes_qnm:
-    ell, m = mode
-    qnm_cache[ell, m] = qnm.modes_cache(s=-2, l=ell, m=m, n=0)
-    qnm_cache_mm[ell, m] = qnm.modes_cache(s=-2, l=ell, m=-m, n=0)
+_qnm_cache = {}
+_qnm_cache_mm = {}
 
 
 def compute_QNM(ell: int, m: int, n: int, af: float, Mf: float):
@@ -38,10 +34,16 @@ def compute_QNM(ell: int, m: int, n: int, af: float, Mf: float):
         np.complex128: The complex QNM frequency.
         The frequencies are such that Re(omega)>0 and Im(omega)<0.
     """
+    global _qnm_cache, _qnm_cache_mm
+
     if af > 0:
-        omega, _, _ = qnm_cache[(ell, m)](a=af, interp_only=True)
+        if (ell, m) not in _qnm_cache:
+            _qnm_cache[(ell, m)] = qnm.modes_cache(s=-2, l=ell, m=m, n=0)
+        omega, _, _ = _qnm_cache[(ell, m)](a=af, interp_only=True)
     else:
-        omega, _, _ = qnm_cache_mm[(ell, m)](a=np.abs(af), interp_only=True)
+        if (ell, m) not in _qnm_cache_mm:
+            _qnm_cache_mm[(ell, m)] = qnm.modes_cache(s=-2, l=ell, m=-m, n=0)
+        omega, _, _ = _qnm_cache_mm[(ell, m)](a=np.abs(af), interp_only=True)
     return omega / Mf
 
 
@@ -230,7 +232,7 @@ def EOBCalculateNQCCoefficients_freeattach(
     coeffs["a2"] = res[1]
     coeffs["a3"] = res[2]
 
-    # Now we (should) have calculated the a values. 
+    # Now we (should) have calculated the a values.
     # We now compute the frequency NQCs (b1,b2) by solving Eq.(11) of T1100433v2
     # Populate the P matrix in LHS of Eq.(11) of T1100433v2
     intrp_p1 = InterpolatedUnivariateSpline(time[left:right], p1[left:right])
@@ -280,7 +282,7 @@ def EOBNonQCCorrection(r, phi, pr, pphi, omega, coeffs):
 
     Returns:
         numpy.ndarray: the NQC corrections along the dynamics
-        
+
     """
     sqrtR = np.sqrt(r)
     rOmega = r * omega

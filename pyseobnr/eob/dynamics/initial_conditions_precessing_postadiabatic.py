@@ -4,12 +4,14 @@ Computes post-adiabatic initial conditions in polar coordinates.
 """
 
 from typing import Callable
-from ..hamiltonian import Hamiltonian
+
 import numpy as np
 
-from .postadiabatic_C_prec import compute_postadiabatic_dynamics
 from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
+from ..hamiltonian import Hamiltonian
 from .initial_conditions_aligned_precessing import computeIC_augm
+from .postadiabatic_C_prec import compute_postadiabatic_dynamics
+
 
 def compute_IC_PA(
     omega_ref: float,
@@ -36,10 +38,11 @@ def compute_IC_PA(
         chi2_v (np.ndarray): Dimensionless spin vector of the secondary
         m_1 (float): Mass of primary
         m_2 (float): Mass of secondary
-        splines (dict): Dictionary containing the splines in orbital frequency of the vector components of the spins, LN and L as
-                        well as the spin projections onto LN and L
+        splines (dict): Dictionary containing the splines in orbital frequency of the vector components
+                        of the spins, LN and L as well as the spin projections onto LN and L
         t_pn (np.array): Time array of the PN evolution of the spins and Newtonian angular momentum.
-        dynamics_pn (np.array): Array of the spin-precessing PN evolution. It contains the Newtonian angular momentum, the dimensionful spin vectors and the PN orbital frequency.
+        dynamics_pn (np.array): Array of the spin-precessing PN evolution. It contains the Newtonian
+                        angular momentum, the dimensionful spin vectors and the PN orbital frequency.
 
     Returns:
         tuple: The initial conditions: (r,pphi,pr)
@@ -49,13 +52,16 @@ def compute_IC_PA(
     postadiabatic_type = kwargs["postadiabatic_type"]
     PA_success = False
 
-    try :
+    try:
         postadiabatic_dynamics, omega_pa = compute_postadiabatic_dynamics(
             omega_ref,
             omega_start,
-            H, RR,
-            chi1_v, chi2_v,
-            m_1, m_2,
+            H,
+            RR,
+            chi1_v,
+            chi2_v,
+            m_1,
+            m_2,
             splines,
             t_pn,
             dynamics_pn,
@@ -71,21 +77,19 @@ def compute_IC_PA(
         pr0 = postadiabatic_dynamics[0, 3]
         pphi0 = postadiabatic_dynamics[0, 4]
 
-
         PA_success = True
-    except:
-
+    except Exception:
         # If PA fails use the adiabatic initial conditions
         r0, pphi0, pr0 = computeIC_augm(
-                omega_start,
-                H,
-                RR,
-                chi1_v,
-                chi2_v,
-                m_1,
-                m_2,
-                params=params,
-            )
+            omega_start,
+            H,
+            RR,
+            chi1_v,
+            chi2_v,
+            m_1,
+            m_2,
+            params=params,
+        )
         params.p_params.omega = omega_start
 
     if PA_success:
@@ -125,12 +129,34 @@ def compute_IC_PA(
     q = np.array([r0, 0.0])
     p = np.array([pr0, pphi0])
     p_circ = np.array([0.0, p[1]])
-    dynamics = H.dynamics(q, p, chi1_v_start, chi2_v_start, m_1, m_2, chi1_LN_start, chi2_LN_start, chi1_L_start, chi2_L_start)
+    dynamics = H.dynamics(
+        q,
+        p,
+        chi1_v_start,
+        chi2_v_start,
+        m_1,
+        m_2,
+        chi1_LN_start,
+        chi2_LN_start,
+        chi1_L_start,
+        chi2_L_start,
+    )
     H_val = dynamics[4]
-    omega_circ = H.omega(q, p_circ, chi1_v_start, chi2_v_start, m_1, m_2, chi1_LN_start, chi2_LN_start, chi1_L_start, chi2_L_start)
+    omega_circ = H.omega(
+        q,
+        p_circ,
+        chi1_v_start,
+        chi2_v_start,
+        m_1,
+        m_2,
+        chi1_LN_start,
+        chi2_LN_start,
+        chi1_L_start,
+        chi2_L_start,
+    )
     params.p_params.omega_circ = omega_circ
     params.p_params.H_val = H_val
 
-    #print(f"PA: r0 = {r0}, pphi0 = {pphi0}, pr0 = {pr0}")
+    # print(f"PA: r0 = {r0}, pphi0 = {pphi0}, pr0 = {pr0}")
 
     return r0, pphi0, pr0

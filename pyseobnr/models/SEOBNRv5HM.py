@@ -7,8 +7,12 @@ import lal
 import numpy as np
 import quaternion
 import scri
+from lalinference.imrtgr import nrutils
 from pygsl_lite import spline
-from pyseobnr.eob.dynamics.integrate_ode import augment_dynamics, compute_dynamics_opt
+from scipy.interpolate import CubicSpline
+from scipy.optimize import root
+
+from pyseobnr.eob.dynamics.integrate_ode import compute_dynamics_opt
 from pyseobnr.eob.dynamics.integrate_ode_prec import compute_dynamics_quasiprecessing
 from pyseobnr.eob.dynamics.postadiabatic_C import Kerr_ISCO, compute_combined_dynamics
 from pyseobnr.eob.dynamics.postadiabatic_C_fast import (
@@ -18,17 +22,18 @@ from pyseobnr.eob.dynamics.postadiabatic_C_prec import (
     compute_combined_dynamics_exp_v1,
     precessing_final_spin,
 )
+from pyseobnr.eob.fits.EOB_fits import compute_QNM
 from pyseobnr.eob.fits.fits_Hamiltonian import NR_deltaT, NR_deltaT_NS, a6_NS, dSO
 from pyseobnr.eob.fits.GSF_fits import GSF_amplitude_fits
 from pyseobnr.eob.fits.IV_fits import InputValueFits
 from pyseobnr.eob.hamiltonian import Hamiltonian
 from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
-from pyseobnr.eob.utils.math_ops_opt import my_dot, my_norm
+from pyseobnr.eob.utils.math_ops_opt import my_norm
 from pyseobnr.eob.utils.utils_precession_opt import (
     SEOBRotatehIlmFromhJlm_opt_v1,
     custom_swsh,
-    interpolate_quats,
     inspiral_merger_quaternion_angles,
+    interpolate_quats,
     seobnrv4P_quaternionJ2P_postmerger_extension,
 )
 from pyseobnr.eob.utils.waveform_ops import frame_inv_amp
@@ -45,26 +50,11 @@ from pyseobnr.eob.waveform.waveform import (
     compute_special_coeffs,
 )
 from pyseobnr.models.model import Model
-from rich.logging import RichHandler
-from rich.traceback import install
-from scipy.interpolate import CubicSpline
-from scipy.optimize import root
-from spherical_functions import SWSH
 
-from pyseobnr.eob.fits.EOB_fits import compute_QNM
+from .common import VALID_MODES
 
 # Setup the logger to work with rich
 logger = logging.getLogger(__name__)
-logger.addHandler(RichHandler(rich_tracebacks=True, markup=True))
-logger.setLevel("INFO")
-# Setup rich to get nice tracebacks
-install()
-
-# List of valid modes
-VALID_MODES = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
-
-
-from lalinference.imrtgr import nrutils
 
 
 class SEOBNRv5HM_opt(Model):
@@ -91,6 +81,8 @@ class SEOBNRv5HM_opt(Model):
             RR (Callable): RR force
             settings (Dict[Any, Any], optional): The settings. Defaults to None.
         """
+
+        super().__init__()
 
         self.settings = self._default_settings()
         # If we were given settings, override the defaults
@@ -135,7 +127,9 @@ class SEOBNRv5HM_opt(Model):
             # If the reference frequency is _less_ than the starting frequency
             # then just change the starting frequency to the reference frequency
             if self.f_ref < self.f0:
-                logger.warning(f"f_ref < f_start: f_start={self.f0} changed to f_ref={self.f_ref}")
+                logger.warning(
+                    f"f_ref < f_start: f_start={self.f0} changed to f_ref={self.f_ref}"
+                )
                 self.omega0 = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
                 self.f0 = self.omega0 / (self.M * lal.MTSUN_SI * np.pi)
 
@@ -281,12 +275,12 @@ class SEOBNRv5HM_opt(Model):
         keys = gsf_coeffs.keys()
         # The following is just a fancy way of passing the coeffs
         for key in keys:
-            tmp = re.findall("h(\d)(\d)_v(\d+)", key)
+            tmp = re.findall(r"h(\d)(\d)_v(\d+)", key)
             if tmp:
                 l, m, v = [int(x) for x in tmp[0]]
                 self.eob_pars.flux_params.extra_coeffs[l, m, v] = gsf_coeffs[key]
             else:
-                tmp = re.findall("h(\d)(\d)_vlog(\d+)", key)
+                tmp = re.findall(r"h(\d)(\d)_vlog(\d+)", key)
                 if tmp:
                     l, m, v = [int(x) for x in tmp[0]]
                     self.eob_pars.flux_params.extra_coeffs_log[l, m, v] = gsf_coeffs[
@@ -295,7 +289,6 @@ class SEOBNRv5HM_opt(Model):
         self._evaluate_model()
 
     def _set_H_coeffs(self):
-
         dc = {}
         # Actual coeffs inside the Hamiltonian
         a6_fit = a6_NS(self.nu)
@@ -389,21 +382,26 @@ class SEOBNRv5HM_opt(Model):
                 f_22 = omega_orb / (self.M * lal.MTSUN_SI * np.pi)
                 if self.f_ref > f_22[-1]:
                     logger.error(
-                        "Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!"
+                        "Internal function call failed: Input domain error. "
+                        "f_ref is larger than the highest frequency in the inspiral!"
                     )
-                    raise ValueError("Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!")
+                    raise ValueError(
+                        "Internal function call failed: Input domain error. "
+                        "f_ref is larger than the highest frequency in the inspiral!"
+                    )
                 # Solve for time when f_22 = f_ref
                 intrp = CubicSpline(t_d, f_22)
                 guess = t_d[np.argmin(np.abs(f_22 - self.f_ref))]
-                rhs = lambda x: np.abs(intrp(x) - self.f_ref)
-                res = root(rhs, guess)
+                res = root(lambda x: np.abs(intrp(x) - self.f_ref), guess)
 
                 t_correct = res.x
                 if not res.success:
                     logger.error(
                         "Failed to find the time corresponding to requested f_ref."
                     )
-                    raise ValueError("Failed to find the time corresponding to requested f_ref.")
+                    raise ValueError(
+                        "Failed to find the time corresponding to requested f_ref."
+                    )
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
                 phase_shift = intrp_phase(t_correct)
@@ -550,10 +548,11 @@ class SEOBNRv5HM_opt(Model):
             for key in self.return_modes:
                 self.waveform_modes[f"{key[0]},{key[1]}"] = hlms_full[key]
             self.success = True
-        except Exception as e:
 
+        except Exception as e:
             logger.error(
-                f"Waveform generation failed for q={self.q},chi_1={self.chi_1},chi_2={self.chi_2},omega0={self.omega0}"
+                f"Waveform generation failed for q={self.q},chi_1={self.chi_1},"
+                f"chi_2={self.chi_2},omega0={self.omega0}"
             )
             raise e
 
@@ -571,7 +570,7 @@ class SEOBNRv5PHM_opt(Model):
         chi2_y: float,
         chi2_z: float,
         omega_start: float,
-        H: Hamiltonian,
+        H: type[Hamiltonian],
         RR: Callable,
         omega_ref: float = None,
         settings: Dict[Any, Any] = None,
@@ -592,6 +591,8 @@ class SEOBNRv5PHM_opt(Model):
             settings (Dict[Any, Any], optional): The settings. Defaults to None.
             omega_ref (float): Reference orbital frequency at which the spins are defined, in geometric units
         """
+
+        super().__init__()
 
         self.settings = self._default_settings()
         # If we were given settings, override the defaults
@@ -621,8 +622,8 @@ class SEOBNRv5PHM_opt(Model):
 
         # Do not use a omega_start which implies r0< 10.5, if that is
         # the case change starting frequency to correspond to r0=10.5M
-        if (self.omega_start) ** (-2.0 / 3.0) < 10.5:
-            self.omega_start = (10.5) ** (-3.0 / 2.0)
+        if self.omega_start ** (-2.0 / 3.0) < 10.5:
+            self.omega_start = 10.5 ** (-3.0 / 2.0)
 
         self.f_start = omega_start / (self.M * lal.MTSUN_SI * np.pi)
 
@@ -642,7 +643,9 @@ class SEOBNRv5PHM_opt(Model):
             # If the reference frequency is _less_ than the starting frequency
             # then just change the starting frequency to the reference frequency
             if self.f_ref < self.f_start:
-                logger.warning(f"f_ref < f_start: f_start={self.f_start} changed to f_ref={self.f_ref}")
+                logger.warning(
+                    f"f_ref < f_start: f_start={self.f_start} changed to f_ref={self.f_ref}"
+                )
                 self.omega_start = self.f_ref * (self.M * lal.MTSUN_SI * np.pi)
                 self.f_start = self.omega_start / (self.M * lal.MTSUN_SI * np.pi)
 
@@ -770,7 +773,9 @@ class SEOBNRv5PHM_opt(Model):
         """
         Re-initialize all parameters to make sure everything is reset
         """
-        self.eob_pars = EOBParams(phys_pars, {}, mode_array=list(self.computed_modes))
+        self.eob_pars: EOBParams = EOBParams(
+            phys_pars, {}, mode_array=list(self.computed_modes)
+        )
         self.eob_pars.flux_params.rho_initialized = False
         self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
         self.eob_pars.flux_params.prefixes_abs = np.abs(
@@ -785,7 +790,6 @@ class SEOBNRv5PHM_opt(Model):
         self.eob_pars.aligned = False
 
     def _set_H_coeffs(self):
-
         dc = {}
         # Actual coeffs inside the Hamiltonian
         a6_fit = a6_NS(self.nu)
@@ -854,7 +858,6 @@ class SEOBNRv5PHM_opt(Model):
         i = 0
         for ell in range(ell_min, ell_max + 1):
             for m in range(-ell, ell + 1):
-
                 if (ell, m) in keys:
                     result[:, i] = waveform_modes[(ell, m)]
                 i += 1
@@ -862,9 +865,10 @@ class SEOBNRv5PHM_opt(Model):
 
     def _evaluate_model(self):
         try:
-            #print(
-            #    f"Waveform parameters: q={self.q},chi_1={self.chi1_v},chi_2={self.chi2_v},omega_ref={self.omega_ref}, omega_start = {self.omega_start}, Mt = {self.M}"
-            #)
+            # print(
+            #     f"Waveform parameters: q={self.q},chi_1={self.chi1_v},chi_2={self.chi2_v},"
+            #     f"omega_ref={self.omega_ref}, omega_start = {self.omega_start}, Mt = {self.M}"
+            # )
             # Generate PN and EOB dynamics
             if not self.settings["postadiabatic"]:
                 (
@@ -924,7 +928,7 @@ class SEOBNRv5PHM_opt(Model):
             self.dynamics_low = dynamics_low
 
             omega_orb_fine = dynamics_fine[:, 6]
-            omega_EOB_low = dynamics_low[:, 6]
+            # omega_EOB_low = dynamics_low[:, 6]
 
             self.dynamics = dynamics
             t_correct = None
@@ -938,14 +942,17 @@ class SEOBNRv5PHM_opt(Model):
                 f_22 = omega_orb / (self.M * lal.MTSUN_SI * np.pi)
                 if self.f_ref > f_22[-1]:
                     logger.error(
-                        "Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!"
+                        "Internal function call failed: Input domain error. f_ref is larger than the highest "
+                        "frequency in the inspiral!"
                     )
-                    raise ValueError("Internal function call failed: Input domain error. f_ref is larger than the highest frequency in the inspiral!")
+                    raise ValueError(
+                        "Internal function call failed: Input domain error. f_ref is larger than the highest "
+                        "frequency in the inspiral!"
+                    )
                 # Solve for time when f_22 = f_ref
                 intrp = CubicSpline(t_d, f_22)
                 guess = t_d[np.argmin(np.abs(f_22 - self.f_ref))]
-                rhs = lambda x: np.abs(intrp(x) - self.f_ref)
-                res = root(rhs, guess)
+                res = root(lambda x: np.abs(intrp(x) - self.f_ref), guess)
 
                 t_correct = res.x
                 self.t_ref = t_correct
@@ -953,7 +960,9 @@ class SEOBNRv5PHM_opt(Model):
                     logger.error(
                         "Failed to find the time corresponding to requested f_ref."
                     )
-                    raise ValueError("Failed to find the time corresponding to requested f_ref.")
+                    raise ValueError(
+                        "Failed to find the time corresponding to requested f_ref."
+                    )
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
                 phase_shift = intrp_phase(t_correct)
@@ -1020,9 +1029,9 @@ class SEOBNRv5PHM_opt(Model):
             tmp = splines["everything"](om_rISCO)
             chi1LN_om_rISCO = tmp[0]
             chi2LN_om_rISCO = tmp[1]
-            chi1_om_rISCO = tmp[4:7]
-            chi2_om_rISCO = tmp[7:10]
-            LN_om_rISCO = tmp[10:13]
+            # chi1_om_rISCO = tmp[4:7]
+            # chi2_om_rISCO = tmp[7:10]
+            # LN_om_rISCO = tmp[10:13]
 
             ap = (
                 chi1LN_om_rISCO * self.eob_pars.p_params.X_1
@@ -1267,8 +1276,8 @@ class SEOBNRv5PHM_opt(Model):
 
             # Now:
             # 1) Compute the time-dependent quaternions from the P-frame to the J-frame using LN_hat
-            # 2) Compute the time-dependent quaternions at ringdown in the J-frame assuming simple precession around
-            #    the final J
+            # 2) Compute the time-dependent quaternions at ringdown in the J-frame assuming simple
+            #    precession around the final J
             # 3) Compute the time-independent Euler angles from the J-frame to the I-frame
             self.euler_angles_attach = euler_angles_attach
             # Compute ringdown approximation of the Euler angles in the J-frame
@@ -1296,8 +1305,7 @@ class SEOBNRv5PHM_opt(Model):
 
             qt[idx[-1] + 1 :] = quat_postMerger
 
-            if self.settings["polarizations_from_coprec"] == False:
-
+            if self.settings["polarizations_from_coprec"] is False:
                 imr_full = self._add_negative_m_modes(imr_full)
                 # We only need to package modes here
                 imr_full = self._package_modes(imr_full, ell_max=self.max_ell_returned)
@@ -1324,7 +1332,7 @@ class SEOBNRv5PHM_opt(Model):
                 # Store the time array
 
                 self.t = t_full - t_full[idx_max]
-                # Store the I2J quatnerion
+                # Store the I2J quaternion
                 self.quaternion = quaternion.as_float_array(qt)
 
                 # Store all the angles
@@ -1378,8 +1386,8 @@ class SEOBNRv5PHM_opt(Model):
                 # self.anglesTot = [alphaTot, betaTot, gammaTot]
                 self.success = True
         except Exception as e:
-
             logger.error(
-                f"Waveform generation failed for q={self.q},chi_1={self.chi1_v},chi_2={self.chi2_v},omega_ref={self.omega_ref}, omega_start = {self.omega_start}, Mt = {self.M}"
+                f"Waveform generation failed for q={self.q},chi_1={self.chi1_v},chi_2={self.chi2_v},"
+                f"omega_ref={self.omega_ref}, omega_start = {self.omega_start}, Mt = {self.M}"
             )
             raise e

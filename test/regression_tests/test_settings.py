@@ -1,8 +1,17 @@
+from typing import get_args
+from unittest import mock
+
 import lal
 import numpy as np
+
 import pytest
 
-from pyseobnr.generate_waveform import GenerateWaveform
+import pyseobnr
+from pyseobnr.generate_waveform import (
+    GenerateWaveform,
+    SupportedApproximants,
+    generate_modes_opt,
+)
 
 
 @pytest.fixture
@@ -124,3 +133,140 @@ def test_f_ref_behaviour(basic_settings):
         match=value_error,
     ):
         _ = GenerateWaveform(basic_settings | {"f_ref": -1})
+
+
+def test_generate_modes_opt_settings_all_models(basic_settings):
+    """Checks error reporting of incorrect parameters to generate_modes_opt"""
+
+    with pytest.raises(
+        ValueError,
+        match="mass-ratio has to be positive and with convention q>=1",
+    ):
+        _ = generate_modes_opt(
+            q=0.9,
+            chi1=0,
+            chi2=0,
+            omega_start=0,
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="omega_start has to be positive",
+    ):
+        _ = generate_modes_opt(
+            q=1.1,
+            chi1=0,
+            chi2=0,
+            omega_start=-0.00001,
+        )
+
+
+def test_generate_modes_opt_settings_hm(basic_settings):
+    """Checks error reporting of incorrect parameters to generate_modes_opt for HM"""
+
+    # pytest-mocker is hard to use with context managers
+    with mock.patch.object(
+        pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5HM_opt,
+        "__call__",
+        autospec=True,
+    ) as p_model_call:
+        with pytest.raises(
+            ValueError,
+            match="Dimensionless spin magnitudes cannot be greater than 1!",
+        ):
+            _ = generate_modes_opt(
+                q=1.1,
+                chi1=1.1,
+                chi2=0,
+                omega_start=0.00001,
+                approximant="SEOBNRv5HM",
+            )
+            p_model_call.assert_not_called()
+
+    with mock.patch.object(
+        pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5HM_opt,
+        "__call__",
+        autospec=True,
+    ) as p_model_call:
+
+        def compute_dynamics(self):
+            self.t = "something"
+            self.waveform_modes = "something else"
+
+        p_model_call.side_effect = compute_dynamics
+
+        _ = generate_modes_opt(
+            q=1.1,
+            chi1=1,
+            chi2=0,
+            omega_start=0.00001,
+            approximant="SEOBNRv5HM",
+        )
+        p_model_call.assert_called_once()
+
+    with mock.patch.object(
+        pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5HM_opt,
+        "__call__",
+        autospec=True,
+    ) as p_model_call:
+
+        def compute_dynamics(self):
+            self.t = "something"
+            self.waveform_modes = "something else"
+
+        p_model_call.side_effect = compute_dynamics
+
+        _ = generate_modes_opt(
+            q=1.1,
+            chi1=1,
+            chi2=0,
+            omega_start=0.00001,
+            approximant="SEOBNRv5HM",
+        )
+        p_model_call.assert_called_once()
+
+
+def test_generate_modes_opt_precessing_chi_array_float_int():
+    """models should accept chi arrays with only z component, ints and floats"""
+    q = 41.83615272380585
+    omega0 = 0.02
+
+    for chi_2 in (0, 0.3):
+        chi_1 = np.array([0.0, 0.0, 0.98917404])
+
+        approx: SupportedApproximants
+        for approx in get_args(SupportedApproximants):
+            _ = generate_modes_opt(
+                q,
+                chi_1,
+                chi_2,
+                omega0,
+                approximant=approx,
+                debug=False,
+                settings={
+                    "ell_max": 5,
+                    "beta_approx": None,
+                    "M": 154.2059835575123,
+                    "dt": 6.103515625e-05,
+                },
+            )
+
+    for chi_1 in (0, 0.3):
+        chi_2 = np.array([0.0, 0.0, 0.98917404])
+
+        approx: SupportedApproximants
+        for approx in get_args(SupportedApproximants):
+            _ = generate_modes_opt(
+                q,
+                chi_1,
+                chi_2,
+                omega0,
+                approximant=approx,
+                debug=False,
+                settings={
+                    "ell_max": 5,
+                    "beta_approx": None,
+                    "M": 154.2059835575123,
+                    "dt": 6.103515625e-05,
+                },
+            )

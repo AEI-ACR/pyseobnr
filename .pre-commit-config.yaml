@@ -3,14 +3,52 @@ repos:
     rev: v2.3.0
     hooks:
     -   id: check-merge-conflict # prevent committing files with merge conflicts
+
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0  # Use the ref you want to point at
+    hooks:
+    -   id: check-ast
+        name: Check python ast
+        description: simply checks whether the files parse as valid python.
+        entry: check-ast
+        language: python
+
+    -   id: trailing-whitespace
+        name: Remove tailing whitespace
+
 -   repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
       - id: black
         language_version: python3
         #files: '^(.*\.pyx)'
+
+-   repo: https://github.com/pycqa/flake8
+    rev: 6.1.0
+    hooks:
+    -   id: flake8
+        args:
+            - --max-line-length=110
+            - --ignore=E203,W503
+
 -   repo: https://github.com/codespell-project/codespell
     rev: v1.16.0
     hooks:
     -   id: codespell
         files: '^(.\.pyx)'
+
+-   repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.10.1
+    hooks:
+    -   id: isort # sort imports alphabetically and separates import into sections
+        name: Sorting imports with isort
+        args:
+            - '--profile=black'
+            - '--diff'
+            - '--check'
+
+-   repo: https://github.com/MarcoGorelli/cython-lint
+    rev: v0.15.0
+    hooks:
+    -   id: cython-lint
+    -   id: double-quote-cython-strings

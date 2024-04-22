@@ -1,1 +1,1 @@
-from . import dynamics, fits, hamiltonian,waveform
+from . import dynamics, fits, hamiltonian, waveform  # noqa

@@ -58,7 +58,7 @@ conda-test:
   stage: test
   script:
     - conda activate python311
-    - pip install .
+    - pip install ".[tests]"
     - mkdir .temp-tests
     - export CI_TEST_DYNAMIC_REGRESSIONS=1
     - pytest --junitxml=.temp-tests/junit.xml -vvv test
@@ -74,7 +74,7 @@ conda-docs:
   stage: docs
   variables:
     SOURCEDIR: "docs"
-  
+
   script:
     - |
       mamba install \

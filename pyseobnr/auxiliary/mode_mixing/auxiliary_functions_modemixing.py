@@ -25,13 +25,15 @@ def mu_fit(j: float, p1: float, p2: float, p3: float, p4: float) -> float:
     """
     return p1 * abs(j) ** (p2) + p3 * abs(j) ** (p4)
 
+
 @jit(nopython=True)
-def mu(m: int, l: int, lp: int, j: float) -> float:
+def mu(m: int, l: int, lp: int, j: float) -> float:  # noqa: E741
     """
     Equation 11 from [Berti2014]_ applied to the (2,2), (3,2), (3,3) and (4,3) modes using the
     appropriate fitting parameters
 
-    Data files containing the fits https://git.ligo.org/waveforms/reviews/seobnrv5/-/blob/main/aligned/docs/swsh_fits.dat
+    Data files containing the fits
+    https://git.ligo.org/waveforms/reviews/seobnrv5/-/blob/main/aligned/docs/swsh_fits.dat
     (copied from https://pages.jh.edu/eberti2/ringdown/ on 02/12/2022)
 
     Args:
@@ -175,6 +177,7 @@ def alpha(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
         (1 - rho(ell, m, j, h_ellm, h_mm) * np.cos(dphi(ell, m, j, phi_ellm, phi_mm))),
     )
 
+
 @jit(nopython=True)
 def rho_dot(ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm):
     """
@@ -187,12 +190,14 @@ def rho_dot(ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm):
         h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
         h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
         hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`)
+            mode at attachment time
 
     Returns:
         float: the value of rho_dot
     """
-    return abs(mu(m, ell, m, j)) * (hdot_mm / h_ellm - h_mm * hdot_ellm / (h_ellm ** 2))
+    return abs(mu(m, ell, m, j)) * (hdot_mm / h_ellm - h_mm * hdot_ellm / (h_ellm**2))
+
 
 @jit(nopython=True)
 def dphi_dot(omega_ellm, omega_mm):
@@ -208,6 +213,7 @@ def dphi_dot(omega_ellm, omega_mm):
     """
     return omega_mm - omega_ellm
 
+
 def F_dot(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
 ):
@@ -221,7 +227,8 @@ def F_dot(
         h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
         h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
         hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`)
+            mode at attachment time
         omega_ellm (float): frequency of the (:math:`\\ell,m`) mode at attachment time
         omega_mm (float): frequency of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
         phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
@@ -240,6 +247,7 @@ def F_dot(
         * np.cos(dphi(ell, m, j, phi_ellm, phi_mm))
     ) / F(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm)
 
+
 def alpha_dot(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
 ):
@@ -253,7 +261,8 @@ def alpha_dot(
         h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
         h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
         hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`)
+            mode at attachment time
         omega_ellm (float): frequency of the (:math:`\\ell,m`) mode at attachment time
         omega_mm (float): frequency of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
         phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
@@ -274,6 +283,7 @@ def alpha_dot(
 
 # Spheroidal mode input values
 # See Eq. 81 to Eq. 84 of [SEOBNRv5HM-notes]_
+
 
 def h_ellm0_nu(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
     """
@@ -298,6 +308,7 @@ def h_ellm0_nu(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
         / np.abs(mu(m, ell, ell, j))
     )
 
+
 def phi_ellm0(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
     """
     Computes the phase of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
@@ -321,9 +332,10 @@ def phi_ellm0(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm):
         + alpha(ell, m, j, h_ellm, h_mm, phi_ellm, phi_mm)
     )
 
+
 def hdot_ellm0_nu(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
-):  
+):
     """
     Computes the amplitude's first derivative of the spheroidal :math:`(\\ell,m,0)` mode at at attachment time
     from the (:math:`\\ell,m`) and (:math:`\\ell^{\\prime} = m,m`) spherical modes
@@ -335,7 +347,8 @@ def hdot_ellm0_nu(
         h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
         h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
         hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`)
+            mode at attachment time
         omega_ellm (float): frequency of the (:math:`\\ell,m`) mode at attachment time
         omega_mm (float): frequency of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
         phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
@@ -362,6 +375,7 @@ def hdot_ellm0_nu(
         )
     ) / np.abs(mu(m, ell, ell, j))
 
+
 def omega_ellm0(
     ell, m, j, h_ellm, h_mm, hdot_ellm, hdot_mm, omega_ellm, omega_mm, phi_ellm, phi_mm
 ):
@@ -376,7 +390,8 @@ def omega_ellm0(
         h_ellm (float): amplitude of the (:math:`\\ell,m`) mode at attachment time
         h_mm (float): amplitude of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
         hdot_ellm (float): amplitude's first derivative of the (:math:`\\ell,m`) mode at attachment time
-        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
+        hdot_mm (float): amplitude's first derivative of the (:math:`\\ell^{\\prime} = m,m`)
+            mode at attachment time
         omega_ellm (float): frequency of the (:math:`\\ell,m`) mode at attachment time
         omega_mm (float): frequency of the (:math:`\\ell^{\\prime} = m,m`) mode at attachment time
         phi_ellm (float): phase of the (:math:`\\ell,m`) mode at attachment time
