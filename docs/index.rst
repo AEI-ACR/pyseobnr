@@ -22,6 +22,7 @@ Welcome to pyseobnr's documentation!
    :caption: Notebooks
 
    source/notebooks/getting_started.md
+   source/notebooks/example_precession.md
 
 API
 ---
