@@ -28,7 +28,7 @@ Mpc. For details see :py:class:`GenerateWaveform
 
     See also the relevant documentation in `gwsignal`_.
 
-.. _gwsignal: https://gwsignal.docs.ligo.org/gwsignal-docs/index.html
+.. _gwsignal: https://waveforms.docs.ligo.org/reviews/lalsuite/lalsimulation/gwsignal/index.html
 
 Here is a simple example to get the modes:
 
