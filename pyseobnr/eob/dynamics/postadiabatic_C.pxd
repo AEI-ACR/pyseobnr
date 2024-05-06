@@ -3,14 +3,14 @@
 from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
 
 cpdef fin_diff_derivative(
-    double[:] x,
-    double[:] y,
+    x: np.array,
+    y: np.array,
     int n=?,
 )
 
 cpdef cumulative_integral(
-    double[:] x,
-    double[:] y,
+    x: np.array,
+    y: np.array,
     int order=?,
 )
 
