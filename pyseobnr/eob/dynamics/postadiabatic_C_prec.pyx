@@ -56,7 +56,7 @@ cpdef precessing_final_spin(
         m2 (double): Mass of the secondary
 
     Returns:
-        (double) Final spin
+        (tuple) Final spin, sign of final spin
     """
     # Spin magnitudes
     cdef double a1 = my_norm(chi1_v)
@@ -102,22 +102,20 @@ cpdef precessing_final_spin(
     cdef double final_spin_nonprecessing = nrutils.bbh_final_spin_non_precessing_HBR2016(
         m1, m2, chi1_LN, chi2_LN, version="M3J4"
     )
-    final_spin_noprec = final_spin_nonprecessing
-    cdef double sign_final_spin = +1
 
-    cdef double norm_final_spin_nonprecessing = np.linalg.norm( final_spin_nonprecessing)
-    if norm_final_spin_nonprecessing !=0:
-      sign_final_spin = final_spin_nonprecessing / norm_final_spin_nonprecessing
+    cdef int sign_final_spin = +1
+    if abs(final_spin_nonprecessing) != 0 and final_spin_nonprecessing < 0:
+      sign_final_spin = -1
 
     # Compute the magnitude of the final spin using the precessing fit
     final_spin = nrutils.bbh_final_spin_precessing_HBR2016(
         m1, m2, a1, a2, tilt1, tilt2, phi12, version="M3J4"
     )
 
-    # Flip sign if needed
+    # flip sign if needed
     final_spin *= sign_final_spin
 
-    return final_spin
+    return final_spin, sign_final_spin
 
 
 @cython.profile(True)
