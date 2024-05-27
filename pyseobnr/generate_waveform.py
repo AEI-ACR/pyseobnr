@@ -445,6 +445,9 @@ class GenerateWaveform:
         selection of the modes ``(2, 1)`` and ``(3, 3)``.
         """
 
+        self._model: SEOBNRv5HM.SEOBNRv5HM_opt | SEOBNRv5HM.SEOBNRv5PHM_opt | None = (
+            None
+        )
         self.swap_masses: bool = False
         parameters = self._validate_parameters(parameters)
         parameters = self._validate_eccentricity_parameters(parameters=parameters)
