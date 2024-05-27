@@ -325,6 +325,9 @@ class GenerateWaveform:
         keys are the modes ``l,m`` as a string, for :math:`\\ell > 0`.
         """
 
+        self._model: SEOBNRv5HM.SEOBNRv5HM_opt | SEOBNRv5HM.SEOBNRv5PHM_opt | None = (
+            None
+        )
         self.swap_masses: bool = False
         self.parameters: dict[str, Any] | None = None
         self._validate_parameters(parameters)
