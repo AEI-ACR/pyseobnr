@@ -719,6 +719,9 @@ class SEOBNRv5PHM_opt(Model):
 
         # self.modes_list = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
 
+        # sign of the final spin
+        self._sign_final_spin: int | None = None
+
     def _default_settings(self):
         settings = dict(
             M=50.0,  # Total mass in solar masses
@@ -1157,7 +1160,7 @@ class SEOBNRv5PHM_opt(Model):
             )
 
             # Get the final spin
-            final_spin = precessing_final_spin(
+            final_spin, sign_final_spin = precessing_final_spin(
                 chi1LN_om_r10M,
                 chi2LN_om_r10M,
                 chi1_om_r10M,
@@ -1166,6 +1169,7 @@ class SEOBNRv5PHM_opt(Model):
                 self.m_1,
                 self.m_2,
             )
+            self._sign_final_spin = int(sign_final_spin)
 
             # Double check all is well
             if np.isnan(dynamics_low[:, 1:]).any():
@@ -1194,8 +1198,6 @@ class SEOBNRv5PHM_opt(Model):
                 dynamics[:, 2],
             )
 
-            idx = np.argmin(np.abs(t_new - t_attach))
-
             # Sep 8.9) Compute the quaternions necessary to rotate the inspiral part of the waveform
             #          as well as the Euler angles at the attachment point
 
@@ -1205,7 +1207,9 @@ class SEOBNRv5PHM_opt(Model):
                 quatI2J,
                 euler_angles_attach,
                 euler_angles_derivative_attach,
-                flip,
+                # not using the flip from this function, see
+                # https://git.ligo.org/waveforms/software/pyseobnr/-/merge_requests/70
+                _,
             ) = inspiral_merger_quaternion_angles(
                 dynamics[:, 0],
                 dynamics[:, 6],
@@ -1227,7 +1231,9 @@ class SEOBNRv5PHM_opt(Model):
             omegaQNM220 = sigmaQNM220.real
             omegaQNM210 = sigmaQNM210.real
             precRate = omegaQNM220 - omegaQNM210
-            precRate *= flip
+
+            # Multiply by the sign of the final spin for retrograde cases
+            precRate *= sign_final_spin
 
             qnm_rotation = (1.0 - abs(cosbetaJ2P_attach)) * precRate
 
