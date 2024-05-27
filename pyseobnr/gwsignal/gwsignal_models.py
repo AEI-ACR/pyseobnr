@@ -1,7 +1,9 @@
 try:
     import pyseobnr.generate_waveform as pyseob_wf
 except ImportError:
-    print("The pyseobnr package has failed to load, you will not be able to employ SEOBNRv5 approximants.")
+    print(
+        "The pyseobnr package has failed to load, you will not be able to employ SEOBNRv5 approximants."
+    )
 
 from numpy import arange
 import astropy.units as u
@@ -92,7 +94,7 @@ class SEOBNRv5HM(CompactBinaryCoalescenceGenerator):
 
         hlm_dict = {}
         for k, v in hlm.items():
-            hlm_lal = TimeSeries(v, times=times,  name=k, unit='strain')
+            hlm_lal = TimeSeries(v, times=times, name=k, unit="strain")
             hlm_dict[k] = hlm_lal
 
         return hlm_dict
@@ -107,8 +109,8 @@ class SEOBNRv5HM(CompactBinaryCoalescenceGenerator):
         epoch = hp.epoch.gpsSeconds + hp.epoch.gpsNanoSeconds / 1e9
         times = hp.deltaT * arange(hp.data.length) + epoch
         return (
-            TimeSeries(hp.data.data, times=times, name="hp", unit='strain'),
-            TimeSeries(hc.data.data, times=times, name="hc", unit='strain'),
+            TimeSeries(hp.data.data, times=times, name="hp", unit="strain"),
+            TimeSeries(hc.data.data, times=times, name="hc", unit="strain"),
         )
 
     def _generate_fd_polarizations_from_td(self, **parameters):
@@ -119,10 +121,18 @@ class SEOBNRv5HM(CompactBinaryCoalescenceGenerator):
         epoch = hptilde.epoch.gpsSeconds + hptilde.epoch.gpsNanoSeconds / 1e9
         return (
             FrequencySeries(
-                hptilde.data.data, frequencies=frequencies, epoch=epoch, name="hp", unit=u.Unit('strain') * u.s
+                hptilde.data.data,
+                frequencies=frequencies,
+                epoch=epoch,
+                name="hp",
+                unit=u.Unit("strain") * u.s,
             ),
             FrequencySeries(
-                hctilde.data.data, frequencies=frequencies, epoch=epoch, name="hc", unit=u.Unit('strain') * u.s
+                hctilde.data.data,
+                frequencies=frequencies,
+                epoch=epoch,
+                name="hc",
+                unit=u.Unit("strain") * u.s,
             ),
         )
 
@@ -199,7 +209,7 @@ class SEOBNRv5PHM(CompactBinaryCoalescenceGenerator):
             "postadiabatic_type",
             "condition",
             "lmax_nyquist",
-            "lmax"
+            "lmax",
         ]
         for key in optional_params:
             val = parameters.pop(key, None)
@@ -226,7 +236,7 @@ class SEOBNRv5PHM(CompactBinaryCoalescenceGenerator):
 
         hlm_dict = {}
         for k, v in hlm.items():
-            hlm_lal = TimeSeries(v, times=times,  name=k, unit='strain')
+            hlm_lal = TimeSeries(v, times=times, name=k, unit="strain")
             hlm_dict[k] = hlm_lal
 
         return hlm_dict
@@ -241,8 +251,8 @@ class SEOBNRv5PHM(CompactBinaryCoalescenceGenerator):
         epoch = hp.epoch.gpsSeconds + hp.epoch.gpsNanoSeconds / 1e9
         times = hp.deltaT * arange(hp.data.length) + epoch
         return (
-            TimeSeries(hp.data.data, times=times, name="hp", unit='strain'),
-            TimeSeries(hc.data.data, times=times, name="hc", unit='strain'),
+            TimeSeries(hp.data.data, times=times, name="hp", unit="strain"),
+            TimeSeries(hc.data.data, times=times, name="hc", unit="strain"),
         )
 
     def _generate_fd_polarizations_from_td(self, **parameters):
@@ -253,10 +263,18 @@ class SEOBNRv5PHM(CompactBinaryCoalescenceGenerator):
         epoch = hptilde.epoch.gpsSeconds + hptilde.epoch.gpsNanoSeconds / 1e9
         return (
             FrequencySeries(
-                hptilde.data.data, frequencies=frequencies, epoch=epoch, name="hp", unit=u.Unit('strain') * u.s
+                hptilde.data.data,
+                frequencies=frequencies,
+                epoch=epoch,
+                name="hp",
+                unit=u.Unit("strain") * u.s,
             ),
             FrequencySeries(
-                hctilde.data.data, frequencies=frequencies, epoch=epoch, name="hc", unit=u.Unit('strain') * u.s
+                hctilde.data.data,
+                frequencies=frequencies,
+                epoch=epoch,
+                name="hc",
+                unit=u.Unit("strain") * u.s,
             ),
         )
 
