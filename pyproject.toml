@@ -71,6 +71,11 @@
     issues        = "https://git.ligo.org/waveforms/software/pyseobnr/-/issues"
     changelog     = "https://git.ligo.org/waveforms/software/pyseobnr/-/blob/main/CHANGELOG.md"
 
+[project.entry-points."gwsignal.waveforms_approximant"]
+    SEOBNRv5HM = "pyseobnr.plugins.gwsignal_plugin:SEOBNRv5HM"
+    SEOBNRv5PHM = "pyseobnr.plugins.gwsignal_plugin:SEOBNRv5PHM"
+    SEOBNRv5EHM = "pyseobnr.plugins.gwsignal_plugin:SEOBNRv5EHM"
+
 [project.entry-points."pycbc.waveform.td"]
     SEOBNRv5HM  = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_td"
     SEOBNRv5PHM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5PHM.gen_td"
