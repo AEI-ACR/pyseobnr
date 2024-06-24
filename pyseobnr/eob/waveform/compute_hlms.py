@@ -24,7 +24,6 @@ from ..fits.EOB_fits import (
 )
 from ..fits.IV_fits import InputValueFits
 from ..fits.MR_fits import MergerRingdownFits
-from ..utils.utils_precession_opt import compute_omegalm_P_frame
 from .compute_MR import compute_MR_mode_free
 from .waveform import compute_factors, unrotate_leading_pn
 
@@ -117,6 +116,33 @@ def compute_IMR_modes(
     mixed_modes=[(3, 2), (4, 3)],
     final_state=None,
     qnm_rotation=0.0,
+    dw_dict={
+        "2,2": 0.0,
+        "2,1": 0.0,
+        "3,3": 0.0,
+        "3,2": 0.0,
+        "4,4": 0.0,
+        "4,3": 0.0,
+        "5,5": 0.0,
+    },
+    domega_dict={
+        "2,2": 0.0,
+        "2,1": 0.0,
+        "3,3": 0.0,
+        "3,2": 0.0,
+        "4,4": 0.0,
+        "4,3": 0.0,
+        "5,5": 0.0,
+    },
+    dtau_dict={
+        "2,2": 0.0,
+        "2,1": 0.0,
+        "3,3": 0.0,
+        "3,2": 0.0,
+        "4,4": 0.0,
+        "4,3": 0.0,
+        "5,5": 0.0,
+    },
 ):
     """This computes the IMR modes given the inspiral modes and the
     attachment time.
@@ -138,6 +164,10 @@ def compute_IMR_modes(
                             compute internally.
         qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame
                             (Eq. 33 of Hamilton et al.)
+        dw_dict (dict): Dictionary of fractional deviation at instantaneous frequency at the mode
+                        peak amplitude
+        domega_dict (dict): Dictionary of fractional deviations of QNM frequency for each mode
+        dtau_dict (dict): Dictionary of fractional deviation of QNM damping time for each mode
 
     Returns:
         dict: Dictionary containing the waveform modes
@@ -190,9 +220,11 @@ def compute_IMR_modes(
 
     omega_complex = compute_QNM(2, 2, 0, final_spin, final_mass).conjugate()
 
-    # For non-precessing system this does not make any difference
-    omega_complex = compute_omegalm_P_frame(omega_complex, 2, qnm_rotation)
-    damping_time = 1 / np.imag(omega_complex)
+    # Here we are only interested in the (2,2) mode damping time to estimate
+    # the ringdown length. We don't need to compute the co-precessing frame QNM
+    # frequencies from the J-frame QNMs as in `compute_MR.py` since this rotation
+    # only affects the real part of the frequency and not the damping time.
+    damping_time = 1 / np.imag(omega_complex) * (1 + dtau_dict["2,2"])
     # The length of the ringdown rounded to closest M
     ringdown_time = int(30 * damping_time)
 
@@ -256,7 +288,7 @@ def compute_IMR_modes(
 
         if m % 2 == 1:
             IVfits = InputValueFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
-            omega_max = IVfits.omega()[ell, m]
+            omega_max = IVfits.omega()[ell, m] * (1.0 + dw_dict[f"{ell},{m}"])
 
         attach_params = dict(
             amp=amp_max,
@@ -281,6 +313,8 @@ def compute_IMR_modes(
             t_match=0,
             phi_match=phi_match,
             qnm_rotation=qnm_rotation,
+            domega=domega_dict[f"{ell},{m}"],
+            dtau=dtau_dict[f"{ell},{m}"],
         )
 
         # Construct the full IMR waveform
@@ -310,6 +344,9 @@ def compute_IMR_modes(
             f_nyquist,
             lmax_nyquist,
             qnm_rotation=qnm_rotation,
+            dw_dict=dw_dict,
+            domega_dict=domega_dict,
+            dtau_dict=dtau_dict,
         )
         # Construct the full IMR waveform
         hIMR[(ell, m)] = 1 * h
@@ -339,6 +376,33 @@ def compute_mixed_mode(
     f_nyquist,
     lmax_nyquist,
     qnm_rotation=0.0,
+    dw_dict={
+        "2,2": 0.0,
+        "2,1": 0.0,
+        "3,3": 0.0,
+        "3,2": 0.0,
+        "4,4": 0.0,
+        "4,3": 0.0,
+        "5,5": 0.0,
+    },
+    domega_dict={
+        "2,2": 0.0,
+        "2,1": 0.0,
+        "3,3": 0.0,
+        "3,2": 0.0,
+        "4,4": 0.0,
+        "4,3": 0.0,
+        "5,5": 0.0,
+    },
+    dtau_dict={
+        "2,2": 0.0,
+        "2,1": 0.0,
+        "3,3": 0.0,
+        "3,2": 0.0,
+        "4,4": 0.0,
+        "4,3": 0.0,
+        "5,5": 0.0,
+    },
 ):
     """
     Computes the (3,2) and (4,3) modes, including mode-mixing in the ringdown.
@@ -363,6 +427,10 @@ def compute_mixed_mode(
         lmax_nyquist (int): Determines for which modes the nyquist test is applied for
         qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing
                               frame (Eq. 33 of Hamilton et al.)
+        dw_dict (dict): Dictionary of fractional deviation at instantaneous frequency at the mode
+                        peak amplitude
+        domega_dict (dict): Dictionary of fractional deviations of QNM frequency for each mode
+        dtau_dict (dict): Dictionary of fractional deviation of QNM damping time for each mode
 
 
     Returns:
@@ -423,8 +491,10 @@ def compute_mixed_mode(
 
     if m % 2 == 1:
         IVfits = InputValueFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
-        om = IVfits.omega()[ell, m]
-        om_mm = IVfits.omega()[m, m]
+        key_str_lm = str(ell) + "," + str(m)
+        key_str_mm = str(m) + "," + str(m)
+        om = IVfits.omega()[ell, m] * (1.0 + dw_dict[key_str_lm])
+        om_mm = IVfits.omega()[m, m] * (1.0 + dw_dict[key_str_mm])
 
     # Spherical mode we need in the ringdown
     attach_params = dict(
@@ -450,6 +520,8 @@ def compute_mixed_mode(
         t_match=0 * t_match,
         phi_match=phi_mm,
         qnm_rotation=qnm_rotation,
+        domega=domega_dict[f"{m},{m}"],
+        dtau=dtau_dict[f"{m},{m}"],
     )
 
     # Approximation to spheroidal
@@ -500,6 +572,7 @@ def compute_mixed_mode(
         final_spin=final_spin,
     )
     # Compute the coefficients+ansatze for spheroidal mode
+    # Note that the QNM deviations are applied to the spheroidal modes in this case
     hlm_spheroidal_ringdown = compute_MR_mode_free(
         t_ringdown,
         m1,
@@ -515,6 +588,8 @@ def compute_mixed_mode(
         t_match=0 * t_match,
         phi_match=ph_ellm0,
         qnm_rotation=qnm_rotation,
+        domega=domega_dict[f"{ell},{m}"],
+        dtau=dtau_dict[f"{ell},{m}"],
     )
     # Reconstruct the spherical mode
     hring = hmm_spheroidal * np.conj(
@@ -534,6 +609,8 @@ def NQC_correction(
     m_2: float,
     chi_1: float,
     chi_2: float,
+    dA_dict: Dict,
+    dw_dict: Dict,
 ):
     """Given the inspiral modes and the dynamics this function
     computes the NQC coefficients at t_peak-nrDeltaT
@@ -548,6 +625,9 @@ def NQC_correction(
         m_2 (float): Mass of the secondary
         chi_1 (float): z-component of dimensionless spin of the primary
         chi_2 (float): z-component Dimensionless spin of the secondary
+        dA_dict (Dict): Dictionary of fractional deviations of the mode peak amplitude for each mode
+        dw_dict (dict): Dictionary of fractional deviation at instantaneous frequency at the mode
+                        peak amplitude
     """
 
     # Compute omega
@@ -563,6 +643,12 @@ def NQC_correction(
         omega=input_value_fits.omega(),
         domega=input_value_fits.omegadot(),
     )
+
+    for ell_m, mode in inspiral_modes.items():
+        ell, m = ell_m
+        key_str_lm = str(ell) + "," + str(m)
+        fits_dict["amp"][(ell, m)] *= 1.0 + dA_dict[key_str_lm]
+        fits_dict["omega"][(ell, m)] *= 1.0 + dw_dict[key_str_lm]
 
     # Loop over every mode
     nqc_coeffs = {}
