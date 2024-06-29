@@ -4,6 +4,8 @@ Contains functions to evaluate the MR ansatze.
 See Eq. (56) and following in [SEOBNRv5HM-notes]_ .
 """
 
+from typing import TypedDict
+
 import numpy as np
 
 from ..fits.EOB_fits import (
@@ -15,6 +17,26 @@ from ..fits.EOB_fits import (
 from ..utils.utils_precession_opt import compute_omegalm_P_frame
 
 
+class MRAnzatze(TypedDict):
+    """
+    MRAnsatze dictionary
+
+    See :py:class:`~pyseobnr.eob.fits.MR_fits.MergerRingdownFits` for details.
+    """
+
+    #: Fits for the c1f coefficient entering the merger-ringdown amplitude ansatz.
+    c1f: dict[tuple[int, int], float]
+
+    #: Fits for the c2f coefficient entering the merger-ringdown amplitude ansatz.
+    c2f: dict[tuple[int, int], float]
+
+    #: Fits for the d1f coefficient entering the merger-ringdown phase ansatz.
+    d1f: dict[tuple[int, int], float]
+
+    #: Fits for the d2f coefficient entering the merger-ringdown phase ansatz.
+    d2f: dict[tuple[int, int], float]
+
+
 def compute_MR_mode_free(
     t,
     m1,
@@ -24,7 +46,7 @@ def compute_MR_mode_free(
     attach_params,
     ell,
     m,
-    fits_dict,
+    fits_dict: MRAnzatze,
     f_nyquist,
     lmax_nyquist,
     t_match=0,

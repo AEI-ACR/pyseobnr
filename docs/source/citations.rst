@@ -86,3 +86,13 @@ References
 
    Link: https://arxiv.org/pdf/gr-qc/0508067.pdf
 
+.. [Estelles2025] *Incorporating antisymmetric multipoles for spin-precessing binary signals into the SEOBNR framework*,
+   Estellès, Buonanno, Enficiaud, Foo and Pompilli.
+
+   Link: https://dcc.ligo.org/DocDB/0198/T2500023/003/notes_asymm_v5PHM_2.pdf
+
+.. [Boyle2014] *Gravitational-wave modes from precessing black-hole binaries*,
+   Boyle, Kidder, Ossokine and Pfeiffer.
+
+   Link: https://arxiv.org/abs/1409.4431
+

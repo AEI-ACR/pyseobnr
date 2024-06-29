@@ -9,6 +9,7 @@
         "cython>=3.0.11",
         "numpy<2.0.0",
         "scipy",
+        "importlib_resources ; python_version < '3.10'",
     ]
 
 
@@ -58,6 +59,7 @@
         "setuptools",
         "pygsl_lite",
         "lalsuite",
+        "importlib_resources ; python_version < '3.10'",
     ]
 
     requires-python = ">=3.8"
@@ -72,11 +74,11 @@
     changelog     = "https://git.ligo.org/waveforms/software/pyseobnr/-/blob/main/CHANGELOG.md"
 
 [project.entry-points."pycbc.waveform.td"]
-    SEOBNRv5HM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_td"
+    SEOBNRv5HM  = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_td"
     SEOBNRv5PHM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5PHM.gen_td"
 
 [project.entry-points."pycbc.waveform.fd"]
-    SEOBNRv5HM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_fd"
+    SEOBNRv5HM  = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_fd"
     SEOBNRv5PHM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5PHM.gen_fd"
 
 [tool.setuptools_scm]
