@@ -1,7 +1,6 @@
-from setuptools import setup, Extension
-from Cython.Build import cythonize
-from setuptools import find_packages
 import numpy as np
+from Cython.Build import cythonize
+from setuptools import Extension, find_packages, setup
 
 # see https://cython.readthedocs.io/en/latest/src/userguide/migrating_to_cy30.html#numpy-c-api
 # for the NPY_NO_DEPRECATED_API macro definition.
