@@ -99,4 +99,10 @@ setup(
     packages=find_packages(),
     ext_modules=cythonize(extensions),
     zip_safe=False,
+    py_modules = ['plugin.pycbc_plugin'],
+    entry_points = {"pycbc.waveform.td":["SEOBNRv5HM = plugin.pycbc_plugin:gen_seobnrv5hm_td",
+                                         "SEOBNRv5PHM = plugin.pycbc_plugin:gen_seobnrv5phm_td"],
+                    "pycbc.waveform.fd":["SEOBNRv5HM = plugin.pycbc_plugin:gen_seobnrv5hm_fd",
+                                         "SEOBNRv5PHM = plugin.pycbc_plugin:gen_seobnrv5phm_fd"]
+                    },
 )
