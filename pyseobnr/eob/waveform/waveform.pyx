@@ -31,7 +31,8 @@ cdef extern from "complex.h":
     double creal(double complex z)
     double complex cexp(double complex z)
     double carg(double complex z)
-    double complex I
+
+cdef double complex I = _Complex_I
 
 
 DEF euler_gamma=0.5772156649015329
