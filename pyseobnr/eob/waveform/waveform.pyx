@@ -31,8 +31,6 @@ cdef extern from "complex.h":
     double creal(double complex z)
     double complex cexp(double complex z)
     double carg(double complex z)
-    double complex I
-
 
 DEF euler_gamma=0.5772156649015329
 
@@ -1317,7 +1315,7 @@ cpdef double complex compute_extra_flm_terms(int l, int m, double vh, EOBParams 
     cdef double vh3 = vh**3
     cdef double complex extra_term = 0.0
     if l==3 and m==3:
-        extra_term = I*vh3 * vh3 * eob_pars.flux_params.f_coeffs_vh[3, 3][6]
+        extra_term = (vh3 * vh3 * eob_pars.flux_params.f_coeffs_vh[3, 3][6]) * 1.0j
     return extra_term
 
 
@@ -2345,7 +2343,7 @@ cdef double complex compute_mode(
     cdef double hathatk = m*vh*vh*vh  # this is just m*Omega*H
     # This is just l!
     cdef double z2 = tgamma(l+1)
-    cdef double complex lnr1 = loggamma(l+1.0-2.0*hathatk*I)
+    cdef double complex lnr1 = loggamma(l+1.0-2.0j*hathatk)
 
     cdef double lnr1_abs = cabs(lnr1)
     cdef double lnr1_arg = carg(lnr1)
@@ -2353,7 +2351,7 @@ cdef double complex compute_mode(
     Tlm = (
         cexp(
             (pi * hathatk)
-            + I * (2.0 * hathatk * log(4.0 * k / sqrt(M_E))))
+            + (2.0j * (hathatk * log(4.0 * k / sqrt(M_E)))))
         * cexp(lnr1)
     )
     Tlm /= z2
@@ -2368,7 +2366,7 @@ cdef double complex compute_mode(
     # Compute delta
     deltalm = compute_deltalm_single(vs, vhs, l, m, eob_pars.flux_params)
     # Put everything together
-    cdef double complex hlm = Tlm * cexp (I * deltalm) * Slm * rholm
+    cdef double complex hlm = Tlm * cexp(1.0j * deltalm) * Slm * rholm
     hlm *= hNewton
     return hlm
 
@@ -2661,7 +2659,7 @@ cpdef compute_factors(double[::1] phi_orb, int m_max, double complex[:, :] resul
     cdef int i, m
     cdef double complex factor
     for i in range(N):
-        factor = cexp(-1*I*phi_orb[i])
+        factor = cexp(-1.0j * phi_orb[i])
         result[0][i] = factor
         for m in range(1, m_max):
             result[m][i] = result[m-1][i]*factor
@@ -2688,4 +2686,4 @@ cpdef unrotate_leading_pn(
     cdef int i
     # print(re_part.shape[0],im_part.shape[0],phi.shape[0],result.shape[0])
     for i in range(N):
-        result[i] = (re_part[i]+I*im_part[i])*factor[i]
+        result[i] = (re_part[i]+1.0j*im_part[i])*factor[i]
