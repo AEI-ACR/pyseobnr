@@ -1,4 +1,10 @@
-exclude .gitlab
+prune .gitlab/
+prune .github/
 exclude .gitignore
 exclude .gitlab-ci.yml
 exclude .pre-commit-config.yaml
+
+# exclude all cython pre-generated files files the sdist
+exclude pyseobnr/eob/**/*.c
+exclude pyseobnr/eob/**/*.h
+include pyseobnr/eob/utils/eob_parameters.h
