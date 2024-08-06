@@ -327,6 +327,50 @@ class GenerateWaveform:
             "postadiabatic": True,
             "postadiabatic_type": "analytic",
             "r_size_input": 12,
+            "dA_dict": {
+                "2,2": 0.0,
+                "2,1": 0.0,
+                "3,3": 0.0,
+                "3,2": 0.0,
+                "4,4": 0.0,
+                "4,3": 0.0,
+                "5,5": 0.0,
+            },
+            "dw_dict": {
+                "2,2": 0.0,
+                "2,1": 0.0,
+                "3,3": 0.0,
+                "3,2": 0.0,
+                "4,4": 0.0,
+                "4,3": 0.0,
+                "5,5": 0.0,
+            },
+            "dTpeak": 0.0,
+            "da6": 0.0,
+            "ddSO": 0.0,
+            "domega_dict": {
+                "2,2": 0.0,
+                "2,1": 0.0,
+                "3,3": 0.0,
+                "3,2": 0.0,
+                "4,4": 0.0,
+                "4,3": 0.0,
+                "5,5": 0.0,
+            },
+            "dtau_dict": {
+                "2,2": 0.0,
+                "2,1": 0.0,
+                "3,3": 0.0,
+                "3,2": 0.0,
+                "4,4": 0.0,
+                "4,3": 0.0,
+                "5,5": 0.0,
+            },
+            "tol_PA": 1e-11,
+            "rtol_ode": 1e-11,
+            "atol_ode": 1e-12,
+            "deltaT_sampling": False,
+            "omega_prec_deviation": True,
         }
 
         # fills the provided parameters over the default ones
@@ -508,6 +552,33 @@ class GenerateWaveform:
         if "lmax_nyquist" in self.parameters:
             settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
 
+        if "dA_dict" in self.parameters:
+            settings.update(dA_dict=self.parameters["dA_dict"])
+        if "dw_dict" in self.parameters:
+            settings.update(dw_dict=self.parameters["dw_dict"])
+        if "dTpeak" in self.parameters:
+            settings.update(dTpeak=self.parameters["dTpeak"])
+        if "da6" in self.parameters:
+            settings.update(da6=self.parameters["da6"])
+        if "ddSO" in self.parameters:
+            settings.update(ddSO=self.parameters["ddSO"])
+        if "domega_dict" in self.parameters:
+            settings.update(domega_dict=self.parameters["domega_dict"])
+        if "dtau_dict" in self.parameters:
+            settings.update(dtau_dict=self.parameters["dtau_dict"])
+        if "tol_PA" in self.parameters:
+            settings.update(tol_PA=self.parameters["tol_PA"])
+        if "rtol_ode" in self.parameters:
+            settings.update(rtol_ode=self.parameters["rtol_ode"])
+        if "atol_ode" in self.parameters:
+            settings.update(atol_ode=self.parameters["atol_ode"])
+        if "deltaT_sampling" in self.parameters:
+            settings.update(deltaT_sampling=self.parameters["deltaT_sampling"])
+        if "omega_prec_deviation" in self.parameters:
+            settings.update(
+                omega_prec_deviation=self.parameters["omega_prec_deviation"]
+            )
+
         settings.update(f_ref=self.parameters["f_ref"])
         times, h, self._model = generate_modes_opt(
             q,
@@ -625,6 +696,33 @@ class GenerateWaveform:
 
             if "lmax_nyquist" in self.parameters:
                 settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
+
+            if "dA_dict" in self.parameters:
+                settings.update(dA_dict=self.parameters["dA_dict"])
+            if "dw_dict" in self.parameters:
+                settings.update(dw_dict=self.parameters["dw_dict"])
+            if "dTpeak" in self.parameters:
+                settings.update(dTpeak=self.parameters["dTpeak"])
+            if "da6" in self.parameters:
+                settings.update(da6=self.parameters["da6"])
+            if "ddSO" in self.parameters:
+                settings.update(ddSO=self.parameters["ddSO"])
+            if "domega_dict" in self.parameters:
+                settings.update(domega_dict=self.parameters["domega_dict"])
+            if "dtau_dict" in self.parameters:
+                settings.update(dtau_dict=self.parameters["dtau_dict"])
+            if "tol_PA" in self.parameters:
+                settings.update(tol_PA=self.parameters["tol_PA"])
+            if "rtol_ode" in self.parameters:
+                settings.update(rtol_ode=self.parameters["rtol_ode"])
+            if "atol_ode" in self.parameters:
+                settings.update(atol_ode=self.parameters["atol_ode"])
+            if "deltaT_sampling" in self.parameters:
+                settings.update(deltaT_sampling=self.parameters["deltaT_sampling"])
+            if "omega_prec_deviation" in self.parameters:
+                settings.update(
+                    omega_prec_deviation=self.parameters["omega_prec_deviation"]
+                )
 
             settings.update(f_ref=self.parameters["f_ref"])
             Mpc_to_meters = lal.PC_SI * 1e6
