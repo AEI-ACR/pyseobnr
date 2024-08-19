@@ -29,6 +29,7 @@ from pyseobnr.eob.fits.IV_fits import InputValueFits
 from pyseobnr.eob.hamiltonian import Hamiltonian
 from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
 from pyseobnr.eob.utils.math_ops_opt import my_norm
+from pyseobnr.eob.utils.utils import estimate_time_max_amplitude
 from pyseobnr.eob.utils.utils_precession_opt import (
     SEOBRotatehIlmFromhJlm_opt_v1,
     custom_swsh,
@@ -537,12 +538,12 @@ class SEOBNRv5HM_opt(Model):
                 mixed_modes=self.mixed_modes,
             )
 
-            self.t = t_full
-            self.waveform_modes = {}
-            # Shift the time so that the peak of the frame-invariant amplitude is at t=0
             amp_inv = frame_inv_amp(hlms_full, ell_max=self.max_ell_returned)
-            idx_max = np.argmax(amp_inv)
-            self.t -= self.t[idx_max]
+            # Shift the time so that the peak of the frame-invariant amplitude is at t=0
+            self.t = t_full - estimate_time_max_amplitude(
+                time=t_full, amplitude=amp_inv, delta_t=self.delta_T, precision=0.001
+            )
+            self.waveform_modes = {}
 
             # Step 10: fill the final dictionary of modes
             for key in self.return_modes:
@@ -1262,7 +1263,13 @@ class SEOBNRv5PHM_opt(Model):
             # i) Add negative m modes
 
             amp_inv = frame_inv_amp(imr_full, ell_max=self.max_ell_returned)
-            idx_max = np.argmax(amp_inv)
+
+            # Store the time array and shift it with an interpolated
+            # guess of the max of the frame invariant amplitude
+            self.t = t_full - estimate_time_max_amplitude(
+                time=t_full, amplitude=amp_inv, delta_t=self.delta_T, precision=0.001
+            )
+
             # ii) Set to zero all missing modes in co-precessing frame
 
             self.imr_full = imr_full
@@ -1335,9 +1342,6 @@ class SEOBNRv5PHM_opt(Model):
                 w_modes = w.to_inertial_frame()
                 self.wavefom_modesJ = self._unpack_scri(deepcopy(w_modes))
 
-                # Store the time array
-
-                self.t = t_full - t_full[idx_max]
                 # Store the I2J quaternion
                 self.quaternion = quaternion.as_float_array(qt)
 
@@ -1385,8 +1389,6 @@ class SEOBNRv5PHM_opt(Model):
 
                 hpc *= np.exp(2j * gammaTot)
 
-                # self.hpc = hpcIfromP
-                self.t = t_full - t_full[idx_max]
                 self.hpc = hpc
                 # self.coprec = imr_full_2
                 # self.anglesTot = [alphaTot, betaTot, gammaTot]
