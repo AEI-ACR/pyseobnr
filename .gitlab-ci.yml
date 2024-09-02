@@ -60,6 +60,7 @@ docs:
           gsl
           make
           pandoc
+          pygsl_lite
     - conda activate docs
     # already in the REQUIREMENTS
     - pip install ".[docs]"
@@ -102,7 +103,7 @@ test:
           make
           pytest
           lalsuite
-
+          pygsl_lite
   script:
     - conda activate tests
     - pip install ".[tests]"
