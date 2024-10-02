@@ -1,3 +1,5 @@
+from typing import cast
+
 import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.signal import argrelmin
@@ -74,3 +76,18 @@ def interpolate_dynamics(dyn_fine, dt=0.1, peak_omega=None, step_back=250.0):
     res = intrp(t_new)
 
     return np.c_[t_new, res]
+
+
+def estimate_time_max_amplitude(
+    time: np.array, amplitude: np.array, delta_t: float, precision=0.001
+) -> float:
+    assert time.shape == amplitude.shape
+    # the knots are calculated globally, but we may consider a local one around
+    # the initial guess of the max
+    amplitude_interpolated = CubicSpline(time, amplitude)
+    t_max_coarse = time[np.argmax(amplitude)]
+
+    t_fine_peak = np.arange(t_max_coarse - delta_t, t_max_coarse + delta_t, precision)
+    amplitude_interpolated_eval = amplitude_interpolated(t_fine_peak)
+    idx_max_fine = np.argmax(amplitude_interpolated_eval)
+    return cast(float, t_fine_peak[idx_max_fine])
