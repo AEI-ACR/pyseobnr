@@ -23,7 +23,7 @@ def test_qnm_rotation_always_positive():
 
         generate_modes_opt(
             q=5.33,
-            chi1=chi_1,
+            chi1=chi_1[2],
             chi2=chi_2,
             omega_start=omega0,
             approximant="SEOBNRv5HM",
