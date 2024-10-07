@@ -50,12 +50,12 @@
     dynamic = ["version"]
 
 [project.entry-points."pycbc.waveform.td"]
-    SEOBNRv5HM = "plugin.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_seobnrv5hm_td"
-    SEOBNRv5PHM = "plugin.pycbc_plugin:gen_seobnrv5phm_td"
+    SEOBNRv5HM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_td"
+    SEOBNRv5PHM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5PHM.gen_td"
 
 [project.entry-points."pycbc.waveform.fd"]
-    SEOBNRv5HM = "plugin.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_seobnrv5hm_fd"
-    SEOBNRv5PHM = "plugin.pycbc_plugin:gen_seobnrv5phm_fd"
+    SEOBNRv5HM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_fd"
+    SEOBNRv5PHM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5PHM.gen_fd"
 
 [tool.setuptools_scm]
     write_to = "pyseobnr/_version.py"
@@ -78,7 +78,7 @@
         'seaborn',
     ]
 
-    tests = ['pytest', 'pytest-sugar', 'pandas', 'pyarrow']
+    tests = ['pytest', 'pytest-sugar', 'pandas', 'pyarrow', 'pycbc']
 
 [tool.pytest.ini_options]
     minversion = "6.0"

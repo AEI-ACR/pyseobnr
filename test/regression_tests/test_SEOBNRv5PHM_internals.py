@@ -26,11 +26,11 @@ def test_qnm_rotation_always_positive():
             chi1=chi_1,
             chi2=chi_2,
             omega_start=omega0,
-            approximant="SEOBNRv5PHM",
+            approximant="SEOBNRv5HM",
         )
 
         p_compute_IMR_modes.assert_called_once()
-        assert p_compute_IMR_modes.call_args.kwargs["qnm_rotation"] > 0
+        assert "qnm_rotation" not in p_compute_IMR_modes.call_args.kwargs
 
         p_compute_IMR_modes.reset_mock()
 
