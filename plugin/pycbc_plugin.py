@@ -1,9 +1,68 @@
-import numpy as np
-from pycbc.types import TimeSeries, FrequencySeries
+from pycbc.types import FrequencySeries, TimeSeries
+
 from pyseobnr.generate_waveform import GenerateWaveform
 
+
+class PySEOBNRv5PyCBCPlugin:
+    approximant = None
+
+    @staticmethod
+    def gen_td(**p):
+        # Some waveform input parameters from PyCBC have the same naming
+        # conventions as PySEOBNR, thus they can be directly inherited.
+        # We only update the settings used uniquely by PySEOBNR
+        p.update(
+            {
+                "approximant": PySEOBNRv5PyCBCPlugin.approximant,
+                "phi_ref": p["coa_phase"],  # reference phase needed by SEOBNRv5
+                "f22_start": p["f_lower"],  # starting frequency
+                "deltaT": p["delta_t"],
+            }
+        )
+
+        waveform = GenerateWaveform(p)
+        hp, hc = waveform.generate_td_polarizations()
+
+        # Build the PyCBC TimeSeries format
+        hp = TimeSeries(hp.data.data[:], delta_t=hp.deltaT, epoch=hp.epoch)
+        hc = TimeSeries(hc.data.data[:], delta_t=hc.deltaT, epoch=hc.epoch)
+
+        return hp, hc
+
+    @staticmethod
+    def gen_fd(**p):
+        # Some waveform input parameters from PyCBC have the same naming
+        # conventions as PySEOBNR, thus they can be directly inherited.
+        # We only update the settings used uniquely by PySEOBNR
+        p.update(
+            {
+                "approximant": PySEOBNRv5PyCBCPlugin.approximant,
+                "phi_ref": p["coa_phase"],
+                "f22_start": p["f_lower"],
+                "deltaF": p["delta_f"],
+            }
+        )
+
+        waveform = GenerateWaveform(p)
+        hp, hc = waveform.generate_fd_polarizations()
+
+        # Build the PyCBC TimeSeries format
+        hp = FrequencySeries(hp.data.data[:], delta_f=hp.deltaF, epoch=hp.epoch)
+        hc = FrequencySeries(hc.data.data[:], delta_f=hc.deltaF, epoch=hp.epoch)
+
+        return hp, hc
+
+
+class PySEOBNRv5PyCBCPlugin_v5HM(PySEOBNRv5PyCBCPlugin):
+    approximant = "SEOBNRv5HM"
+
+
+class PySEOBNRv5PyCBCPlugin_v5PHM(PySEOBNRv5PyCBCPlugin):
+    approximant = "SEOBNRv5PHM"
+
+
 def gen_seobnrv5hm_td(**p):
-    '''PyCBC waveform generator for SEOBNRv5HM
+    """PyCBC waveform generator for SEOBNRv5HM
 
     Parameters
     ----------
@@ -17,17 +76,18 @@ def gen_seobnrv5hm_td(**p):
     hc: Array
         The cross polarization of the waveform in time domain
     """
-    '''
 
-    # Some waveform input parameters from PyCBC have the same naming 
-    # conventions as PySEOBNR, thus they can be directly inherited. 
+    # Some waveform input parameters from PyCBC have the same naming
+    # conventions as PySEOBNR, thus they can be directly inherited.
     # We only update the settings used uniquely by PySEOBNR
-    p.update({
-        "approximant": "SEOBNRv5HM",  
-        "phi_ref": p["coa_phase"], # reference phase needed by SEOBNRv5
-        "f22_start": p["f_lower"], # starting frequency
-        "deltaT": p["delta_t"],    
-        })
+    p.update(
+        {
+            "approximant": "SEOBNRv5HM",
+            "phi_ref": p["coa_phase"],  # reference phase needed by SEOBNRv5
+            "f22_start": p["f_lower"],  # starting frequency
+            "deltaT": p["delta_t"],
+        }
+    )
 
     waveform = GenerateWaveform(p)
     hp, hc = waveform.generate_td_polarizations()
@@ -36,10 +96,11 @@ def gen_seobnrv5hm_td(**p):
     hp = TimeSeries(hp.data.data[:], delta_t=hp.deltaT, epoch=hp.epoch)
     hc = TimeSeries(hc.data.data[:], delta_t=hc.deltaT, epoch=hc.epoch)
 
-    return hp,hc
+    return hp, hc
+
 
 def gen_seobnrv5hm_fd(**p):
-    '''PyCBC waveform generator for SEOBNRv5HM
+    """PyCBC waveform generator for SEOBNRv5HM
 
     Parameters
     ----------
@@ -53,17 +114,18 @@ def gen_seobnrv5hm_fd(**p):
     hc: Array
         The cross polarization of the waveform in frequency domain
     """
-    '''
 
-    # Some waveform input parameters from PyCBC have the same naming 
-    # conventions as PySEOBNR, thus they can be directly inherited. 
+    # Some waveform input parameters from PyCBC have the same naming
+    # conventions as PySEOBNR, thus they can be directly inherited.
     # We only update the settings used uniquely by PySEOBNR
-    p.update({
-        "approximant": "SEOBNRv5HM",  
-        "phi_ref": p["coa_phase"], 
-        "f22_start": p["f_lower"],
-        "deltaF": p["delta_f"]
-        })
+    p.update(
+        {
+            "approximant": "SEOBNRv5HM",
+            "phi_ref": p["coa_phase"],
+            "f22_start": p["f_lower"],
+            "deltaF": p["delta_f"],
+        }
+    )
 
     waveform = GenerateWaveform(p)
     hp, hc = waveform.generate_fd_polarizations()
@@ -72,10 +134,11 @@ def gen_seobnrv5hm_fd(**p):
     hp = FrequencySeries(hp.data.data[:], delta_f=hp.deltaF, epoch=hp.epoch)
     hc = FrequencySeries(hc.data.data[:], delta_f=hc.deltaF, epoch=hp.epoch)
 
-    return hp,hc
+    return hp, hc
+
 
 def gen_seobnrv5phm_td(**p):
-    '''PyCBC waveform generator for SEOBNRv5HM
+    """PyCBC waveform generator for SEOBNRv5PHM
 
     Parameters
     ----------
@@ -89,17 +152,18 @@ def gen_seobnrv5phm_td(**p):
     hc: Array
         The cross polarization of the waveform in time domain
     """
-    '''
 
-    # Some waveform input parameters from PyCBC have the same naming 
-    # conventions as PySEOBNR, thus they can be directly inherited. 
+    # Some waveform input parameters from PyCBC have the same naming
+    # conventions as PySEOBNR, thus they can be directly inherited.
     # We only update the settings used uniquely by PySEOBNR
-    p.update({
-        "approximant": "SEOBNRv5PHM",  
-        "phi_ref": p["coa_phase"], # reference phase needed by SEOBNRv5
-        "f22_start": p["f_lower"], # starting frequency
-        "deltaT": p["delta_t"],    
-        })
+    p.update(
+        {
+            "approximant": "SEOBNRv5PHM",
+            "phi_ref": p["coa_phase"],  # reference phase needed by SEOBNRv5
+            "f22_start": p["f_lower"],  # starting frequency
+            "deltaT": p["delta_t"],
+        }
+    )
 
     waveform = GenerateWaveform(p)
     hp, hc = waveform.generate_td_polarizations()
@@ -108,10 +172,11 @@ def gen_seobnrv5phm_td(**p):
     hp = TimeSeries(hp.data.data[:], delta_t=hp.deltaT, epoch=hp.epoch)
     hc = TimeSeries(hc.data.data[:], delta_t=hc.deltaT, epoch=hc.epoch)
 
-    return hp,hc
+    return hp, hc
+
 
 def gen_seobnrv5phm_fd(**p):
-    '''PyCBC waveform generator for SEOBNRv5HM
+    """PyCBC waveform generator for SEOBNRv5PHM
 
     Parameters
     ----------
@@ -125,17 +190,18 @@ def gen_seobnrv5phm_fd(**p):
     hc: Array
         The cross polarization of the waveform in frequency domain
     """
-    '''
 
-    # Some waveform input parameters from PyCBC have the same naming 
-    # conventions as PySEOBNR, thus they can be directly inherited. 
+    # Some waveform input parameters from PyCBC have the same naming
+    # conventions as PySEOBNR, thus they can be directly inherited.
     # We only update the settings used uniquely by PySEOBNR
-    p.update({
-        "approximant": "SEOBNRv5PHM",  
-        "phi_ref": p["coa_phase"], 
-        "f22_start": p["f_lower"],
-        "deltaF": p["delta_f"]
-        })
+    p.update(
+        {
+            "approximant": "SEOBNRv5PHM",
+            "phi_ref": p["coa_phase"],
+            "f22_start": p["f_lower"],
+            "deltaF": p["delta_f"],
+        }
+    )
 
     waveform = GenerateWaveform(p)
     hp, hc = waveform.generate_fd_polarizations()
@@ -144,4 +210,4 @@ def gen_seobnrv5phm_fd(**p):
     hp = FrequencySeries(hp.data.data[:], delta_f=hp.deltaF, epoch=hp.epoch)
     hc = FrequencySeries(hc.data.data[:], delta_f=hc.deltaF, epoch=hp.epoch)
 
-    return hp,hc
+    return hp, hc

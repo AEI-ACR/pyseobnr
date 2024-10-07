@@ -1,7 +1,6 @@
-from setuptools import setup, Extension
-from Cython.Build import cythonize
-from setuptools import find_packages
 import numpy as np
+from Cython.Build import cythonize
+from setuptools import Extension, find_packages, setup
 
 # see https://cython.readthedocs.io/en/latest/src/userguide/migrating_to_cy30.html#numpy-c-api
 # for the NPY_NO_DEPRECATED_API macro definition.
@@ -102,10 +101,5 @@ setup(
     packages=find_packages(),
     ext_modules=cythonize(extensions),
     zip_safe=False,
-    py_modules = ['plugin.pycbc_plugin'],
-    entry_points = {"pycbc.waveform.td":["SEOBNRv5HM = plugin.pycbc_plugin:gen_seobnrv5hm_td",
-                                         "SEOBNRv5PHM = plugin.pycbc_plugin:gen_seobnrv5phm_td"],
-                    "pycbc.waveform.fd":["SEOBNRv5HM = plugin.pycbc_plugin:gen_seobnrv5hm_fd",
-                                         "SEOBNRv5PHM = plugin.pycbc_plugin:gen_seobnrv5phm_fd"]
-                    },
+    # py_modules=["plugin.pycbc_plugin"],
 )

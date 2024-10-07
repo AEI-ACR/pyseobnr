@@ -49,6 +49,14 @@
     # dynamic properties set by tools:
     dynamic = ["version"]
 
+[project.entry-points."pycbc.waveform.td"]
+    SEOBNRv5HM = "plugin.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_seobnrv5hm_td"
+    SEOBNRv5PHM = "plugin.pycbc_plugin:gen_seobnrv5phm_td"
+
+[project.entry-points."pycbc.waveform.fd"]
+    SEOBNRv5HM = "plugin.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_seobnrv5hm_fd"
+    SEOBNRv5PHM = "plugin.pycbc_plugin:gen_seobnrv5phm_fd"
+
 [tool.setuptools_scm]
     write_to = "pyseobnr/_version.py"
 
