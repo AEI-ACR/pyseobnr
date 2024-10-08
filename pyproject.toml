@@ -23,10 +23,28 @@
         { name = "Hector Estelles", email = "hector.estelles@ligo.org" },
     ]
 
+    maintainers = [
+        { name = "Raffi Enficiaud", email = "raffi.enficiaud@ligo.org" },
+        { name = "Lorenzo Pompili", email = "lorenzo.pompili@ligo.org" },
+        { name = "Hector Estelles", email = "hector.estelles@ligo.org" },
+    ]
+
     description = "Gravitational wave modelling within the effective-one-body framework"
     license     = { text = "GPL-3.0-or-later" }
     name        = "pyseobnr"
     readme      = "README.rst"
+
+    classifiers = [
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Education",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "Operating System :: MacOS",
+        "Operating System :: Unix",
+        "Programming Language :: Python :: 3",
+        "Topic :: Scientific/Engineering :: Mathematics",
+        "Topic :: Scientific/Engineering :: Physics",
+    ]
 
     # requirements:
     dependencies = [
@@ -48,6 +66,12 @@
 
     # dynamic properties set by tools:
     dynamic = ["version"]
+
+[project.urls]
+    homepage      = "https://git.ligo.org/waveforms/software/pyseobnr"
+    documentation = "https://waveforms.docs.ligo.org/software/pyseobnr/"
+    issues        = "https://git.ligo.org/waveforms/software/pyseobnr/-/issues"
+    changelog     = "https://git.ligo.org/waveforms/software/pyseobnr/-/blob/main/CHANGELOG.md"
 
 [tool.setuptools_scm]
     write_to = "pyseobnr/_version.py"
