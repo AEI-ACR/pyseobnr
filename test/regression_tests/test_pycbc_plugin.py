@@ -53,6 +53,7 @@ def basic_settings():
     params_dict["delta_t"] = params_dict.pop("deltaT")
     params_dict["f_lower"] = params_dict.pop("f22_start")
     params_dict["coa_phase"] = params_dict.pop("phi_ref")
+    params_dict["f_final"] = params_dict.pop("f_max")
     return params_dict
 
 
