@@ -1,3 +1,5 @@
+from typing import Any
+
 from pycbc.types import FrequencySeries, TimeSeries
 
 from pyseobnr.generate_waveform import GenerateWaveform
@@ -5,6 +7,14 @@ from pyseobnr.generate_waveform import GenerateWaveform
 
 class PySEOBNRv5PyCBCPlugin:
     approximant = None
+
+    @staticmethod
+    def _cleanup_parameters(p: dict[str, Any]) -> dict[str, Any]:
+        # f_ref is 0 as default value in pyCBC
+        if "f_ref" in p and ((p["f_ref"] == 0) or (p["f_ref"] is None)):
+            p.pop("f_ref")
+
+        return p
 
     @classmethod
     def gen_td(cls, **p):
@@ -20,6 +30,8 @@ class PySEOBNRv5PyCBCPlugin:
                 "deltaT": p["delta_t"],
             }
         )
+
+        p = cls._cleanup_parameters(p)
 
         waveform = GenerateWaveform(p)
         hp, hc = waveform.generate_td_polarizations()
@@ -45,6 +57,8 @@ class PySEOBNRv5PyCBCPlugin:
                 "deltaF": p["delta_f"],
             }
         )
+
+        p = cls._cleanup_parameters(p)
 
         waveform = GenerateWaveform(p)
         hp, hc = waveform.generate_fd_polarizations()
