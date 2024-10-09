@@ -58,6 +58,7 @@ params_dict = {
     "spin2y": s2y,
     "spin2z": s2z,
     "delta_t": dt,  # pyCBC parameter
+    # pyCBC parameter:
     # if f_ref not specified, pyCBC will set it to "0"
     # and it will be as if it was not set and defaults to pyseobnr default
     "f_ref": 20,
@@ -65,7 +66,8 @@ params_dict = {
     "coa_phase": phiRef,  # pyCBC parameter
     "distance": distance,
     "inclination": inclination,
-    "f_final": f_max,  # pyCBC parameter
+    # pyCBC parameter: same as f_ref. Only used in get_fd_waveform
+    # "f_final": f_max,
     "postadiabatic": False,  # pyseobnr specific parameter
 }
 ```
@@ -121,4 +123,24 @@ hp_py, hc_py = GenerateWaveform(params_dict_pyseobnr).generate_td_polarizations(
 t = hp_py.deltaT * np.arange(hp_py.data.length) + hp_py.epoch
 pp.plot(t, hp_py.data.data[:])
 pp.xlabel("Time (s)");
+```
+
+```{code-cell} ipython3
+"SEOBNRv5HM" in pycbc.waveform.td_approximants()
+```
+
+```{code-cell} ipython3
+"SEOBNRv5HM" in pycbc.waveform.fd_approximants()
+```
+
+```{code-cell} ipython3
+"SEOBNRv5PHM" in pycbc.waveform.td_approximants()
+```
+
+```{code-cell} ipython3
+"SEOBNRv5PHM" in pycbc.waveform.fd_approximants()
+```
+
+```{code-cell} ipython3
+
 ```

@@ -24,6 +24,7 @@ class PySEOBNRv5PyCBCPlugin:
         # Some waveform input parameters from PyCBC have the same naming
         # conventions as PySEOBNR, thus they can be directly inherited.
         # We only update the settings used uniquely by PySEOBNR
+        p = p.copy()
         p.update(
             {
                 "approximant": cls.approximant,
@@ -50,6 +51,7 @@ class PySEOBNRv5PyCBCPlugin:
         # Some waveform input parameters from PyCBC have the same naming
         # conventions as PySEOBNR, thus they can be directly inherited.
         # We only update the settings used uniquely by PySEOBNR
+        p = p.copy()
         p.update(
             {
                 "approximant": cls.approximant,
