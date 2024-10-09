@@ -76,6 +76,7 @@
         "pandas",
         'pyarrow',
         'seaborn',
+        'pycbc',
     ]
 
     tests = ['pytest', 'pytest-sugar', 'pandas', 'pyarrow', 'pycbc']

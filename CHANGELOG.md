@@ -1,6 +1,11 @@
 All notable changes will be noted in this file, whenever a tagged
 version is made
 
+## [0.2.x]
+
+* `pyCBC` plugin infrastructure: now `pyseobnr` approximants `SEOBNRv5HM` and `SEOBNRv5PHM` can be used
+  directly from `pyCBC`.
+
 ## [0.2.12] 02/10/2024
 
 Improved estimation of the reference time [!76](https://git.ligo.org/waveforms/software/pyseobnr/-/merge_requests/76).
@@ -41,7 +46,7 @@ Bugfix release. Fixes a compatibility issue with Cython 3.0.0.
 
 ## [0.2.4] 15/05/2023
 
-Bugfix release. Fixes a rare issue with quaternion overflow, which occured after attachment.
+Bugfix release. Fixes a rare issue with quaternion overflow, which occurred after attachment.
 
 ## [0.2.3] 10/05/2023
 
@@ -58,5 +63,5 @@ Initial release for conda. Several housekeeping improvements, add references to 
 
 ## [0.1.0] 31/03/2023
 
-Initial release of the aligned-spin model SEOBNRv5HM and the
-precessing model SEOBNRv5PHM.
+Initial release of the aligned-spin model `SEOBNRv5HM` and the
+precessing model `SEOBNRv5PHM`.

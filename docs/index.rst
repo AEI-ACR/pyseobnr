@@ -23,6 +23,7 @@ Welcome to pyseobnr's documentation!
 
    source/notebooks/getting_started.md
    source/notebooks/example_precession.md
+   source/notebooks/pycbc_example.md
 
 API
 ---
