@@ -87,6 +87,36 @@ def test_pycbc_plugin_td_v5hm(basic_settings):
             )
 
 
+def test_pycbc_f_ref_eq_0_convention(basic_settings):
+    import pycbc.waveform
+
+    # pycbc will set this to 0
+    basic_settings.pop("f_ref")
+    hp, hc = pycbc.waveform.get_td_waveform(approximant="SEOBNRv5HM", **basic_settings)
+
+    assert hp is not None
+    assert hc is not None
+
+    hp, hc = pycbc.waveform.get_fd_waveform(approximant="SEOBNRv5HM", **basic_settings)
+    assert hp is not None
+    assert hc is not None
+
+
+def test_pycbc_f_final_eq_0_convention(basic_settings):
+    import pycbc.waveform
+
+    # pycbc will set this to 0
+    basic_settings.pop("f_final")
+    hp, hc = pycbc.waveform.get_td_waveform(approximant="SEOBNRv5HM", **basic_settings)
+
+    assert hp is not None
+    assert hc is not None
+
+    hp, hc = pycbc.waveform.get_fd_waveform(approximant="SEOBNRv5HM", **basic_settings)
+    assert hp is not None
+    assert hc is not None
+
+
 def test_pycbc_plugin_fd_v5hm(basic_settings):
     import pycbc.waveform
 

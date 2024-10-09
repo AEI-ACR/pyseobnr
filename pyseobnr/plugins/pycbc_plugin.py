@@ -11,8 +11,10 @@ class PySEOBNRv5PyCBCPlugin:
     @staticmethod
     def _cleanup_parameters(p: dict[str, Any]) -> dict[str, Any]:
         # f_ref is 0 as default value in pyCBC
-        if "f_ref" in p and ((p["f_ref"] == 0) or (p["f_ref"] is None)):
-            p.pop("f_ref")
+
+        for param in ("f_ref", "f_final"):
+            if param in p and ((p[param] == 0) or (p[param] is None)):
+                p.pop(param)
 
         return p
 
@@ -25,12 +27,11 @@ class PySEOBNRv5PyCBCPlugin:
         p.update(
             {
                 "approximant": cls.approximant,
-                "phi_ref": p["coa_phase"],  # reference phase needed by SEOBNRv5
-                "f22_start": p["f_lower"],  # starting frequency
-                "deltaT": p["delta_t"],
+                "phi_ref": p.pop("coa_phase"),  # reference phase needed by SEOBNRv5
+                "f22_start": p.pop("f_lower"),  # starting frequency
+                "deltaT": p.pop("delta_t"),
             }
         )
-
         p = cls._cleanup_parameters(p)
 
         waveform = GenerateWaveform(p)
@@ -52,13 +53,16 @@ class PySEOBNRv5PyCBCPlugin:
         p.update(
             {
                 "approximant": cls.approximant,
-                "phi_ref": p["coa_phase"],
-                "f22_start": p["f_lower"],
-                "deltaF": p["delta_f"],
+                "phi_ref": p.pop("coa_phase"),
+                "f22_start": p.pop("f_lower"),
+                "deltaF": p.pop("delta_f"),
             }
         )
 
         p = cls._cleanup_parameters(p)
+
+        if "f_final" in p:
+            p["f_max"] = p.pop("f_final")
 
         waveform = GenerateWaveform(p)
         hp, hc = waveform.generate_fd_polarizations()

@@ -58,12 +58,14 @@ params_dict = {
     "spin2y": s2y,
     "spin2z": s2z,
     "delta_t": dt,  # pyCBC parameter
+    # if f_ref not specified, pyCBC will set it to "0"
+    # and it will be as if it was not set and defaults to pyseobnr default
     "f_ref": 20,
     "f_lower": f_min,  # pyCBC parameter
     "coa_phase": phiRef,  # pyCBC parameter
     "distance": distance,
     "inclination": inclination,
-    "f_max": f_max,
+    "f_final": f_max,  # pyCBC parameter
     "postadiabatic": False,  # pyseobnr specific parameter
 }
 ```
