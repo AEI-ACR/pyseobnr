@@ -101,5 +101,4 @@ setup(
     packages=find_packages(),
     ext_modules=cythonize(extensions),
     zip_safe=False,
-    # py_modules=["plugin.pycbc_plugin"],
 )
