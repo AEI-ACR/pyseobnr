@@ -114,3 +114,27 @@ the internal EOB generator only outputs modes with :math:`m>0`.
     >>> t,modes = generate_modes_opt(q,chi_1,chi_2,omega0)
     >>> modes.keys()
     dict_keys(['2,2', '2,1', '3,3', '3,2', '4,4', '4,3', '5,5'])
+
+Usage through ``pyCBC``
+-----------------------
+
+.. versionadded:: 0.2.13
+
+It is possible to use the approximants implemented in ``pyseobnr`` from ``pyCBC``
+directly thanks to the ``pyCBC`` plugin infrastructure.
+
+Installing ``pyseobnr`` will automatically create the required ``pyCBC`` plugins,
+which will translate the pyCBC parameters into ``pyseobnr`` compatible ones. Note that
+installing ``pyseobnr`` will not install ``pyCBC``.
+
+.. nblinkgallery::
+    :name: notebooks-graph-reduction
+
+    notebooks/pycbc_example.md
+
+
+.. seealso::
+
+   pyCBC plugin infrastructure `pycbc plugin`_.
+
+.. _pycbc plugin: https://pycbc.org/pycbc/latest/html/waveform_plugin.html
