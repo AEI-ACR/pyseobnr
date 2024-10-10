@@ -80,5 +80,6 @@ def test_interpolate_dynamics():
         )
     t3 = datetime.datetime.now()
 
-    assert (res1 == res2).all()
+    # comparing with tolerance when MKL is used
+    np.testing.assert_allclose(res1, res2, rtol=1e-12)
     assert (t3 - t2).total_seconds() <= 0.7 * (t2 - t1).total_seconds()
