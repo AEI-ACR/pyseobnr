@@ -60,7 +60,104 @@ from .common import VALID_MODES
 logger = logging.getLogger(__name__)
 
 
-class SEOBNRv5HM_opt(Model):
+class SEOBNRv5ModelBase:
+    """Provides a set of common functions for the family of models in SEOBNRv5"""
+
+    def __init__(self):
+        self.settings = None
+        self.computed_modes = None
+        self.mixed_modes = None
+        self.prefixes = None
+
+    def _validate_modes(self, user_settings: dict) -> int:
+        """
+        Check that the mode array is sensible, i.e.
+        has something and the modes being asked for are valid.
+        """
+
+        # consistency check on the passed settings
+        if (
+            user_settings
+            # this is settings and not self.settings which contains the default
+            and "lmax" in user_settings
+            and user_settings["lmax"] is not None
+        ):
+            # some sanity checks
+            if user_settings["lmax"] < 1 or user_settings["lmax"] > max(
+                _[0] for _ in VALID_MODES
+            ):
+                raise ValueError(
+                    f"Incorrect value for lmax={user_settings['lmax']}: "
+                    f"the condition 1 <= lmax <= {max(_[0] for _ in VALID_MODES)} "
+                    f"is not satisfied"
+                )
+            selected_modes_by_lmax = [
+                (ell, emm) for ell, emm in VALID_MODES if ell <= self.settings["lmax"]
+            ]
+
+            if "return_modes" in user_settings and set(selected_modes_by_lmax) != set(
+                user_settings["return_modes"]
+            ):
+                missing_modes = sorted(
+                    set(selected_modes_by_lmax).symmetric_difference(
+                        set(user_settings["return_modes"])
+                    )
+                )
+                raise ValueError(
+                    f"Setting lmax={user_settings['lmax']} together with "
+                    f"the selection of modes {user_settings['return_modes']} "
+                    f"yields inconsistencies for the following modes: {missing_modes}"
+                )
+
+            else:
+                self.return_modes = selected_modes_by_lmax
+
+        if not self.return_modes:
+            logger.error("The mode list specified is empty!")
+            raise ValueError
+
+        ell_mx = 2
+        for mode in self.return_modes:
+            ell, m = mode
+
+            if mode not in VALID_MODES:
+                logger.error(f"The specified mode, {mode} is not available!")
+                logger.error(f"The allowed modes are: {VALID_MODES}")
+                raise ValueError
+
+            if ell > ell_mx:
+                ell_mx = ell
+
+        return ell_mx
+
+    def _ensure_consistency(self):
+        """Make sure that the modes contains everything needed to compute mixed modes
+
+        Args:
+            modes (list): Current list of modes to compute
+        """
+        for mode in self.mixed_modes:
+            ell, m = mode
+            if (m, m) not in self.computed_modes:
+                self.computed_modes.append((m, m))
+
+    def _initialize_params(self, phys_pars):
+        """
+        Re-initialize all parameters to make sure everything is reset
+        """
+        self.eob_pars = EOBParams(phys_pars, {}, mode_array=list(self.computed_modes))
+        self.eob_pars.flux_params.rho_initialized = False
+        self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
+        self.eob_pars.flux_params.prefixes_abs = np.abs(
+            self.eob_pars.flux_params.prefixes
+        )
+        self.eob_pars.flux_params.extra_PN_terms = self.settings.get(
+            "extra_PN_terms", True
+        )
+        self.step_back = self.settings.get("step_back", 250.0)
+
+
+class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBase):
     """Represents an aligned-spin SEOBNRv5HM waveform with new MR choices."""
 
     def __init__(
@@ -178,12 +275,14 @@ class SEOBNRv5HM_opt(Model):
         # asks for mixed modes so we must compute all the modes
         # that are needed even if we will not return them
 
-        # All the modes we will need to output
-        self.return_modes = self.settings.get("return_modes", None)
-
         # Check that the modes are valid, i.e. something we
         # can return
-        self._validate_modes()
+
+        # All the modes we will need to output
+        self.return_modes = self.settings.get("return_modes", None)
+        self.max_ell_returned = self._validate_modes(
+            settings
+        )  # we need to pass the user settings here
         self.lmax_nyquist = self.settings.get("lmax_nyquist", self.max_ell_returned)
         # Now deal with which mixed modes the user wants, if any
 
@@ -218,53 +317,16 @@ class SEOBNRv5HM_opt(Model):
         )
         return settings
 
-    def _validate_modes(self):
-        """
-        Check that the mode array is sensible, i.e.
-        has something and the modes being asked for are valid.
-        """
+    def _set_H_coeffs(self):
+        dc = {}
+        # Actual coeffs inside the Hamiltonian
+        a6_fit = a6_NS(self.nu)
+        dSO_fit = dSO(self.nu, self.ap, self.am)
+        dc["a6"] = a6_fit
+        dc["dSO"] = dSO_fit
 
-        if not self.return_modes:
-            logger.error("The mode list specified is empty!")
-            raise ValueError
-        ell_mx = 2
-        for mode in self.return_modes:
-            ell, m = mode
-
-            if mode not in VALID_MODES:
-                logger.error(f"The specified mode, {mode} is not available!")
-                logger.error(f"The allowed modes are: {VALID_MODES}")
-                raise ValueError
-            if ell > ell_mx:
-                ell_mx = ell
-
-        self.max_ell_returned = ell_mx
-
-    def _ensure_consistency(self):
-        """Make sure that the modes contains everything needed to compute mixed modes
-
-        Args:
-            modes (list): Current list of modes to compute
-        """
-        for mode in self.mixed_modes:
-            ell, m = mode
-            if (m, m) not in self.computed_modes:
-                self.computed_modes.append((m, m))
-
-    def _initialize_params(self, phys_pars):
-        """
-        Re-initialize all parameters to make sure everything is reset
-        """
-        self.eob_pars = EOBParams(phys_pars, {}, mode_array=list(self.computed_modes))
-        self.eob_pars.flux_params.rho_initialized = False
-        self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
-        self.eob_pars.flux_params.prefixes_abs = np.abs(
-            self.eob_pars.flux_params.prefixes
-        )
-        self.eob_pars.flux_params.extra_PN_terms = self.settings.get(
-            "extra_PN_terms", True
-        )
-        self.step_back = self.settings.get("step_back", 250.0)
+        cfs = CalibCoeffs(dc)
+        self.H.calibration_coeffs = cfs
 
         # PA/ODE integration tolerances
         self.tol_PA = self.settings.get("tol_PA", 1e-11)
@@ -622,7 +684,7 @@ class SEOBNRv5HM_opt(Model):
             raise e
 
 
-class SEOBNRv5PHM_opt(Model):
+class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBase):
     """Represents a precessing SEOBNRv5PHM waveform with new MR choices."""
 
     def __init__(
@@ -762,7 +824,7 @@ class SEOBNRv5PHM_opt(Model):
 
         # Check that the modes are valid, i.e. something we
         # can return
-        self._validate_modes()
+        self.max_ell_returned = self._validate_modes(user_settings=settings)
         self.lmax_nyquist = self.settings.get("lmax_nyquist", self.max_ell_returned)
         # Now deal with which mixed modes the user wants, if any
 
@@ -811,56 +873,11 @@ class SEOBNRv5PHM_opt(Model):
         )
         return settings
 
-    def _validate_modes(self):
-        """
-        Check that the mode array is sensible, i.e.
-        has something and the modes being asked for are valid.
-        """
-
-        if not self.return_modes:
-            logger.error("The mode list specified is empty!")
-            raise ValueError
-        ell_mx = 2
-        for mode in self.return_modes:
-            ell, m = mode
-
-            if mode not in VALID_MODES:
-                logger.error(f"The specified mode, {mode} is not available!")
-                logger.error(f"The allowed modes are: {VALID_MODES}")
-                raise ValueError
-            if ell > ell_mx:
-                ell_mx = ell
-
-        self.max_ell_returned = ell_mx
-
-    def _ensure_consistency(self):
-        """Make sure that the modes contains everything needed to compute mixed modes
-
-        Args:
-            modes (list): Current list of modes to compute
-        """
-        for mode in self.mixed_modes:
-            ell, m = mode
-            if (m, m) not in self.computed_modes:
-                self.computed_modes.append((m, m))
-
     def _initialize_params(self, phys_pars):
         """
         Re-initialize all parameters to make sure everything is reset
         """
-        self.eob_pars: EOBParams = EOBParams(
-            phys_pars, {}, mode_array=list(self.computed_modes)
-        )
-        self.eob_pars.flux_params.rho_initialized = False
-        self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
-        self.eob_pars.flux_params.prefixes_abs = np.abs(
-            self.eob_pars.flux_params.prefixes
-        )
-        self.step_back = self.settings.get("step_back", 250.0)
-
-        self.eob_pars.flux_params.extra_PN_terms = self.settings.get(
-            "extra_PN_terms", True
-        )
+        super()._initialize_params(phys_pars)
 
         self.eob_pars.aligned = False
 
