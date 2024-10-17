@@ -303,6 +303,10 @@ class GenerateWaveform:
             Tolerance for the root finding routine in case ``postadiabatic_type="numeric"``
             is used. Defaults to 1e-11.
 
+        int lmax:
+            If specified, will add all the modes compatible with the approximant up
+            to :math:`\\ell =` ``lmax``. If provided together with ``mode_array``, the
+            two parameters should be set consistently. See the notes for details.
         str approximant:
 
             * ``SEOBNRv5HM`` (default)
@@ -313,8 +317,8 @@ class GenerateWaveform:
         float atol_ode:
             Absolute tolerance of the ODE integrators. Defaults to 1e-12.
 
-        Note
-        ----
+        Notes
+        -----
 
         The default modes are ``(2, 2)``, ``(2, 1)``, ``(3, 3)``, ``(3, 2)``,
         ``(4, 4)`` and ``(4, 3)``. In particular ``(5, 5)`` is not included
@@ -323,6 +327,13 @@ class GenerateWaveform:
         All GR deviations default to 0.
         For the dictionaries ``domega_dict``, ``dA_dict``, ``dw_dict``, ``dtau_dict``,
         keys are the modes ``l,m`` as a string, for :math:`\\ell > 0`.
+
+        If ``lmax`` is set, it will activate all the supported modes for the selected
+        approximant up until :math:`\\ell =` ``lmax``. If specified together with ``mode_array``,
+        then the selected modes from ``lmax`` should be the same as the ones provides in
+        ``mode_array``, otherwise a ``ValueError`` exception is raised. For instance,
+        ``lmax=3`` and ``mode_array=[(2, 2), (3, 2)]`` will create inconsistencies for the
+        selection of the modes ``(2, 1)`` and ``(3, 3)``.
         """
 
         self.swap_masses: bool = False
@@ -632,6 +643,9 @@ class GenerateWaveform:
                 omega_prec_deviation=self.parameters["omega_prec_deviation"]
             )
 
+        if "lmax" in self.parameters:
+            settings.update(lmax=self.parameters["lmax"])
+
         settings.update(f_ref=self.parameters["f_ref"])
         times, h, self._model = generate_modes_opt(
             q,
@@ -776,6 +790,9 @@ class GenerateWaveform:
                 settings.update(
                     omega_prec_deviation=self.parameters["omega_prec_deviation"]
                 )
+
+            if "lmax" in self.parameters:
+                settings.update(lmax=self.parameters["lmax"])
 
             settings.update(f_ref=self.parameters["f_ref"])
             Mpc_to_meters = lal.PC_SI * 1e6

@@ -1,3 +1,4 @@
+import re
 from typing import get_args
 from unittest import mock
 
@@ -12,6 +13,7 @@ from pyseobnr.generate_waveform import (
     SupportedApproximants,
     generate_modes_opt,
 )
+from pyseobnr.models.common import VALID_MODES
 
 
 @pytest.fixture
@@ -94,6 +96,305 @@ def test_mode_arrays_settings(basic_settings):
         for func in calls_to_check:
             with pytest.raises(TypeError):
                 _ = getattr(wfm_gen, func)()
+
+
+def test_mode_arrays_settings_with_lmax_HM(basic_settings):
+
+    approximant: SupportedApproximants = "SEOBNRv5HM"
+
+    # this should work as lmax overrides the modes
+    *_, model = generate_modes_opt(
+        q=1.1,
+        chi1=0,
+        chi2=0,
+        omega_start=0.1,
+        debug=True,
+        approximant=approximant,
+        settings={"lmax": 2},
+    )
+    assert {
+        tuple(int(k) for k in _.split(",")) for _ in model.waveform_modes.keys()
+    } == {(ell, emm) for ell, emm in VALID_MODES if ell <= 2}
+
+    # this also should work
+    *_, model = generate_modes_opt(
+        q=1.1,
+        chi1=0,
+        chi2=0,
+        omega_start=0.1,
+        debug=True,
+        approximant=approximant,
+        settings={"lmax": 3},
+    )
+    assert {
+        tuple(int(k) for k in _.split(",")) for _ in model.waveform_modes.keys()
+    } == {(ell, emm) for ell, emm in VALID_MODES if ell <= 3}
+
+    # this also should work
+    *_, model = generate_modes_opt(
+        q=1.1,
+        chi1=0,
+        chi2=0,
+        omega_start=0.1,
+        debug=True,
+        approximant=approximant,
+        settings={"lmax": 5},
+    )
+    assert {
+        tuple(int(k) for k in _.split(",")) for _ in model.waveform_modes.keys()
+    } == {(ell, emm) for ell, emm in VALID_MODES if ell <= 5}
+    assert "5,5" in model.waveform_modes
+
+    # this is consistent between lmax and return_modes, "lmax" should have no effect on the final
+    # list of modes
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Setting lmax=3 together with the selection of modes [(2, 2), (3, 2)] "
+            "yields inconsistencies for the following modes: [(2, 1), (3, 3)]"
+        ),
+    ):
+        *_, model = generate_modes_opt(
+            q=1.1,
+            chi1=0,
+            chi2=0,
+            omega_start=0.1,
+            approximant=approximant,
+            settings={"lmax": 3, "return_modes": [(2, 2), (3, 2)]},
+        )
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Setting lmax=3 together with the selection of modes [(2, 2), (4, 4)] "
+            "yields inconsistencies for the following modes: [(2, 1), (3, 2), (3, 3), (4, 4)]"
+        ),
+    ):
+        *_, model = generate_modes_opt(
+            q=1.1,
+            chi1=0,
+            chi2=0,
+            omega_start=0.1,
+            approximant=approximant,
+            settings={"lmax": 3, "return_modes": [(2, 2), (4, 4)]},
+        )
+
+    # impossible values of lmax yields an error
+    for lmax_tentative in (18, -3):
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Incorrect value for lmax=-?\\d+:\\s*the condition 1\\s*<=\\s*lmax\\s*<=\\s*\\d+ is "
+                "not satisfied"
+            ),
+        ):
+            *_, model = generate_modes_opt(
+                q=1.1,
+                chi1=0,
+                chi2=0,
+                omega_start=0.1,
+                debug=True,
+                approximant=approximant,
+                settings={"lmax": lmax_tentative},
+            )
+
+
+def test_mode_arrays_settings_with_lmax_PHM(basic_settings):
+
+    approximant: SupportedApproximants = "SEOBNRv5PHM"
+
+    # this should work as lmax overrides the modes
+    *_, model = generate_modes_opt(
+        q=1.1,
+        chi1=0,
+        chi2=0,
+        omega_start=0.1,
+        debug=True,
+        approximant=approximant,
+        settings={"lmax": 2},
+    )
+    assert {
+        tuple(int(k) for k in _.split(",")) for _ in model.waveform_modes.keys()
+    } == (
+        {(ell, emm) for ell, emm in VALID_MODES if ell <= 2}
+        | {(ell, -emm) for ell, emm in VALID_MODES if ell <= 2}
+        | {(ell, 0) for ell, _ in VALID_MODES if ell <= 2}
+    )
+
+    # this will narrow the modes array to l <= 3
+    *_, model = generate_modes_opt(
+        q=1.1,
+        chi1=0,
+        chi2=0,
+        omega_start=0.1,
+        debug=True,
+        approximant=approximant,
+        settings={"lmax": 3},
+    )
+    assert {
+        tuple(int(k) for k in _.split(",")) for _ in model.waveform_modes.keys()
+    } == {(ell, emm) for ell in range(2, 4) for emm in range(-ell, ell + 1)}
+
+    # this will extend the default modes array to l = 5 modes
+    *_, model = generate_modes_opt(
+        q=1.1,
+        chi1=0,
+        chi2=0,
+        omega_start=0.1,
+        debug=True,
+        approximant=approximant,
+        settings={"lmax": 5},
+    )
+    assert {
+        tuple(int(k) for k in _.split(",")) for _ in model.waveform_modes.keys()
+    } == {(ell, emm) for ell in range(2, 6) for emm in range(-ell, ell + 1)}
+    assert "5,5" in model.waveform_modes
+
+    # this is consistent between lmax and return_modes, "lmax" should have no effect on the final
+    # list of modes
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Setting lmax=3 together with the selection of modes [(2, 2), (3, 2)] "
+            "yields inconsistencies for the following modes: [(2, 1), (3, 3)]"
+        ),
+    ):
+        *_, model = generate_modes_opt(
+            q=1.1,
+            chi1=0,
+            chi2=0,
+            omega_start=0.1,
+            approximant=approximant,
+            settings={"lmax": 3, "return_modes": [(2, 2), (3, 2)]},
+        )
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Setting lmax=3 together with the selection of modes [(2, 2), (4, 4)] "
+            "yields inconsistencies for the following modes: [(2, 1), (3, 2), (3, 3), (4, 4)]"
+        ),
+    ):
+        *_, model = generate_modes_opt(
+            q=1.1,
+            chi1=0,
+            chi2=0,
+            omega_start=0.1,
+            approximant=approximant,
+            settings={"lmax": 3, "return_modes": [(2, 2), (4, 4)]},
+        )
+
+    # impossible values of lmax yields an error
+    for lmax_tentative in (18, -3):
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Incorrect value for lmax=-?\\d+:\\s*the condition 1\\s*<=\\s*lmax\\s*<=\\s*\\d+ is "
+                "not satisfied"
+            ),
+        ):
+            *_, model = generate_modes_opt(
+                q=1.1,
+                chi1=0,
+                chi2=0,
+                omega_start=0.1,
+                debug=True,
+                approximant=approximant,
+                settings={"lmax": lmax_tentative},
+            )
+
+
+def test_lmax_in_generate_waveform(basic_settings):
+    """Checks the behaviour of GenerateWaveform wrt. lmax"""
+
+    approximants_and_function_to_patch = ("SEOBNRv5HM", "generate_modes_opt"), (
+        "SEOBNRv5PHM",
+        "generate_modes_opt",
+    )
+
+    class MyException(Exception):
+        pass
+
+    # Generate TD modes
+    for approximant, function_to_patch in approximants_and_function_to_patch:
+        wfm_gen = GenerateWaveform(
+            basic_settings | {"approximant": approximant, "lmax": 4}
+        )
+
+        assert wfm_gen.parameters["lmax"] == 4
+
+        with mock.patch(
+            f"pyseobnr.generate_waveform.{function_to_patch}"
+        ) as p_generate_modes_func:
+            p_generate_modes_func.side_effect = MyException
+
+            with pytest.raises(MyException):
+                wfm_gen.generate_td_modes()
+
+            p_generate_modes_func.assert_called_once()
+            assert "settings" in p_generate_modes_func.call_args_list[0].kwargs
+            assert "lmax" in p_generate_modes_func.call_args_list[0].kwargs["settings"]
+            assert (
+                p_generate_modes_func.call_args_list[0].kwargs["settings"]["lmax"] == 4
+            )
+
+    # Generate TD polarization
+    approximants_and_function_to_patch = ("SEOBNRv5HM", "generate_modes_opt"), (
+        "SEOBNRv5PHM",
+        "generate_prec_hpc_opt",
+    )
+
+    for approximant, function_to_patch in approximants_and_function_to_patch:
+        wfm_gen = GenerateWaveform(
+            basic_settings | {"approximant": approximant, "lmax": 4}
+        )
+
+        assert wfm_gen.parameters["lmax"] == 4
+
+        with mock.patch(
+            f"pyseobnr.generate_waveform.{function_to_patch}"
+        ) as p_generate_modes_func:
+            p_generate_modes_func.side_effect = MyException
+
+            with pytest.raises(MyException):
+                wfm_gen.generate_td_polarizations()
+
+            p_generate_modes_func.assert_called_once()
+            assert "settings" in p_generate_modes_func.call_args_list[0].kwargs
+            assert "lmax" in p_generate_modes_func.call_args_list[0].kwargs["settings"]
+            assert (
+                p_generate_modes_func.call_args_list[0].kwargs["settings"]["lmax"] == 4
+            )
+
+    # Generate FD polarization
+    approximants_and_function_to_patch = ("SEOBNRv5HM", "generate_modes_opt"), (
+        "SEOBNRv5PHM",
+        "generate_prec_hpc_opt",
+    )
+
+    for approximant, function_to_patch in approximants_and_function_to_patch:
+        wfm_gen = GenerateWaveform(
+            basic_settings | {"approximant": approximant, "lmax": 4}
+        )
+
+        assert wfm_gen.parameters["lmax"] == 4
+
+        with mock.patch(
+            f"pyseobnr.generate_waveform.{function_to_patch}"
+        ) as p_generate_modes_func:
+            p_generate_modes_func.side_effect = MyException
+
+            with pytest.raises(MyException):
+                wfm_gen.generate_fd_polarizations()
+
+            p_generate_modes_func.assert_called_once()
+            assert "settings" in p_generate_modes_func.call_args_list[0].kwargs
+            assert "lmax" in p_generate_modes_func.call_args_list[0].kwargs["settings"]
+            assert (
+                p_generate_modes_func.call_args_list[0].kwargs["settings"]["lmax"] == 4
+            )
 
 
 def test_f_ref_behaviour(basic_settings):
