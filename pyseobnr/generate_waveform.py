@@ -672,10 +672,17 @@ class GenerateWaveform:
             # of a set of secular evolution equations in case the starting
             # separation is smaller than r = 10 M. If False, then raise
             # an error if the starting separation is smaller than r = 10 M.
+            # - warning_bwd_int: If True, sends a warning to the user if
+            # the backwards integration of the full EOMs is activated
+            # (this happens if t_backwards != 0)
+            # - warning_secular_bwd_int: If True, sends a warning to the
+            # user if the secular backwards integration was activated
             default_eccentricity_parameters = {
                 "EccIC": 1,
                 "t_backwards": 0.0,
                 "secular_bwd_int": True,
+                "warning_bwd_int": True,
+                "warning_secular_bwd_int": True,
             }
             parameters = default_eccentricity_parameters | parameters
 
@@ -776,6 +783,8 @@ class GenerateWaveform:
                 "EccIC": self.parameters["EccIC"],
                 "t_backwards": self.parameters["t_backwards"],
                 "secular_bwd_int": self.parameters["secular_bwd_int"],
+                "warning_bwd_int": self.parameters["warning_bwd_int"],
+                "warning_secular_bwd_int": self.parameters["warning_secular_bwd_int"],
             }
 
         if "postadiabatic" in self.parameters:

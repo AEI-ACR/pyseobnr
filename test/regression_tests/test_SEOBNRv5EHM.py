@@ -22,6 +22,7 @@ from pyseobnr.eob.dynamics.integrate_ode_ecc import (
     compute_dynamics_ecc_secular_opt,
 )
 from pyseobnr.eob.dynamics.rhs_aligned_ecc import compute_x
+from pyseobnr.eob.utils.utils import estimate_time_max_amplitude
 from pyseobnr.eob.utils.utils_eccentric import dot_phi_omega_avg_e_z
 from pyseobnr.eob.waveform.waveform_ecc import SEOBNRv5RRForceEcc
 from pyseobnr.eob.waveform.waveform_ecc import (
@@ -210,6 +211,99 @@ class TestEccentric:
             assert IC_diss_ecc in [_.args[0] for _ in p_root.call_args_list]
 
             assert model_ehm.dynamics is not None
+
+    def test_estimate_t_for_max_amplitude_EHM(self):
+        """Checks that the model is calling the proper methods for shifting to t=0"""
+
+        q = 1
+        chi_1z = 0.1
+        chi_2z = 0.3
+        omega0 = 0.03
+        rel_anomaly = 0.0
+        eccentricity = 0.3
+
+        chi_1 = [0.0, 0.0, chi_1z]
+        chi_2 = [0.0, 0.0, chi_2z]
+        omega_start = omega0
+
+        all_t0 = {}
+        all_ts = {}
+        all_frame_inv_amplitudes = {}
+
+        # This gives the new eccentric model, but with the v5EHM infrastructure
+        settings = {}
+        with mock.patch(
+            "pyseobnr.models.SEOBNRv5EHM.estimate_time_max_amplitude"
+        ) as p_estimate_time_max_amplitude:
+
+            def m_estimate_time_max_amplitude(*args, **kwargs):
+                ret = estimate_time_max_amplitude(*args, **kwargs)
+                # gets the outside freq
+                all_t0[freq] = ret
+                all_frame_inv_amplitudes[freq] = kwargs["amplitude"]
+                return ret
+
+            p_estimate_time_max_amplitude.side_effect = m_estimate_time_max_amplitude
+
+            # 2**11, 2**12 ....
+            freqs_to_check = np.logspace(10, 14, base=2, num=14 - 10 + 1)
+            for freq in freqs_to_check:
+                print(freq)
+                _, _, model_ehm = generate_modes_opt(
+                    q,
+                    chi_1[2],
+                    chi_2[2],
+                    omega0,
+                    omega_start,
+                    eccentricity,
+                    rel_anomaly,
+                    approximant="SEOBNRv5EHM",
+                    settings=settings | {"dt": 1 / float(freq), "M": 100},
+                    debug=True,
+                )
+                p_estimate_time_max_amplitude.assert_called_once()
+                p_estimate_time_max_amplitude.reset_mock()
+
+                _, _, model_ehm = generate_modes_opt(
+                    q,
+                    chi_1[2],
+                    chi_2[2],
+                    omega0,
+                    omega_start,
+                    eccentricity,
+                    rel_anomaly,
+                    approximant="SEOBNRv5EHM",
+                    settings=settings
+                    | {"dt": 1 / float(freq), "M": 100, "inspiral_modes": True},
+                    debug=True,
+                )
+                p_estimate_time_max_amplitude.assert_called()
+                assert p_estimate_time_max_amplitude.call_count == 2
+                p_estimate_time_max_amplitude.reset_mock()
+
+                all_ts[freq] = model_ehm.t
+
+        # we calculate the value of the amplitude at 10M
+        inter_at_10M = []
+        for freq in freqs_to_check:
+            inter_at_10M += [
+                {
+                    "freq": freq,
+                    "t_0": all_t0[freq],
+                    # 10 -> this is 10M
+                    "val": np.interp(10, all_ts[freq], all_frame_inv_amplitudes[freq]),
+                }
+            ]
+
+        inter_at_10M = pd.DataFrame(inter_at_10M)
+
+        # the estimated t_0 does in fact in this case vary so that stddev = 0.4108767856285839
+        # assert inter_at_10M["t_0"].std() < 1e-2
+
+        # the estimated amplitude at 10M does not vary too much
+        # without the fix, we obtain 0.02275764373726919 for this specific setup
+        print(inter_at_10M)
+        assert inter_at_10M["val"].std() / inter_at_10M["val"].max() < 1e-3
 
 
 def test_ehm_very_long_waveform_message():

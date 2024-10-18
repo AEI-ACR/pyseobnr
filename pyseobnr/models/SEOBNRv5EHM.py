@@ -21,6 +21,7 @@ from ..eob.fits.GSF_fits import GSF_amplitude_fits
 from ..eob.fits.IV_fits import InputValueFits
 from ..eob.hamiltonian.hamiltonian import Hamiltonian
 from ..eob.utils.containers import CalibCoeffs, EOBParams
+from ..eob.utils.utils import estimate_time_max_amplitude
 from ..eob.utils.utils_eccentric import (
     compute_attachment_time_qc,
     compute_ref_values,
@@ -146,6 +147,8 @@ class SEOBNRv5EHM_opt(Model):
         self.t_backwards = self.settings["t_backwards"]
         self.t_bwd_secular = self.settings["t_bwd_secular"]
         self.t_max = self.settings["t_max"]
+        self.warning_bwd_int = self.settings["warning_bwd_int"]
+        self.warning_secular_bwd_int = self.settings["warning_secular_bwd_int"]
         self.y_init = self.settings["y_init"]
         assert self.settings["integrator"] in get_args(IntegratorType)
         self.integrator: IntegratorType = cast(
@@ -248,6 +251,8 @@ class SEOBNRv5EHM_opt(Model):
             t_bwd_secular=0.0,
             secular_bwd_int=True,
             t_max=1e9,
+            warning_bwd_int=True,
+            warning_secular_bwd_int=True,
             y_init=None,
         )
 
@@ -448,7 +453,11 @@ class SEOBNRv5EHM_opt(Model):
                 self.eob_pars.ecc_params.r_min = self.r_start_min
 
             if self.r_start < self.r_start_min and self.secular_bwd_int:
-                logger.warning(
+                level = (
+                    logging.WARNING if self.warning_secular_bwd_int else logging.DEBUG
+                )
+                logger.log(
+                    level,
                     "The predicted starting separation of the system "
                     f"(r_start = {self.r_start}) "
                     "is below the minimum starting separation allowed by "
@@ -456,7 +465,7 @@ class SEOBNRv5EHM_opt(Model):
                     "Integrating backwards in time a set of secular "
                     "evolution equations to obtain a prediction "
                     "for the starting separation larger than this minimum. "
-                    "This will change the starting input values of the system."
+                    "This will change the starting input values of the system.",
                 )
                 try:
                     self.RR.initialize_secular_evolution_equations(self.eob_pars)
@@ -477,11 +486,12 @@ class SEOBNRv5EHM_opt(Model):
                         r_stop=self.r_start_min,
                         h_0=self.h_0,
                     )
-                    logger.warning(
+                    logger.log(
+                        level,
                         "The new starting input values of the system are: "
                         f"eccentricity = {self.eccentricity}, "
                         f"rel_anomaly = {self.rel_anomaly}, "
-                        f"omega_avg = {self.omega_avg}."
+                        f"omega_avg = {self.omega_avg}.",
                     )
                 except Exception:
                     error_message = (
@@ -522,7 +532,9 @@ class SEOBNRv5EHM_opt(Model):
             self.delta_t_backwards = abs(self.t_backwards) - abs(self.t_bwd_secular)
             dyn_backwards = None
             if self.delta_t_backwards > 0:
-                logger.warning(
+                level = logging.WARNING if self.warning_bwd_int else logging.DEBUG
+                logger.log(
+                    level,
                     "Integrating backwards in time the full EOB equations of "
                     "motion by the specified amount of time "
                     f"(|t| = {abs(self.t_backwards)} M) with respect to the "
@@ -530,7 +542,7 @@ class SEOBNRv5EHM_opt(Model):
                     f"M = {self.M} M_sun, this corresponds to "
                     f"|t| = {abs(self.t_backwards) * self.M * lal.MTSUN_SI} "
                     "seconds. The starting parameters of the system will "
-                    "change accordingly."
+                    "change accordingly.",
                 )
                 try:
                     y0, dyn_backwards = compute_dynamics_ecc_backwards_opt(
@@ -884,15 +896,22 @@ class SEOBNRv5EHM_opt(Model):
                 mixed_modes=self.mixed_modes,
                 align=False,
             )
-            self.t = t_full
-            self.waveform_modes = {}
 
             # Shift the time so that t = 0 corresponds to the last peak
             # of the frame-invariant amplitude, given a certain threshold
             amp_inv = frame_inv_amp(hlms_full, ell_max=self.max_ell_returned)
             try:
-                idx_max = find_peaks(amp_inv, height=max(amp_inv / 10.0))[0][-1]
-                self.t -= self.t[idx_max]
+                self.t = t_full - estimate_time_max_amplitude(
+                    time=t_full,
+                    amplitude=amp_inv,
+                    delta_t=self.delta_T,
+                    precision=0.001,
+                    peak_time_method=lambda _: int(
+                        # 0.1 is the threshold for the peak, [0] is the array
+                        # of the peaks
+                        find_peaks(_, height=np.max(_ * 0.1))[0][-1]
+                    ),
+                )
             except Exception:
                 error_message = (
                     "Internal function call failed: Input domain error. "
@@ -909,12 +928,20 @@ class SEOBNRv5EHM_opt(Model):
                 amp_inv = frame_inv_amp(
                     self.hlms_inspiral_interp, ell_max=self.max_ell_returned
                 )
-                idx_max = find_peaks(amp_inv, height=max(amp_inv / 10.0))[0][-1]
-                self.t = self.t_inspiral
-                self.t -= self.t_inspiral[idx_max]
+                self.t = self.t_inspiral - estimate_time_max_amplitude(
+                    time=self.t_inspiral,
+                    amplitude=amp_inv,
+                    delta_t=self.delta_T,
+                    precision=0.001,
+                    peak_time_method=lambda _: int(
+                        # 0.1 is the threshold for the peak
+                        find_peaks(_, height=np.max(_ * 0.1))[0][-1]
+                    ),
+                )
 
             # Step 13: Fill the final dictionary of modes
 
+            self.waveform_modes = {}
             for key in self.return_modes:
                 if not self.inspiral_modes:
                     self.waveform_modes[f"{key[0]},{key[1]}"] = hlms_full[key]
