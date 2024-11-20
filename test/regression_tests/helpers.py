@@ -97,14 +97,14 @@ def compare_frames(
             ).max(axis=1)
         )
 
-        assert fractional_diffs_column.max().item() < percentage_tolerance, (
+        assert float(fractional_diffs_column.max()) < percentage_tolerance, (
             f"column {column} exceeds fractional tolerance: "
             f"%g > {percentage_tolerance} at index %d and time %g "
             "(reference=%g, test=%g)"
         ) % (
-            fractional_diffs_column.max().item(),
+            float(fractional_diffs_column.max()),
             fractional_diffs_column.argmax(),
-            fractional_diffs_column.idxmax().item(),
+            fractional_diffs_column.idxmax(),
             reference_frame_projected.iloc[fractional_diffs_column.argmax()][
                 [column]
             ].item(),

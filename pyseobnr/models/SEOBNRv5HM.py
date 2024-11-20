@@ -69,6 +69,18 @@ class SEOBNRv5ModelBase:
         self.mixed_modes = None
         self.prefixes = None
 
+        self.rtol_ode = None
+        self.atol_ode = None
+        self.tol_PA = None
+
+        self.dA_dict = None
+        self.dw_dict = None
+        self.domega_dict = None
+        self.dtau_dict = None
+        self.dTpeak = None
+        self.da6 = None
+        self.ddSO = None
+
     def _validate_modes(self, user_settings: dict) -> int:
         """
         Check that the mode array is sensible, i.e.
@@ -155,6 +167,33 @@ class SEOBNRv5ModelBase:
             "extra_PN_terms", True
         )
         self.step_back = self.settings.get("step_back", 250.0)
+
+        # PA/ODE integration tolerances
+        self.tol_PA = self.settings.get("tol_PA", 1e-11)
+        self.rtol_ode = self.settings.get("rtol_ode", 1e-11)
+        self.atol_ode = self.settings.get("atol_ode", 1e-12)
+
+        default_deviation_dict = {f"{ell},{emm}": 0.0 for ell, emm in VALID_MODES}
+
+        # Plunge-merger deviations
+        self.dA_dict = default_deviation_dict | self.settings.get("dA_dict", {})
+        self.dw_dict = default_deviation_dict | self.settings.get("dw_dict", {})
+
+        self.dTpeak = self.settings.get("dTpeak", 0.0)
+
+        # EOB Hamiltonian deviation
+        self.da6 = self.settings.get("da6", 0.0)
+        self.ddSO = self.settings.get("ddSO", 0.0)
+
+        # QNM deviations
+        self.domega_dict = default_deviation_dict | self.settings.get("domega_dict", {})
+        self.dtau_dict = default_deviation_dict | self.settings.get("dtau_dict", {})
+        for value in self.dtau_dict.values():
+            if value <= -1:
+                raise ValueError(
+                    "dtau must be larger than -1, otherwise the remnant rings up instead "
+                    "of ringing down."
+                )
 
 
 class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBase):
@@ -320,40 +359,13 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBase):
     def _set_H_coeffs(self):
         dc = {}
         # Actual coeffs inside the Hamiltonian
-        a6_fit = a6_NS(self.nu)
+        a6_fit = a6_NS(self.nu) + self.da6
         dSO_fit = dSO(self.nu, self.ap, self.am)
         dc["a6"] = a6_fit
-        dc["dSO"] = dSO_fit
+        dc["dSO"] = dSO_fit + self.ddSO
 
         cfs = CalibCoeffs(dc)
         self.H.calibration_coeffs = cfs
-
-        # PA/ODE integration tolerances
-        self.tol_PA = self.settings.get("tol_PA", 1e-11)
-        self.rtol_ode = self.settings.get("rtol_ode", 1e-11)
-        self.atol_ode = self.settings.get("atol_ode", 1e-12)
-
-        default_deviation_dict = {f"{ell},{emm}": 0.0 for ell, emm in VALID_MODES}
-
-        # Plunge-merger deviations
-        self.dA_dict = default_deviation_dict | self.settings.get("dA_dict", {})
-        self.dw_dict = default_deviation_dict | self.settings.get("dw_dict", {})
-
-        self.dTpeak = self.settings.get("dTpeak", 0.0)
-
-        # EOB Hamiltonian deviation
-        self.da6 = self.settings.get("da6", 0.0)
-        self.ddSO = self.settings.get("ddSO", 0.0)
-
-        # QNM deviations
-        self.domega_dict = default_deviation_dict | self.settings.get("domega_dict", {})
-        self.dtau_dict = default_deviation_dict | self.settings.get("dtau_dict", {})
-        for value in self.dtau_dict.values():
-            if value <= -1:
-                raise ValueError(
-                    "dtau must be larger than -1, otherwise the remnant rings up instead "
-                    "of ringing down."
-                )
 
     def __call__(self):
         # Evaluate the model
@@ -383,17 +395,6 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBase):
                         key
                     ]
         self._evaluate_model()
-
-    def _set_H_coeffs(self):
-        dc = {}
-        # Actual coeffs inside the Hamiltonian
-        a6_fit = a6_NS(self.nu) + self.da6
-        dSO_fit = dSO(self.nu, self.ap, self.am)
-        dc["a6"] = a6_fit
-        dc["dSO"] = dSO_fit + self.ddSO
-
-        cfs = CalibCoeffs(dc)
-        self.H.calibration_coeffs = cfs
 
     def _evaluate_model(self):
         r_ISCO, _ = Kerr_ISCO(
@@ -880,29 +881,6 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBase):
         super()._initialize_params(phys_pars)
 
         self.eob_pars.aligned = False
-
-        # EOB Hamiltonian deviation
-        default_deviation_dict = {f"{ell},{emm}": 0.0 for ell, emm in VALID_MODES}
-
-        # Plunge-merger deviations
-        self.dA_dict = default_deviation_dict | self.settings.get("dA_dict", {})
-        self.dw_dict = default_deviation_dict | self.settings.get("dw_dict", {})
-
-        self.dTpeak = self.settings.get("dTpeak", 0.0)
-
-        # EOB Hamiltonian deviation
-        self.da6 = self.settings.get("da6", 0.0)
-        self.ddSO = self.settings.get("ddSO", 0.0)
-
-        # QNM deviations
-        self.domega_dict = default_deviation_dict | self.settings.get("domega_dict", {})
-        self.dtau_dict = default_deviation_dict | self.settings.get("dtau_dict", {})
-        for value in self.dtau_dict.values():
-            if value <= -1:
-                raise ValueError(
-                    "dtau must be larger than -1, otherwise the remnant rings up instead "
-                    "of ringing down."
-                )
 
     def _set_H_coeffs(self):
         dc = {}
