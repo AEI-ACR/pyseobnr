@@ -244,7 +244,6 @@ def test_generate_modes_opt_precessing_chi_array_float_int():
                 approximant=approx,
                 debug=False,
                 settings={
-                    "ell_max": 5,
                     "beta_approx": None,
                     "M": 154.2059835575123,
                     "dt": 6.103515625e-05,
@@ -264,7 +263,6 @@ def test_generate_modes_opt_precessing_chi_array_float_int():
                 approximant=approx,
                 debug=False,
                 settings={
-                    "ell_max": 5,
                     "beta_approx": None,
                     "M": 154.2059835575123,
                     "dt": 6.103515625e-05,

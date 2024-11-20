@@ -259,10 +259,59 @@ class GenerateWaveform:
         list mode_array:
             Mode content (only positive must be specified, e.g ``[(2,2),(2,1)]``).
             Defaults to ``None`` (all modes, see notes below).
+
+        dict domega_dict:
+            The non-GR fractional deviation to the frequencies for each mode.
+        dict dA_dict:
+            The non-GR fractional deviation to the merger amplitudes for each mode.
+        dict dw_dict:
+            The non-GR fractional deviation to the merger frequencies.
+        dict dtau_dict:
+            The non-GR fractional deviation to the damping times for each mode.
+            Values should be :math:`> -1`.
+        float dTpeak:
+            The non-GR additive deviation to the amplitude's peak time.
+        float da6:
+            The non-GR additive deviation to the ``a6`` calibration parameter.
+        float ddSO:
+            The non-GR additive deviation to the dSO calibration parameter.
+        bool deltaT_sampling:
+            If set to ``True``, throws an error if the the attachment time
+            induced by negative values of the deviation ``dTpeak`` is beyond the last
+            point calculated from the dynamics. In those cases, the attachment time is
+            set to be the last point of the dynamics.
+            Setting the parameter to ``True`` prevents having incorrect posteriors when
+            sampling over ``dTpeak``, as those parameters would be rejected.
+            Needs to be set to ``True`` if ``dTpeak`` is non-zero. Defaults to ``False``.
+        bool omega_prec_deviation:
+            If ``True`` (default), the fractional deviations to the J-frame QNM frequencies
+            are included into the precession rate computation (Eq. 13 in
+            `arXiv:2301.06558 <https://arxiv.org/abs/2301.06558>`_ ).
+
+        str initial_conditions:
+            Possible values are ``adiabatic`` (default) and ``postadiabatic``. Used
+            only for ``approximant="SEOBNRv5PHM"`` and ``postadiabatic`` is ``False``.
+        str initial_conditions_postadiabatic_type:
+            Possible values are ``analytic`` (default) and ``numeric``. Used together
+            with ``initial_conditions``.
+        bool postadiabatic:
+            Defaults to ``True``.
+        str postadiabatic_type:
+            Either ``analytic`` (default) or ``numeric``. Used only when ``postadiabatic``
+            is ``True``.
+        float tol_PA:
+            Tolerance for the root finding routine in case ``postadiabatic_type="numeric"``
+            is used. Defaults to 1e-11.
+
         str approximant:
 
             * ``SEOBNRv5HM`` (default)
             * ``SEOBNRv5PHM``
+
+        float rtol_ode:
+            Relative tolerance of the ODE integrators. Defaults to 1e-11.
+        float atol_ode:
+            Absolute tolerance of the ODE integrators. Defaults to 1e-12.
 
         Note
         ----
@@ -270,6 +319,10 @@ class GenerateWaveform:
         The default modes are ``(2, 2)``, ``(2, 1)``, ``(3, 3)``, ``(3, 2)``,
         ``(4, 4)`` and ``(4, 3)``. In particular ``(5, 5)`` is not included
         and should be explicitly set through ``ModeArray``.
+
+        All GR deviations default to 0.
+        For the dictionaries ``domega_dict``, ``dA_dict``, ``dw_dict``, ``dtau_dict``,
+        keys are the modes ``l,m`` as a string, for :math:`\\ell > 0`.
         """
 
         self.swap_masses: bool = False
@@ -327,6 +380,50 @@ class GenerateWaveform:
             "postadiabatic": True,
             "postadiabatic_type": "analytic",
             "r_size_input": 12,
+            "dA_dict": {
+                "2,2": 0.0,
+                "2,1": 0.0,
+                "3,3": 0.0,
+                "3,2": 0.0,
+                "4,4": 0.0,
+                "4,3": 0.0,
+                "5,5": 0.0,
+            },
+            "dw_dict": {
+                "2,2": 0.0,
+                "2,1": 0.0,
+                "3,3": 0.0,
+                "3,2": 0.0,
+                "4,4": 0.0,
+                "4,3": 0.0,
+                "5,5": 0.0,
+            },
+            "dTpeak": 0.0,
+            "da6": 0.0,
+            "ddSO": 0.0,
+            "domega_dict": {
+                "2,2": 0.0,
+                "2,1": 0.0,
+                "3,3": 0.0,
+                "3,2": 0.0,
+                "4,4": 0.0,
+                "4,3": 0.0,
+                "5,5": 0.0,
+            },
+            "dtau_dict": {
+                "2,2": 0.0,
+                "2,1": 0.0,
+                "3,3": 0.0,
+                "3,2": 0.0,
+                "4,4": 0.0,
+                "4,3": 0.0,
+                "5,5": 0.0,
+            },
+            "tol_PA": 1e-11,
+            "rtol_ode": 1e-11,
+            "atol_ode": 1e-12,
+            "deltaT_sampling": False,
+            "omega_prec_deviation": True,
         }
 
         # fills the provided parameters over the default ones
@@ -508,6 +605,33 @@ class GenerateWaveform:
         if "lmax_nyquist" in self.parameters:
             settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
 
+        if "dA_dict" in self.parameters:
+            settings.update(dA_dict=self.parameters["dA_dict"])
+        if "dw_dict" in self.parameters:
+            settings.update(dw_dict=self.parameters["dw_dict"])
+        if "dTpeak" in self.parameters:
+            settings.update(dTpeak=self.parameters["dTpeak"])
+        if "da6" in self.parameters:
+            settings.update(da6=self.parameters["da6"])
+        if "ddSO" in self.parameters:
+            settings.update(ddSO=self.parameters["ddSO"])
+        if "domega_dict" in self.parameters:
+            settings.update(domega_dict=self.parameters["domega_dict"])
+        if "dtau_dict" in self.parameters:
+            settings.update(dtau_dict=self.parameters["dtau_dict"])
+        if "tol_PA" in self.parameters:
+            settings.update(tol_PA=self.parameters["tol_PA"])
+        if "rtol_ode" in self.parameters:
+            settings.update(rtol_ode=self.parameters["rtol_ode"])
+        if "atol_ode" in self.parameters:
+            settings.update(atol_ode=self.parameters["atol_ode"])
+        if "deltaT_sampling" in self.parameters:
+            settings.update(deltaT_sampling=self.parameters["deltaT_sampling"])
+        if "omega_prec_deviation" in self.parameters:
+            settings.update(
+                omega_prec_deviation=self.parameters["omega_prec_deviation"]
+            )
+
         settings.update(f_ref=self.parameters["f_ref"])
         times, h, self._model = generate_modes_opt(
             q,
@@ -625,6 +749,33 @@ class GenerateWaveform:
 
             if "lmax_nyquist" in self.parameters:
                 settings.update(lmax_nyquist=self.parameters["lmax_nyquist"])
+
+            if "dA_dict" in self.parameters:
+                settings.update(dA_dict=self.parameters["dA_dict"])
+            if "dw_dict" in self.parameters:
+                settings.update(dw_dict=self.parameters["dw_dict"])
+            if "dTpeak" in self.parameters:
+                settings.update(dTpeak=self.parameters["dTpeak"])
+            if "da6" in self.parameters:
+                settings.update(da6=self.parameters["da6"])
+            if "ddSO" in self.parameters:
+                settings.update(ddSO=self.parameters["ddSO"])
+            if "domega_dict" in self.parameters:
+                settings.update(domega_dict=self.parameters["domega_dict"])
+            if "dtau_dict" in self.parameters:
+                settings.update(dtau_dict=self.parameters["dtau_dict"])
+            if "tol_PA" in self.parameters:
+                settings.update(tol_PA=self.parameters["tol_PA"])
+            if "rtol_ode" in self.parameters:
+                settings.update(rtol_ode=self.parameters["rtol_ode"])
+            if "atol_ode" in self.parameters:
+                settings.update(atol_ode=self.parameters["atol_ode"])
+            if "deltaT_sampling" in self.parameters:
+                settings.update(deltaT_sampling=self.parameters["deltaT_sampling"])
+            if "omega_prec_deviation" in self.parameters:
+                settings.update(
+                    omega_prec_deviation=self.parameters["omega_prec_deviation"]
+                )
 
             settings.update(f_ref=self.parameters["f_ref"])
             Mpc_to_meters = lal.PC_SI * 1e6
