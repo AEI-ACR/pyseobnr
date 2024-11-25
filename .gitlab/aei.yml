@@ -28,13 +28,13 @@ stages:
       fi
 
     - conda update -n base -c defaults conda
-    - conda install mamba libarchive
+    - conda install libarchive
 
-    - mamba create --yes --name python311 python=3.11
+    - conda create --yes --name python311 python=3.11
     # we need gcc because we will be compiling pyseobnr
     # pygsl_lite will pull gsl
     - |
-      mamba install \
+      conda install \
         --yes \
         --channel conda-forge \
         --channel bioconda \
@@ -51,10 +51,6 @@ stages:
     - pip install --upgrade setuptools coverage-badge parameterized
 
     - . ${CONDA_ROOT}/etc/profile.d/conda.sh
-    - |
-      if [ -f ${CONDA_ROOT}/etc/profile.d/mamba.sh ]; then
-        . ${CONDA_ROOT}/etc/profile.d/mamba.sh;
-      fi
 
 
 conda-test:
@@ -81,7 +77,7 @@ conda-docs:
 
   script:
     - |
-      mamba install \
+      conda install \
         --yes \
         --channel conda-forge \
         --channel bioconda \

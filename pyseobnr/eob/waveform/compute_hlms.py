@@ -594,8 +594,8 @@ def NQC_correction(
     m_2: float,
     chi_1: float,
     chi_2: float,
-    dA_dict: dict[str, float],
-    dw_dict: dict[str, float],
+    dA_dict: dict[str, float] | None = None,
+    dw_dict: dict[str, float] | None = None,
 ):
     """Given the inspiral modes and the dynamics this function
     computes the NQC coefficients at t_peak-nrDeltaT
@@ -614,6 +614,11 @@ def NQC_correction(
         dw_dict (dict): Dictionary of fractional deviation at instantaneous frequency at the mode
                         peak amplitude
     """
+    if dA_dict is None:
+        dA_dict = {} | _default_deviation_dict
+
+    if dw_dict is None:
+        dw_dict = {} | _default_deviation_dict
 
     # Compute omega
 
