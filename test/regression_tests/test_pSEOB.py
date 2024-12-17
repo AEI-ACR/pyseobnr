@@ -76,15 +76,11 @@ def test_pSEOB_check_dtau_above_m1_yields_an_error():
     approximant: SupportedApproximants
     for approximant in set(get_args(SupportedApproximants)):
         if approximant == "SEOBNRv5EHM":
-
             valid_modes = ("2,2", "2,1", "3,3", "3,2", "4,4", "4,3")
         else:
             valid_modes = ("2,2", "2,1", "3,3", "3,2", "4,4", "4,3", "5,5")
 
-        dtau_dict = {
-            k: random.uniform(-0.9999, 1)
-            for k in valid_modes
-        }
+        dtau_dict = {k: random.uniform(-0.9999, 1) for k in valid_modes}
         dtau_dict[random.choice(list(dtau_dict.keys()))] = -2
 
         with mock.patch(

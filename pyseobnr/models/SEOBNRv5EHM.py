@@ -447,7 +447,10 @@ class SEOBNRv5EHM_opt(Model):
         to quasicircular NR waveforms.
         """
 
-        dc = {"a6": a6_NS(self.nu) + self.da6, "dSO": dSO(self.nu, self.ap, self.am) + self.ddSO}
+        dc = {
+            "a6": a6_NS(self.nu) + self.da6,
+            "dSO": dSO(self.nu, self.ap, self.am) + self.ddSO,
+        }
         self.H.calibration_coeffs = CalibCoeffs(dc)
 
     def _evaluate_model(self):
