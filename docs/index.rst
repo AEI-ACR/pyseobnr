@@ -23,6 +23,7 @@ Welcome to pyseobnr's documentation!
 
    source/notebooks/getting_started.md
    source/notebooks/example_precession.md
+   source/notebooks/example_SEOBNRv5EHM.md
    source/notebooks/pseob_example.md
    source/notebooks/pycbc_example.md
 
@@ -41,6 +42,13 @@ Throughout the code we refer to several different technical documents, that can 
    pyseobnr.eob.dynamics
    pyseobnr.eob.waveform
    pyseobnr.eob.fits
+   pyseobnr.eob.utils
+   pyseobnr.eob.hamiltonian
 
    pyseobnr.models
    pyseobnr.auxiliary.mode_mixing.auxiliary_functions_modemixing
+
+Todos
+-----
+
+ .. todolist::

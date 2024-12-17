@@ -7,7 +7,7 @@ Also includes computation of NQCs
 from typing import Any, Dict
 
 import numpy as np
-import qnm
+import qnm  # initializes the logging and prevents proper setup in __main__
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 # Pre-cache the QNM interpolants
@@ -193,6 +193,11 @@ def EOBCalculateNQCCoefficients_freeattach(
         nrTimePeak = time[-1]
         if ell == 5 and m == 5:
             nrTimePeak -= 10  # (5,5) mode always 10 M before peak of (2,2)
+    if nrTimePeak < time[0]:
+        # In the eccentric model, for very short systems the attachment time
+        # can overshoot the beginning of the fine dynamics, so here we put
+        # the attachment time at the beginning of the fine dynamics
+        nrTimePeak = time[0]
 
     # Compute amplitude NQCs (a1,a2,a3) by solving Eq.(10) of T1100433v2
     # Evaluate the Qs at the right time and build Q matrix (LHS)

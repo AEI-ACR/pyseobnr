@@ -83,20 +83,112 @@ cdef class Dynamics:
         self.p_circ = np.zeros(2,dtype=np.float64)
 
 
-@cython.embedsignature(True)
+cdef class EccParams:
+    """
+    Holds several parameters for the eccentric model.
+
+    For initialization, a dictionary ``dc`` should be given with the following
+    keys:
+
+    * ``dissipative_ICs``
+    * ``eccentricity``
+    * ``EccIC``
+    * ``flags_ecc``
+    * ``IC_messages``
+    * ``rel_anomaly``
+    * ``r_min``
+    * ``t_max``
+
+    All the other quantities are set to a default value.
+
+    .. versionadded:: 0.3
+    """
+
+    def __init__(
+        self,
+        dc: dict):
+        """
+        Initializes the eccentric parameters.
+
+        :param dict dc: dictionary containing initial values for the
+            :py:attr:`~.EccParams.dissipative_ICs`
+            :py:attr:`~.EccParams.eccentricity`
+            :py:attr:`~.EccParams.EccIC`
+            :py:attr:`~.EccParams.flags_ecc`
+            :py:attr:`~.EccParams.IC_messages`
+            :py:attr:`~.EccParams.rel_anomaly`
+            :py:attr:`~.EccParams.r_min`
+            :py:attr:`~.EccParams.t_max`
+        """
+
+    def __cinit__(self, dict dc):
+
+        self.dissipative_ICs = dc["dissipative_ICs"]
+        self.eccentricity = dc["eccentricity"]
+        self.EccIC = dc["EccIC"]
+        self.flags_ecc = dc["flags_ecc"]
+        self.IC_messages = dc["IC_messages"]
+        self.rel_anomaly = dc["rel_anomaly"]
+        self.r_min = dc["r_min"]
+        self.t_max = dc["t_max"]
+        self.stopping_condition = ""
+        self.validate_separation = True
+        self.attachment_check_ecc = 0.0
+        self.attachment_check_qc = 0.0
+        self.NR_deltaT = 0.0
+        self.omega_avg = 0.0
+        self.omega_inst = 0.0
+        self.omega_start_qc = 0.0
+        self.r_final = 0.0
+        self.r_ISCO = 0.0
+        self.r_start_guess = 0.0
+        self.r_start_ICs = 0.0
+        self.t_attach_ecc = 0.0
+        self.t_attach_ecc_predicted = 0.0
+        self.t_attach_qc = 0.0
+        self.t_attach_qc_predicted = 0.0
+        self.t_ISCO_ecc = 0.0
+        self.t_ISCO_qc = 0.0
+        self.x_avg = 0.0
+
+
+#@cython.embedsignature(True)
 cdef class EOBParams:
     """
-    A class to hold various EOB related quantities
+    Holds EOB quantities
     """
-    def __init__(self,physical_params,coeffs,aligned=True,extra_PN_terms=True,
-                mode_array=[(2,2),(2,1),(3,3),(3,2),(4,4),(4,3),(5,5)],
-                special_modes=[(2,1),(4,3),(5,5)]):
+
+    def __init__(
+        self,
+        physical_params: dict,
+        coeffs,
+        aligned=True,
+        extra_PN_terms=True,
+        mode_array=[(2,2),(2,1),(3,3),(3,2),(4,4),(4,3),(5,5)],
+        special_modes=[(2,1),(4,3),(5,5)],
+        ecc_model=False):
+        """
+        Initializes the EOB parameters.
+
+        :param bool ecc_model: if set to ``True``, the EOB params are associated
+            to the eccentric model and will initialize the class
+            :py:class:`.EccParams`.
+            This would require the ``physical_params`` to contain the keys required
+            by the instantiation of :py:class:`.EccParams`.
+        """
         # Needed to get the signature to embed
         pass
 
-    def __cinit__(self,physical_params,coeffs,aligned=True,extra_PN_terms=True,
-                mode_array=[(2,2),(2,1),(3,3),(3,2),(4,4),(4,3),(5,5)],
-                special_modes=[(2,1),(4,3),(5,5)]):
+    def __cinit__(
+        self,
+        physical_params,
+        coeffs,
+        aligned=True,
+        extra_PN_terms=True,
+        mode_array=[(2,2),(2,1),(3,3),(3,2),(4,4),(4,3),(5,5)],
+        special_modes=[(2,1),(4,3),(5,5)],
+        ecc_model=False):
+
         # Physical params (e.g. spins)
         self.p_params = PhysicalParams(physical_params)
         # Calibration coefficients
@@ -108,3 +200,7 @@ cdef class EOBParams:
         # Mode array to use for generating modes
         self.mode_array = mode_array
         self.aligned = aligned
+
+        # Parameters for the eccentric model
+        if ecc_model:
+            self.ecc_params = EccParams(physical_params)

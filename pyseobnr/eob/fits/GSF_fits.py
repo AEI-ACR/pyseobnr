@@ -2,6 +2,7 @@
 This file contains the coefficients of fits of the amplitude
 to 2nd order self-force results
 """
+
 from typing import Any, Dict
 
 import numpy as np
