@@ -1,6 +1,6 @@
-# -- build --------
 
 [build-system]
+    # -- build --------
     build-backend = "setuptools.build_meta"
     requires = [
         "setuptools",
@@ -11,9 +11,9 @@
         "scipy",
     ]
 
-    # -- metadata -----
 
 [project]
+    # -- metadata -----
     authors = [
         { name = "Serguei Ossokine", email = "serguei.ossokine@tutanota.com" },
         { name = "Lorenzo Pompili", email = "lorenzo.pompili@ligo.org" },
@@ -101,6 +101,8 @@
         'pyarrow',
         'seaborn',
         'pycbc',
+        'astropy',
+        'gwpy',
     ]
 
     tests = ['pytest', 'pytest-sugar', 'pandas', 'pyarrow', 'pycbc']

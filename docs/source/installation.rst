@@ -10,10 +10,11 @@ Install pyseobnr from source
 
 To install ``pyseobnr`` you will need a few non-python dependencies, at a minimum:
 
-- ``python >=3.9, <3.12``
+- ``python >=3.9``
 - ``gcc``
 - ``gsl``
 - ``swig``
+- ``pandoc`` if you want to build the documentation
 
 All of these are easily installable with ``conda`` (or available in standard ``conda``
 envs provided by ``IGWN``), or your favorite package manager.
@@ -54,7 +55,25 @@ to be installed separately with the command
 Installing optional dependencies to build documentation
 -------------------------------------------------------
 
-To build documentation, install the relevant dependencies with
+To build documentation, first install `pandoc`, either as a `conda` package in your `conda` environment
+
+.. code-block:: console
+
+    (.conda_venv) $ conda install --yes --channel conda-forge pandoc
+
+or a system package, for instance:
+
+.. code-block:: console
+
+    (.venv) $ apt-get update && apt-get install -y pandoc
+
+or with `brew` on `macOS` systems:
+
+.. code-block:: console
+
+    (.venv) $ brew install pandoc
+
+Once `pandoc` is installed, you need to install the additional packages dependencies with
 
 .. code-block:: console
 

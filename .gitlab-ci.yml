@@ -103,7 +103,11 @@ test:
           make
           pytest
           lalsuite
+          scipy
+          pycbc
           pygsl_lite
+          pandas pyarrow
+
   script:
     - conda activate tests
     - pip install ".[tests]"

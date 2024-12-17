@@ -18,7 +18,8 @@ def test_pSEOB_settings_passed_to_underlying_models():
     dict_params = "dA_dict", "dw_dict", "domega_dict", "dtau_dict"
 
     for current_dict in dict_params:
-        for approximant in get_args(SupportedApproximants):
+        approximant: SupportedApproximants
+        for approximant in set(get_args(SupportedApproximants)) - {"SEOBNRv5EHM"}:
 
             random_dict = {
                 k: random.uniform(-1 if current_dict != "dtau" else -0.9999, 1)
@@ -67,8 +68,8 @@ def test_pSEOB_check_dtau_above_m1_yields_an_error():
     chi_1 = 0.98917404
     chi_2 = 0.3
 
-    for approximant in get_args(SupportedApproximants):
-
+    approximant: SupportedApproximants
+    for approximant in set(get_args(SupportedApproximants)) - {"SEOBNRv5EHM"}:
         dtau_dict = {
             k: random.uniform(-0.9999, 1)
             for k in ("2,2", "2,1", "3,3", "3,2", "4,4", "4,3", "5,5")
@@ -114,7 +115,8 @@ def test_pSEOB_settings_passed_with_missing_modes():
     # when some modes are missing: filled with 0
     for current_dict in dict_params:
 
-        for approximant in get_args(SupportedApproximants):
+        approximant: SupportedApproximants
+        for approximant in set(get_args(SupportedApproximants)) - {"SEOBNRv5EHM"}:
 
             # 3,3 is missing from here
             random_dict = {

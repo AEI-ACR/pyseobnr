@@ -73,7 +73,7 @@ cpdef augment_dynamics(
     """Compute dynamical quantities we need for the waveform
 
     Args:
-        dynamics (np,ndarray): The dynamics array: t,r,phi,pr,pphi
+        dynamics (np.ndarray): The dynamics array: t,r,phi,pr,pphi
     """
     result = []
     cdef double[:] p_c = np.zeros(2)
@@ -102,3 +102,54 @@ cpdef augment_dynamics(
         result.append([H_val, omega, omega_c])
     result = np.array(result)
     return np.c_[dynamics, result]
+
+
+cpdef compute_H_and_omega(
+    double[:, :] dynamics,
+    double chi_1,
+    double chi_2,
+    double m_1,
+    double m_2,
+    Hamiltonian_C H
+):
+    """
+    Compute dynamical quantities needed for the waveforms.
+
+    Simplified version of :py:func:`.augment_dynamics`
+    when only :math:`\\Omega` is needed.
+
+    Args:
+        dynamics (2d memory view of type double):  Dynamical variables (t, r, phi, pr, pphi)
+        chi_1 (double): Z-component of the dimensionless spin vector of the primary black hole
+        chi_2 (double): Z-component of the dimensionless spin vector of the secondary black hole
+        m_1 (double): Mass of the primary black hole
+        m_2 (double): Mass of the secondary black hole
+        H (Hamiltonian_C): Hamiltonian
+
+    Returns:
+        np.array: ``dynamics`` with an additional column containing omega.
+    """
+
+    cdef double dyn[6]
+    cdef double[:] q
+    cdef double[:] p
+    cdef double[:] row
+    cdef int i, N
+
+    N = dynamics.shape[0]
+    result = np.empty((N, 2), np.float64)
+    cdef double[:, ::1] result_mem_view = result
+
+    for i in range(N):
+        row = dynamics[i]
+        q = row[1:3]
+        p = row[3:5]
+
+        # Only evaluate omega
+        dyn[:] = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
+        # omega = dyn[3]
+        # H_val = dyn[4]
+        result_mem_view[i, 0] = dyn[4]
+        result_mem_view[i, 1] = dyn[3]
+
+    return result

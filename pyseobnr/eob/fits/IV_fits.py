@@ -95,9 +95,7 @@ class InputValueFits:
         a5 = h33_opt[5]
         a6 = h33_opt[6]
         a7 = h33_opt[7]
-        h_modes[3, 3] = (
-            a0 + a1 * self.nu + a2 * self.nu**2
-        ) * self.chi33 + self.dm * (
+        h_modes[3, 3] = (a0 + a1 * self.nu + a2 * self.nu**2) * self.chi33 + self.dm * (
             a3
             + a4 * self.nu
             + a5 * self.nu**2
@@ -200,9 +198,7 @@ class InputValueFits:
         a5 = h43_opt[5]
         a6 = h43_opt[6]
         a7 = h43_opt[7]
-        h_modes[4, 3] = (
-            a0 + a1 * self.nu + a2 * self.nu**2
-        ) * self.chi33 + self.dm * (
+        h_modes[4, 3] = (a0 + a1 * self.nu + a2 * self.nu**2) * self.chi33 + self.dm * (
             a3
             + a4 * self.nu
             + a5 * self.nu**2
@@ -402,9 +398,7 @@ class InputValueFits:
         a4 = h33dot_opt[4]
         a5 = h33dot_opt[5]
         a6 = h33dot_opt[6]
-        hdot_modes[3, 3] = self.dm * (
-            a0 + a1 * self.nu
-        ) * self.chi33**2 + a2 * np.sqrt(
+        hdot_modes[3, 3] = self.dm * (a0 + a1 * self.nu) * self.chi33**2 + a2 * np.sqrt(
             np.abs(
                 self.dm**2 * (a3 + a4 * self.nu)
                 + self.dm * (a5 + a6 * self.nu) * self.chi33
@@ -552,13 +546,7 @@ class InputValueFits:
         a7 = h33dotdot_opt[7]
         hdotdot_modes[3, 3] = self.dm * (a0 + a1 * self.nu) * self.chi33 + a2 * abs(
             self.dm
-            * (
-                a3
-                + a4 * self.nu
-                + a5 * self.nu**2
-                + a6 * self.nu**3
-                + a7 * self.nu**4
-            )
+            * (a3 + a4 * self.nu + a5 * self.nu**2 + a6 * self.nu**3 + a7 * self.nu**4)
             + self.chi33
         )
         h21dotdot_opt = (
@@ -647,13 +635,7 @@ class InputValueFits:
         a7 = h43dotdot_opt[7]
         hdotdot_modes[4, 3] = self.dm * (a0 + a1 * self.nu) * self.chi33 + a2 * abs(
             self.dm
-            * (
-                a3
-                + a4 * self.nu
-                + a5 * self.nu**2
-                + a6 * self.nu**3
-                + a7 * self.nu**4
-            )
+            * (a3 + a4 * self.nu + a5 * self.nu**2 + a6 * self.nu**3 + a7 * self.nu**4)
             + self.chi33
         )
         return hdotdot_modes

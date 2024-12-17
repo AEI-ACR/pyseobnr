@@ -123,6 +123,7 @@ def compute_IMR_modes(
     mixed_modes: list[tuple[int, int]] | None = None,
     final_state=None,
     qnm_rotation=0.0,
+    align=True,
     dw_dict: dict[str, float] | None = None,
     domega_dict: dict[str, float] | None = None,
     dtau_dict: dict[str, float] | None = None,
@@ -147,6 +148,7 @@ def compute_IMR_modes(
                             compute internally.
         qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame
                             (Eq. 33 of Hamilton et al.)
+        align (bool): If True, align the waveform at the peak of the (2,2) mode.
         dw_dict (dict): Dictionary of fractional deviation at instantaneous frequency at the mode
                         peak amplitude
         domega_dict (dict): Dictionary of fractional deviations of QNM frequency for each mode
@@ -349,8 +351,11 @@ def compute_IMR_modes(
         hIMR[(ell, m)][idx_end + 1 : idx_end + 1 + len(hring)] = hring[:]
 
     t_IMR = np.arange(len(hIMR[(2, 2)])) * dt
-    peak = np.argmax(np.abs(hIMR[(2, 2)]))
-    t_IMR -= t_IMR[peak]
+
+    if align:
+        peak = np.argmax(np.abs(hIMR[(2, 2)]))
+        t_IMR -= t_IMR[peak]
+
     return t_IMR, hIMR
 
 
@@ -589,8 +594,8 @@ def NQC_correction(
     m_2: float,
     chi_1: float,
     chi_2: float,
-    dA_dict: dict[str, float],
-    dw_dict: dict[str, float],
+    dA_dict: dict[str, float] | None = None,
+    dw_dict: dict[str, float] | None = None,
 ):
     """Given the inspiral modes and the dynamics this function
     computes the NQC coefficients at t_peak-nrDeltaT
@@ -609,6 +614,11 @@ def NQC_correction(
         dw_dict (dict): Dictionary of fractional deviation at instantaneous frequency at the mode
                         peak amplitude
     """
+    if dA_dict is None:
+        dA_dict = {} | _default_deviation_dict
+
+    if dw_dict is None:
+        dw_dict = {} | _default_deviation_dict
 
     # Compute omega
 

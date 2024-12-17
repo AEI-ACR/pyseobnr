@@ -1,5 +1,18 @@
+import re
+
+import lal
 import numpy as np
 import pandas as pd
+from pycbc.filter import make_frequency_series
+from pycbc.types import TimeSeries
+from pycbc.waveform import taper_timeseries
+
+from pyseobnr.eob.fits import GSF_amplitude_fits, a6_NS, dSO
+from pyseobnr.eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
+    Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C as Ham_aligned_opt,
+)
+from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
+from pyseobnr.eob.waveform.waveform import compute_newtonian_prefixes
 
 
 def compare_frames(
@@ -99,3 +112,173 @@ def compare_frames(
                 [column]
             ].item(),
         )
+
+
+def combine_modes(
+    iota: float, phi: float, modes_dict: dict
+) -> tuple[np.array, np.array]:
+    """Combine modes to compute the waveform polarizations in the direction
+    (iota,np.pi/2-phi)
+
+    Args:
+        iota (float): Inclination angle (rad)
+        phi (float): Azimuthal angle(rad)
+        modes_dict (Dict): Dictionary containing the modes, either time of frequency-domain
+
+    Returns:
+        np.array: Waveform in the given direction
+    """
+    sm = 0.0
+    for key in modes_dict.keys():
+        # print(key)
+        ell, m = [int(x) for x in key.split(",")]
+        Ylm0 = lal.SpinWeightedSphericalHarmonic(iota, np.pi / 2 - phi, -2, ell, m)
+        sm += Ylm0 * modes_dict[key]
+
+    return np.real(sm), -np.imag(sm)
+
+
+def ampNRtoPhysicalTD(ampNR, mt: float, distance: float):
+    return ampNR * (lal.C_SI * mt * lal.MTSUN_SI) / distance
+
+
+def get_hp_hc(
+    current_modes,
+    total_mass,
+    iota_s: float,
+    distance: float,
+    phi_s: float,
+    delta_t: float,
+):
+    hp_NR, hc_NR = combine_modes(iota_s, phi_s, current_modes)
+
+    hp = ampNRtoPhysicalTD(hp_NR, total_mass, distance)
+    hc = ampNRtoPhysicalTD(hc_NR, total_mass, distance)
+
+    # Taper
+    hp_td = TimeSeries(hp, delta_t=delta_t)
+    hc_td = TimeSeries(hc, delta_t=delta_t)
+    hp_td = taper_timeseries(hp_td, tapermethod="startend")
+    hc_td = taper_timeseries(hc_td, tapermethod="startend")
+
+    N = max(len(hp_td), len(hc_td))
+    pad = int(2 ** (np.floor(np.log2(N)) + 2))
+    hp_td.resize(pad)
+    hc_td.resize(pad)
+
+    # Perform the Fourier Transform
+    hp = make_frequency_series(hp_td)
+    hc = make_frequency_series(hc_td)
+
+    return hp, hc
+
+
+def create_eob_params(
+    m_1,
+    m_2,
+    chi_1,
+    chi_2,
+    omega,
+    omega_circ,
+    omega_avg,
+    omega_instant,
+    x_avg,
+    eccentricity,
+    rel_anomaly,
+):
+
+    # to get the exact same nu as in the models computations (a6 is very
+    # sensitive to this), we perform the exact same calculations for
+    # q, nu, m_1 and m_2
+    q = m_1 / m_2
+    nu = q / (1.0 + q) ** 2
+
+    m_1 = q / (1.0 + q)
+    m_2 = 1.0 / (1.0 + q)
+
+    eob_params_call1 = EOBParams(
+        {
+            "m_1": m_1,
+            "m_2": m_2,
+            "chi_1": chi_1,
+            "chi_2": chi_2,
+            "a1": abs(chi_1),
+            "a2": abs(chi_2),
+            "chi1_v": np.array([0.0, 0.0, chi_1]),
+            "chi2_v": np.array([0.0, 0.0, chi_2]),
+            "lN": np.array([0.0, 0.0, 1.0]),
+            "omega": omega,
+            "omega_circ": omega_circ,
+            "H_val": 0.0,
+            # ecc params
+            "flags_ecc": dict(
+                flagPN12=1,
+                flagPN1=1,
+                flagPN32=1,
+                flagPN2=1,
+                flagPN52=1,
+                flagPN3=1,
+                flagPA=1,
+                flagPA_modes=1,
+                flagTail=1,
+                flagMemory=1,
+            ),
+            "IC_messages": False,
+            "dissipative_ICs": "root",
+            "eccentricity": eccentricity,
+            "rel_anomaly": rel_anomaly,
+            "EccIC": 1,
+            "t_max": 1e9,
+            "r_min": 7.0,
+        },
+        {},
+        mode_array=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)],
+        ecc_model=True,
+    )
+    eob_params_call1.flux_params.rho_initialized = False
+    eob_params_call1.flux_params.prefixes = np.array(
+        compute_newtonian_prefixes(m_1, m_2)
+    )
+    eob_params_call1.flux_params.prefixes_abs = np.abs(
+        eob_params_call1.flux_params.prefixes
+    )
+    eob_params_call1.flux_params.extra_PN_terms = True
+
+    eob_params_call1.ecc_params.omega_avg = omega_avg
+    eob_params_call1.ecc_params.omega_inst = omega_instant
+    eob_params_call1.ecc_params.x_avg = x_avg
+
+    eob_params_call1.dynamics.p_circ = np.array([0.0, 0.0])
+
+    assert eob_params_call1.aligned is True
+    assert eob_params_call1.c_coeffs is None
+
+    assert (np.array(eob_params_call1.flux_params.delta_coeffs) == 0).all()
+    assert (np.array(eob_params_call1.flux_params.delta_coeffs_vh) == 0).all()
+    assert (np.array(eob_params_call1.flux_params.deltalm) == 0).all()
+    # extra_coeffs, extra_coeffs_log not 0
+
+    gsf_coeffs = GSF_amplitude_fits(eob_params_call1.p_params.nu)
+    keys = gsf_coeffs.keys()
+    for key in keys:
+        tmp = re.findall(r"h(\d)(\d)_v(\d+)", key)
+        if tmp:
+            l, m, v = [int(x) for x in tmp[0]]
+            eob_params_call1.flux_params.extra_coeffs[l, m, v] = gsf_coeffs[key]
+        elif tmp := re.findall(r"h(\d)(\d)_vlog(\d+)", key):
+            l, m, v = [int(x) for x in tmp[0]]
+            eob_params_call1.flux_params.extra_coeffs_log[l, m, v] = gsf_coeffs[key]
+
+    hamiltonian = Ham_aligned_opt(eob_params_call1)
+    hamiltonian.calibration_coeffs = CalibCoeffs(
+        {
+            "a6": a6_NS(nu),
+            "dSO": dSO(
+                nu,
+                m_1 * chi_1 + m_2 * chi_2,  # ap
+                m_1 * chi_1 - m_2 * chi_2,  # am
+            ),
+        }
+    )
+
+    return eob_params_call1, hamiltonian

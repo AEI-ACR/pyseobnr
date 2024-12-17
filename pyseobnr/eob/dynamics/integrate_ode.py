@@ -11,7 +11,7 @@ from scipy.interpolate import CubicSpline
 
 from ..utils.utils import interpolate_dynamics, iterative_refinement
 from .initial_conditions_aligned_opt import computeIC_opt
-from .rhs_aligned import augment_dynamics, get_rhs
+from .rhs_aligned import augment_dynamics, compute_H_and_omega, get_rhs
 
 step = odeiv2.pygsl_lite_odeiv2_step
 _control = odeiv2.pygsl_lite_odeiv2_control
@@ -206,10 +206,11 @@ def compute_dynamics_opt(
     # print(f"idx_close:{idx_close}, t[idx_close]={ts[idx_close]}")
 
     dyn_coarse = augment_dynamics(dyn_coarse, chi_1, chi_2, m_1, m_2, H)
-    dyn_fine = augment_dynamics(dyn_fine, chi_1, chi_2, m_1, m_2, H)
+
     t_peak = None
     if peak_omega:
-        intrp = CubicSpline(dyn_fine[:, 0], dyn_fine[:, -2])
+        dyn_fine_H_and_omega = compute_H_and_omega(dyn_fine, chi_1, chi_2, m_1, m_2, H)
+        intrp = CubicSpline(dyn_fine[:, 0], dyn_fine_H_and_omega[:, 1])
         left = dyn_fine[0, 0]
         right = dyn_fine[-1, 0]
         t_peak = iterative_refinement(intrp.derivative(), [left, right])
@@ -220,9 +221,7 @@ def compute_dynamics_opt(
         right = dyn_fine[-1, 0]
         t_peak = iterative_refinement(intrp.derivative(), [left, right], pr=True)
 
-    dyn_fine = interpolate_dynamics(
-        dyn_fine[:, :-3], peak_omega=t_peak, step_back=step_back
-    )
+    dyn_fine = interpolate_dynamics(dyn_fine, peak_omega=t_peak, step_back=step_back)
     dyn_fine = augment_dynamics(dyn_fine, chi_1, chi_2, m_1, m_2, H)
 
     return dyn_coarse, dyn_fine

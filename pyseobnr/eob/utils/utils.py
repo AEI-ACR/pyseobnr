@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from collections.abc import Callable
 from typing import cast
 
 import numpy as np
@@ -79,13 +82,24 @@ def interpolate_dynamics(dyn_fine, dt=0.1, peak_omega=None, step_back=250.0):
 
 
 def estimate_time_max_amplitude(
-    time: np.array, amplitude: np.array, delta_t: float, precision=0.001
+    time: np.array,
+    amplitude: np.array,
+    delta_t: float,
+    precision=0.001,
+    peak_time_method: Callable[[np.array], int] | None = None,
 ) -> float:
     assert time.shape == amplitude.shape
     # the knots are calculated globally, but we may consider a local one around
     # the initial guess of the max
     amplitude_interpolated = CubicSpline(time, amplitude)
-    t_max_coarse = time[np.argmax(amplitude)]
+
+    # default to taking the maximum
+    idx_peak_time = (
+        np.argmax(amplitude)
+        if peak_time_method is None
+        else peak_time_method(amplitude)
+    )
+    t_max_coarse = time[idx_peak_time]
 
     t_fine_peak = np.arange(t_max_coarse - delta_t, t_max_coarse + delta_t, precision)
     amplitude_interpolated_eval = amplitude_interpolated(t_fine_peak)

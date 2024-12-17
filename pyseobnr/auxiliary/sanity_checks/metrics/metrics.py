@@ -1,16 +1,22 @@
-#!/usr/bin/env python3
 import logging
 from abc import ABC
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Final
 
 import lal
 import numpy as np
-from pyseobnr.models.model import Model
-from rich.logging import RichHandler
-from rich.traceback import install
+from pycbc.types import FrequencySeries, TimeSeries
+from pycbc.waveform import fd_approximants
 from scipy.interpolate import CubicSpline
 
-from .default_settings import default_unfaitfulness_mode_by_mode_settings
+from pyseobnr.models.model import Model
+
+try:
+    from waveform_tools.mismatch.auxillary_funcs import waveform_params
+except ImportError:
+    print("waveform_tools is not installed, some metrics not available")
+    waveform_params = None
+
+
 from .unfaithfulness_mode_by_mode import (
     condition_pycbc_series,
     fast_unfaithfulness_mode_by_mode,
@@ -18,35 +24,30 @@ from .unfaithfulness_mode_by_mode import (
     get_padded_length,
 )
 
-try:
-    from waveform_tools.mismatch.auxillary_funcs import *
-
-except ImportError:
-    print("waveform_tools is not installed, some metrics not available")
-
-
-from pycbc.types import FrequencySeries, TimeSeries
-from pycbc.waveform import fd_approximants
-
-# Setup the logger to work with rich
 logger = logging.getLogger(__name__)
-logger.addHandler(RichHandler(rich_tracebacks=True, markup=True))
-logger.setLevel("INFO")
-# Setup rich to get nice tracebacks
-install()
+
+
+def default_unfaithfulness_mode_by_mode_settings() -> dict[Any, Any]:
+    settings = dict(
+        sigma=0.001,  # the sigma to use in likelihood
+    )
+    return settings
 
 
 class Metric(ABC):
     def __init__(self):
         pass
 
-    def __call__(self):
+    def __call__(self, **kwargs):
         pass
 
 
 class UnfaithfulnessModeByModeLAL(Metric):
+    name: Final = "UnfaithfulnessModeByModeLAL"
+
     def __init__(self, settings: Dict[Any, Any] = None):
-        self.settings = default_unfaitfulness_mode_by_mode_settings()
+        super().__init__()
+        self.settings = default_unfaithfulness_mode_by_mode_settings()
         if settings is not None:
             self.settings.update(**settings)
 
@@ -56,7 +57,6 @@ class UnfaithfulnessModeByModeLAL(Metric):
         )
         self.buffer = self.settings.get("buffer", 1.35)
         self.fmax = self.settings.get("fmax", 2048.0)
-        self.name = "UnfaithfulnessModeByModeLAL"
 
     def __call__(
         self,
@@ -75,10 +75,10 @@ class UnfaithfulnessModeByModeLAL(Metric):
         params: Dict[Any, Any] = None,
         ell: int = 2,
         m: int = 2,
-        M=50.0,
+        M: float = 50.0,
     ) -> float:
 
-        # Ensure that the input parameters of everrything are consistent
+        # Ensure that the input parameters of everything are consistent
 
         logger.debug("Sanity checking inputs")
         # self._sanity_check_inputs(target, model, params)
@@ -89,10 +89,12 @@ class UnfaithfulnessModeByModeLAL(Metric):
                 np.real(target.waveform_modes[f"{ell},{m}"]), delta_t=target.delta_T
             )
             t1 = target.t
-            #omega1 = target.omega0
+            # omega1 = target.omega0
             # Estimate the actual starting frequency from (2,2) mode
-            intrp = CubicSpline(target.t,np.unwrap(np.angle(target.waveform_modes['2,2'])))
-            omega1 = np.abs(intrp.derivative()(target.t[0]))/2.
+            intrp = CubicSpline(
+                target.t, np.unwrap(np.angle(target.waveform_modes["2,2"]))
+            )
+            omega1 = np.abs(intrp.derivative()(target.t[0])) / 2.0
             logger.debug("Target was a Model, grabbed stuff")
         else:
             # Assume that otherwise it's a call to LAL and special care has to be taken
@@ -112,7 +114,7 @@ class UnfaithfulnessModeByModeLAL(Metric):
                 np.real(model.waveform_modes[f"{ell},{m}"]), delta_t=model.delta_T
             )
             t2 = model.t
-            omega2 = model.omega0
+            omega2 = model.omega0 if hasattr(model, "omega0") else model.omega_start
         else:
             # Assume that otherwise it's a call to LAL and special care has to be taken
             if params is not None:
@@ -147,7 +149,8 @@ class UnfaithfulnessModeByModeLAL(Metric):
         # Situation 1: both inputs are in time domain
         # Figure out the length of the longer waveform
         # We use this to pad the waveforms
-        # Situtation 2: one of the inputs is in frequency domain
+
+        # Situation 2: one of the inputs is in frequency domain
         # Figure out what we do.
         if isinstance(h1, TimeSeries) and isinstance(h2, TimeSeries):
             N = np.max((len(h1), len(h2)))
@@ -158,8 +161,11 @@ class UnfaithfulnessModeByModeLAL(Metric):
         elif isinstance(h1, FrequencySeries) and isinstance(h2, TimeSeries):
             h2 = condition_pycbc_series(h2)
 
-        matches = fast_unfaithfulness_mode_by_mode(h1, h2, flow, Ms=self.masses, psd_t = 'aLIGO')
-        # Get the highest unfaithulness
+        matches = fast_unfaithfulness_mode_by_mode(
+            h1, h2, flow, Ms=self.masses, psd_t="aLIGO"
+        )
+
+        # Get the highest unfaithfulness
         mm = 1 - np.min(matches)
         if self.debug:
             return 1 - matches
@@ -172,6 +178,7 @@ class UnfaithfulnessModeByModeLAL(Metric):
         ) and params is not None:
             logger.warning("Ignoring the params dict, as it was not needed!")
             return
+
         # At this point only one (target,model) can be a Model
         if isinstance(target, Model) and params is not None:
             q_t = target.q
@@ -183,6 +190,7 @@ class UnfaithfulnessModeByModeLAL(Metric):
             assert np.allclose(q, q_t)
             # assert np.allclose(chi1_t, chi1)
             # assert np.allclose(chi2_t, chi2)
+
         elif isinstance(model, Model) and params is not None:
             q_t = model.q
             chi1_t = model.chi1
@@ -195,6 +203,7 @@ class UnfaithfulnessModeByModeLAL(Metric):
             # assert np.allclose(chi2_t, chi2)
 
     def _wrap_params(self, params, approx, M=50.0):
+        assert waveform_params is not None, "waveform tools is not available"
         q = params["q"]
         chi1 = params["chi1"]
         chi2 = params["chi2"]

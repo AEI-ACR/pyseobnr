@@ -67,7 +67,7 @@ def test_pycbc_plugin_td_v5hm(basic_settings):
 
     with pytest.raises(
         ValueError,
-        match=r"In-plane spin components must be zero for calling non-precessing approximant\.",
+        match=r"In-plane spin components must be zero for calling the non-precessing approximant\.",
     ):
         _ = pycbc.waveform.get_td_waveform(
             approximant="SEOBNRv5HM", **(basic_settings | {"spin1y": 0.1})

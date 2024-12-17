@@ -6,7 +6,11 @@ import numpy as np
 from pycbc.filter import make_frequency_series
 from pycbc.filter.matchedfilter import match
 from pycbc.types import FrequencySeries, TimeSeries
-from pycbc.psd.analytical import aLIGOZeroDetHighPowerGWINC, EinsteinTelescopeP1600143, CosmicExplorerP1600143
+from pycbc.psd.analytical import (
+    aLIGOZeroDetHighPowerGWINC,
+    EinsteinTelescopeP1600143,
+    CosmicExplorerP1600143,
+)
 
 from scipy.signal import argrelmax
 from waveform_tools.mismatch.unfaithfulness import generate_waveform
@@ -171,7 +175,7 @@ def fast_unfaithfulness_mode_by_mode(
         np.ndarray: The array of mismatches
     """
 
-    # Distance scale: feducial but chosen so that the amplitude of the modes
+    # Distance scale: fiducial but chosen so that the amplitude of the modes
     # is not too far in order of magnitude from the PSD
     dist = 1.0e7 * lal.PC_SI / lal.C_SI
     matches = np.zeros(len(Ms))
