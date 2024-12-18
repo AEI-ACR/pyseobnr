@@ -33,7 +33,7 @@ cpdef get_rhs_ecc(
     """
     Compute the RHS of the EOB evolution equations including
     the evolution of the Keplerian elements for eccentric models as described
-    in [Gamboa2024]_ .
+    in [Gamboa2024a]_ .
 
     Args:
         t (double): Time rescaled by total mass

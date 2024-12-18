@@ -329,7 +329,7 @@ cpdef (double, double) RR_force_ecc(
     """
     Compute the RR force in polar coordinates.
     This corresponds to the 'F_modes' function multiplied by eccentricity
-    corrections, as in Eqs. (56) of [Gamboa2024]_ .
+    corrections, as in Eqs. (68) of [Gamboa2024a]_ .
 
     Args:
         q (double[::1]): Polar coordinates (r, phi)
@@ -401,7 +401,7 @@ cdef double compute_flux_ecc(
 ):
     """
     Compute the function 'F_modes' divided by :math:``\\Omega``, as described in
-    Eq. (56c) of [Gamboa2024]_.
+    Eq. (68c) of [Gamboa2024a]_.
 
     Args:
         r (double): Radial separation
@@ -525,7 +525,7 @@ cpdef compute_hlms_ecc(
 ):
     """
     Compute the inspiral modes for aligned-spin eccentric binaries
-    with the eccentric corrections computed in [Gamboa2024]_ .
+    with the eccentric corrections computed in [Gamboa2024a]_ .
 
     Args:
         dynamics (2d memory view of type double): Dynamical variables (r, phi, pr, pphi,
@@ -663,7 +663,7 @@ cdef double complex compute_mode_ecc(
 ):
     """
     Compute the given (l,m) mode at one instant in time including eccentric
-    corrections in a factorized form. See Eq. (113) in [Gamboa2024]_.
+    corrections in a factorized form. See Eq. (97) in [Gamboa2024a]_.
 
     Args:
         l (int): l-index of the spin-weighted -2 spherical harmonic basis
