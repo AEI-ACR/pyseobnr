@@ -36,7 +36,7 @@ You can install a released version of ``pyseobnr`` by running
 
 
 
-If installing from source,  you can do:
+If installing from source, you can do:
 
 ::
 
@@ -67,7 +67,7 @@ License
 ``pyseobnr`` is released under the GNU General Public License v3.0 or later,
 see `here <https://choosealicense.com/licenses/gpl-3.0/>`__ for a
 description of this license, or see the
-`LICENSE <https://github.com/gwpy/gwpy/blob/main/LICENSE>`__ file for
+`LICENSE <https://git.ligo.org/waveforms/software/pyseobnr/-/blob/main/LICENSE>`__ file for
 the full text.
 
 
@@ -76,7 +76,7 @@ References
 
 We request that any academic report, publication, or other academic disclosure of results derived from the use of ``pyseobnr`` acknowledge the use of the software by an appropriate acknowledgment or citation.
 
-The code can be cited by citing `code repo <https://git.ligo.org/waveforms/software>`_  and the code paper: Mihaylov et al, "pySEOBNR: a software package for the next generation of 
+The code can be cited by citing the `code repository <https://git.ligo.org/waveforms/software>`_  and the associated publication: Mihaylov et al, "pySEOBNR: a software package for the next generation of
 effective-one-body multipolar waveform models", 2023, `arXiv:2303.18203 <https://arxiv.org/abs/2303.18203>`_. A bibtex entry is provided::
 
   @article{Mihaylov:2023bkc,
@@ -104,7 +104,7 @@ In addition, if released models are used, the model papers should be cited:
     month = "3",
     year = "2023"
     }
-    
+
 * For SEOBNRv5HM, Pompili et al, "Laying the foundation of the effective-one-body waveform models SEOBNRv5: improved accuracy and efficiency for spinning non-precessing binary black holes", 2023, `arXiv:2303.18039 <https://arxiv.org/abs/2303.18039>`_::
 
     @article{Pompili:2023tna,
@@ -116,6 +116,18 @@ In addition, if released models are used, the model papers should be cited:
     month = "3",
     year = "2023"
     }
+
+* For ``SEOBNRv5EHM``, Gamboa et al., "Accurate waveforms for eccentric, aligned-spin binary black holes: The multipolar effective-one-body model SEOBNRv5EHM", 2024, `arXiv:2412.12823 <https://arxiv.org/abs/2412.12823>`_::
+
+    @article{Gamboa:2024,
+    author={Aldo Gamboa and Alessandra Buonanno and Raffi Enficiaud and Mohammed Khalil and Antoni Ramos-Buades and Lorenzo Pompili and Héctor Estellés and Michael Boyle and Lawrence E. Kidder and Harald P. Pfeiffer and Hannes R. Rüter and Mark A. Scheel},
+    title={Accurate waveforms for eccentric, aligned-spin binary black holes: The multipolar effective-one-body model SEOBNRv5EHM},
+    year={2024},
+    eprint={2412.12823},
+    archivePrefix={arXiv},
+    primaryClass={gr-qc},
+    }
+
 
 If you build on the existing models, please cite:
 
@@ -144,6 +156,16 @@ If you build on the existing models, please cite:
     year = "2023"
     }
 
+* Gamboa et al., "Third post-Newtonian dynamics for eccentric orbits and aligned spins in the effective-one-body waveform model SEOBNRv5EHM", 2024, `arXiv:2412.12831 <https://arxiv.org/abs/2412.12831>`_::
+
+    @article{Gamboa:2024a,
+    title={Third post-Newtonian dynamics for eccentric orbits and aligned spins in the effective-one-body waveform model SEOBNRv5EHM},
+      author={Aldo Gamboa and Mohammed Khalil and Alessandra Buonanno},
+      year={2024},
+      eprint={2412.12831},
+      archivePrefix={arXiv},
+      primaryClass={gr-qc},
+    }
 
 .. |pipeline status| image:: https://git.ligo.org/waveforms/software/pyseobnr/badges/main/pipeline.svg
    :target: https://git.ligo.org/waveforms/software/pyseobnr/commits/main

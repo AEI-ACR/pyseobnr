@@ -54,7 +54,7 @@ class SEOBNRv5EHM_opt(Model):
     Represents an aligned-spin eccentric waveform model, whose
     eccentricity-zero limit is the SEOBNRv5HM model.
 
-    [Gamboa2024]_
+    [Gamboa2024a]_ , [Gamboa2024b]_
     """
 
     def __init__(

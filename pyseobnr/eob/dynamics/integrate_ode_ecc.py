@@ -272,8 +272,9 @@ def compute_dynamics_ecc_opt(
     """
     Main function to integrate the eccentric dynamics.
 
-    The RHS of the employed ODE system is given by Eqs. (10) and (17)
-    in [Gamboa2024]_ . See :py:mod:`.rhs_aligned_ecc` for more details.
+    The RHS of the employed ODE system is given by Eqs. (11), (17), (18a),
+    (18c) and (19) in [Gamboa2024a]_ .
+    See :py:mod:`.rhs_aligned_ecc` for more details.
 
     :param float m_1: Mass of the primary
     :param float m_2: Mass of the secondary
@@ -669,8 +670,8 @@ def compute_dynamics_ecc_backwards_opt(
     Backwards integration of the full equations of motion of the
     eccentric dynamics.
 
-    The RHS of the employed ODE system is given by Eqs. (10) and (17)
-    in [Gamboa2024]_.
+    The RHS of the employed ODE system is given by Eqs. (11), (17), (18a),
+    (18c) and (19) in [Gamboa2024a]_ .
     See :py:mod:`.rhs_aligned_ecc` for more details.
 
     :param float m_1: Mass of the primary
@@ -846,8 +847,8 @@ def compute_dynamics_ecc_secular_opt(
     Main function to integrate the secular eccentric dynamics backwards
     in time.
 
-    The RHS of the employed ODE system is given by Eqs. (61) and (67)
-    in [Gamboa2024]_ .
+    The RHS of the employed ODE system is given by Eqs. (18a)-(18c)
+    in [Gamboa2024a]_ .
     See :py:mod:`.rhs_aligned_ecc` for more details.
 
     :param float eccentricity: Eccentricity of the system

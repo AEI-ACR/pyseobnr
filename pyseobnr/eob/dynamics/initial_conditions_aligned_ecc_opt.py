@@ -39,7 +39,7 @@ def IC_cons_ecc(
 ) -> np.array:
     """
     Equations defining the "conservative" part of the initial conditions.
-    See Eqs. (78a, 78b) in [Gamboa2024]_ .
+    See Eqs. (110a, 110b) in [Gamboa2024a]_ .
 
     Args:
         u (tuple): 2-uple containing the unknowns r and pphi.
@@ -87,7 +87,7 @@ def IC_diss_ecc(
 ):
     """
     Equations defining the "dissipative" part of the initial conditions.
-    See Eq. (84) in [Gamboa2024]_ .
+    See Eq. (116) in [Gamboa2024a]_ .
 
     Args:
         u (float, np.ndarray): Guess for pr
