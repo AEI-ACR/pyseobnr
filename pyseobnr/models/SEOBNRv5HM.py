@@ -56,7 +56,6 @@ from pyseobnr.models.model import Model
 
 from .common import VALID_MODES
 
-# Setup the logger to work with rich
 logger = logging.getLogger(__name__)
 
 

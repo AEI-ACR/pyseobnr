@@ -50,14 +50,12 @@
     dependencies = [
         "numpy>=1.23.0",
         "scipy>=1.8.0",
-        "matplotlib",
         "h5py",
         "numexpr",
         "numba",
         "qnm",
         "scri",
         "setuptools",
-        "rich",
         "pygsl_lite",
         "lalsuite",
     ]
@@ -85,7 +83,7 @@
     write_to = "pyseobnr/_version.py"
 
 [project.optional-dependencies]
-    checks = ['bilby', 'gwsurrogate', 'pathos', 'scikit-optimize']
+    checks = ['bilby', 'gwsurrogate', 'pathos', 'scikit-optimize', 'matplotlib']
 
     docs = [
         'nbsphinx',
@@ -103,6 +101,7 @@
         'pycbc',
         'astropy',
         'gwpy',
+        'matplotlib',
     ]
 
     tests = ['pytest', 'pytest-sugar', 'pandas', 'pyarrow', 'pycbc']
