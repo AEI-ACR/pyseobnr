@@ -4,18 +4,11 @@ Computes the aligned-spin initial conditions in polar coordinates.
 """
 
 import logging
+
 import numpy as np
 from scipy.optimize import root, root_scalar
 
-from rich.logging import RichHandler
-from rich.traceback import install
-
-# Setup the logger to work with rich
 logger = logging.getLogger(__name__)
-logger.addHandler(RichHandler(rich_tracebacks=True, markup=True))
-logger.setLevel("INFO")
-# Setup rich to get nice tracebacks
-install()
 
 
 def IC_cons(u, omega, H, chi_1, chi_2, m_1, m_2):
