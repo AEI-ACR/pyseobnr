@@ -1,7 +1,5 @@
-#!/usr/bin/env python3
 import logging
 import os
-from abc import ABC
 from typing import Any, Dict
 
 import h5py
@@ -10,17 +8,19 @@ import lalsimulation as lalsim
 import numpy as np
 import scri
 import sxs
-from rich.logging import RichHandler
-from rich.traceback import install
 from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
 
-from .default_settings import *
-from pyseobnr.models.model import Model
+from ...models.model import Model
+from .default_settings import (
+    default_NR_LVC_settings,
+    default_NR_RIT_settings,
+    default_NR_SXS_settings,
+    default_NRHybSur2dq15_settings,
+    default_NRHybSur3dq8_settings,
+    default_SEOBNRv4HM_settings,
+)
 
 logger = logging.getLogger(__name__)
-logger.addHandler(RichHandler(rich_tracebacks=True, markup=True))
-logger.setLevel("INFO")
-install()
 
 
 class NRModel_LVC(Model):
@@ -414,31 +414,31 @@ class SEOBNRv4HM_LAL(Model):
 
         hlm = {}
 
-        ##55 mode
+        # 55 mode
         modeL = sphtseries.l
         modeM = sphtseries.m
         h55 = sphtseries.mode.data.data  # This is h_55
         hlm[f"{modeL},{modeM}"] = -h55
 
-        ##44 mode
+        # 44 mode
         modeL = sphtseries.next.l
         modeM = sphtseries.next.m
         h44 = sphtseries.next.mode.data.data  # This is h_44
         hlm[f"{modeL},{modeM}"] = -h44
 
-        ##21 mode
+        # 21 mode
         modeL = sphtseries.next.next.l
         modeM = sphtseries.next.next.m
         h21 = sphtseries.next.next.mode.data.data  # This is h_21
         hlm[f"{modeL},{modeM}"] = -h21
 
-        ##33 mode
+        # 33 mode
         modeL = sphtseries.next.next.next.l
         modeM = sphtseries.next.next.next.m
         h33 = sphtseries.next.next.next.mode.data.data  # This is h_33
         hlm[f"{modeL},{modeM}"] = -h33
 
-        ##22 mode
+        # 22 mode
         modeL = sphtseries.next.next.next.next.l
         modeM = sphtseries.next.next.next.next.m
         h22 = sphtseries.next.next.next.next.mode.data.data  # This is h_22
@@ -540,7 +540,7 @@ class NRHybSur2dq15Model(Model):
        (2,2), (2,1), (3,3), (4,4) and (5,5)
 
     |  The surrogate has been trained in the range
-    |  q \in [1, 15] and chi1z \in [-0.5, 0.5] chi2z = 0
+    |  q \\in [1, 15] and chi1z \\in [-0.5, 0.5] chi2z = 0
 
     """
 
