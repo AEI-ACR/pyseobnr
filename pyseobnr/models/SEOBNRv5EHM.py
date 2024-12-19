@@ -219,6 +219,10 @@ class SEOBNRv5EHM_opt(Model):
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
 
+        # Whether one is sampling over the deltaT parameter that determines the merger-ringdown attachment.
+        # This does not allow attaching the merger-ringdown at the last point of the dynamics.
+        self.deltaT_sampling = self.settings.get("deltaT_sampling", False)
+
     @property
     def RR(self) -> RadiationReactionForceEcc:
         if not self._radiation_reaction_is_initialized:
@@ -324,6 +328,28 @@ class SEOBNRv5EHM_opt(Model):
         # step_back = 250 is kept
         self.step_back = self.settings.get("step_back", 250.0)
 
+        default_deviation_dict = {f"{ell},{emm}": 0.0 for ell, emm in VALID_MODES_ECC}
+
+        # Plunge-merger deviations
+        self.dA_dict = default_deviation_dict | self.settings.get("dA_dict", {})
+        self.dw_dict = default_deviation_dict | self.settings.get("dw_dict", {})
+
+        self.dTpeak = self.settings.get("dTpeak", 0.0)
+
+        # EOB Hamiltonian deviation
+        self.da6 = self.settings.get("da6", 0.0)
+        self.ddSO = self.settings.get("ddSO", 0.0)
+
+        # QNM deviations
+        self.domega_dict = default_deviation_dict | self.settings.get("domega_dict", {})
+        self.dtau_dict = default_deviation_dict | self.settings.get("dtau_dict", {})
+        for value in self.dtau_dict.values():
+            if value <= -1:
+                raise ValueError(
+                    "dtau must be larger than -1, otherwise the remnant rings up instead "
+                    "of ringing down."
+                )
+
     def _compute_starting_values(self):
         """
         Compute the starting values of the orbit-averaged orbital frequency,
@@ -390,7 +416,7 @@ class SEOBNRv5EHM_opt(Model):
 
         # Compute the shift from reference point to peak of (2,2) mode
         NR_deltaT_fit = NR_deltaT_NS(self.nu) + NR_deltaT(self.nu, self.ap, self.am)
-        self.NR_deltaT = NR_deltaT_fit
+        self.NR_deltaT = NR_deltaT_fit + self.dTpeak
 
         # Set the Hamiltonian coefficients
         self._set_H_coeffs()
@@ -421,7 +447,10 @@ class SEOBNRv5EHM_opt(Model):
         to quasicircular NR waveforms.
         """
 
-        dc = {"a6": a6_NS(self.nu), "dSO": dSO(self.nu, self.ap, self.am)}
+        dc = {
+            "a6": a6_NS(self.nu) + self.da6,
+            "dSO": dSO(self.nu, self.ap, self.am) + self.ddSO,
+        }
         self.H.calibration_coeffs = CalibCoeffs(dc)
 
     def _evaluate_model(self):
@@ -699,7 +728,13 @@ class SEOBNRv5EHM_opt(Model):
                 self.t_attach_ecc = self.t_ISCO_ecc - self.NR_deltaT
 
             if self.t_attach_ecc > dynamics_fine[-1, 0]:
-                self.t_attach_ecc = dynamics_fine[-1, 0]
+                if self.deltaT_sampling is True:
+                    raise ValueError(
+                        "Error: NR_deltaT too negative, attaching the MR at the last point of the dynamics "
+                        "is not allowed if deltaT_sampling is set to True."
+                    )
+                else:
+                    self.t_attach_ecc = dynamics_fine[-1, 0]
 
             if self.t_attach_ecc < dynamics_fine[0, 0]:
                 self.t_attach_ecc = dynamics_fine[0, 0]
@@ -813,6 +848,8 @@ class SEOBNRv5EHM_opt(Model):
                     self.m_2,
                     self.chi_1,
                     self.chi_2,
+                    dA_dict=self.dA_dict,
+                    dw_dict=self.dw_dict,
                 )
                 self.nqc_coeffs = nqc_coeffs
                 # Apply NQC corrections to high sampling eccentric modes
@@ -895,6 +932,9 @@ class SEOBNRv5EHM_opt(Model):
                 self.lmax_nyquist,
                 mixed_modes=self.mixed_modes,
                 align=False,
+                dw_dict=self.dw_dict,
+                domega_dict=self.domega_dict,
+                dtau_dict=self.dtau_dict,
             )
 
             # Shift the time so that t = 0 corresponds to the last peak
