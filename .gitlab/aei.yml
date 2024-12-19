@@ -31,7 +31,7 @@ stages:
     - conda install libarchive
 
     - conda create --yes --name python311 python=3.11
-    # we need gcc because we will be compiling pyseobnr
+    # we need gcc+gxx because we will be compiling pyseobnr
     # pygsl_lite will pull gsl
     - |
       conda install \
@@ -42,6 +42,7 @@ stages:
           lalsuite \
           gcc \
           gxx \
+          fftw \
           pygsl_lite \
           scipy \
           pycbc \
@@ -109,7 +110,7 @@ conda-docs:
 .build_default: &build_default
   before_script:
     - *default_installs
-    - DEBIAN_FRONTEND=noninteractive apt-get install -y libgsl-dev
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y libgsl-dev libfftw3-dev
     - DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git python3-pip python3-venv
   artifacts:
     paths:
