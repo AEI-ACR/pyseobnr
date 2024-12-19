@@ -5,7 +5,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.1
+    jupytext_version: 1.16.5
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -21,8 +21,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 ```
 
-## Using the _pyseobnr_ interface
-The following demonstrates how to use the internal SEOBNRv5EHM waveform generator. It takes in things in geometric units and returns things in geometric units as well. It also gives access to things beyond the waveform modes, such as the dynamics.
+# Using the _pyseobnr_ interface
+
+The following demonstrates how to use the internal SEOBNRv5EHM waveform generator. It takes in parameters in geometric units and returns results in geometric units as well. It also gives access to things beyond the waveform modes, such as the dynamics.
 
 ```{code-cell} ipython3
 import warnings
@@ -41,7 +42,7 @@ eccentricity = 0.4
 rel_anomaly = 2.3
 ```
 
-### Default mode
+## Default mode
 We get a time array and a dictionary of complex modes. Note that for *aligned* spins, *only positive m modes are returned*
 
 ```{code-cell} ipython3
@@ -78,21 +79,27 @@ plt.xlim(-1000, 100)
 plt.grid(True)
 ```
 
-By default the aligned spin model sets $t=0$ at the peak of the frame-invariant amplitude
+By default the aligned spin model sets $t=0$ at the last peak of the frame-invariant amplitude, given a certain threshold
 
 ```{code-cell} ipython3
 for mode in modes.keys():
     plt.semilogy(t, np.abs(modes[mode]), label=mode)
 plt.xlabel("Time (M)")
-plt.ylabel(r"$|h_{\ell m}|$")
+plt.ylabel(r"$\|h_{\ell m}|$")
 plt.xlim(-500, 150)
 plt.ylim(1e-5, 1)
 plt.legend(loc=3)
 plt.grid(True)
 ```
 
-### Customising the default mode
-#### Mode array
+## Customising the default mode
+
++++
+
+### Mode array
+
++++
+
 Suppose you want only the (2,2) and (2,1) modes. This can be done by adding a special argument to the settings dictionary, as follows:
 
 ```{code-cell} ipython3
@@ -132,7 +139,142 @@ plt.xlim(-1000, 100)
 plt.grid(True)
 ```
 
-### Expert mode
+### Backwards evolution
+
++++
+
+One can also evolve the system backwards in time, by specifying a certain amount of time (in geometric units).
+This will evolve backwards the full equations of motion of the system.
+
+This option is particularly useful for post-processing tasks, e.g. with `gw-eccentricity`.
+
+This applies to the modes, but also to the BH dynamics (see below Expert mode).
+
+Note that the warning message can be deactivated to avoid filling log files with these messages.
+
+```{code-cell} ipython3
+t, modes = generate_modes_opt(
+    q,
+    chi_1,
+    chi_2,
+    omega_start,
+    eccentricity=eccentricity,
+    rel_anomaly=rel_anomaly,
+    approximant="SEOBNRv5EHM",
+)
+
+settings = dict(
+    t_backwards=1000,  # Geometric units
+    # warning_bwd_int=False,  # Setting this to False will avoid the warning message
+)
+
+t_back, modes_back = generate_modes_opt(
+    q,
+    chi_1,
+    chi_2,
+    omega_start,
+    eccentricity=eccentricity,
+    rel_anomaly=rel_anomaly,
+    approximant="SEOBNRv5EHM",
+    settings=settings,
+)
+```
+
+```{code-cell} ipython3
+plt.figure()
+plt.plot(t, np.abs(modes["2,2"]), label="Original system")
+plt.plot(t_back, np.abs(modes_back["2,2"]), "--", label="Backwards integration")
+plt.xlabel("Time (M)")
+plt.ylabel(r"$|h_{2}|$")
+plt.axvline(x=0, ls="--", color="k")
+plt.legend()
+plt.grid(True)
+```
+
+We note that the model has implemented by default a _secular backwards integration_ which is activated whenever the starting separation of the binary is less than $10M$.
+This avoids running into issues with the prescription for initial conditions in configurations where the BHs are very close to each other.
+
+In the following, we see an example where this secular backwards integration is activated.
+
+Note that the warning message can be deactivated to avoid filling log files with these messages.
+
+```{code-cell} ipython3
+settings = dict(
+    # warning_secular_bwd_int=False,  # Setting this to False will avoid the warning message
+)
+
+t, modes = generate_modes_opt(
+    q,
+    chi_1,
+    chi_2,
+    omega_start,
+    eccentricity=0.5,
+    rel_anomaly=0.0,
+    approximant="SEOBNRv5EHM",
+    settings=settings,
+)
+```
+
+```{code-cell} ipython3
+plt.figure()
+plt.plot(t, np.abs(modes["2,2"]))
+plt.xlabel("Time (M)")
+plt.ylabel(r"$|h_{2}|$")
+plt.axvline(x=0, ls="--", color="k")
+plt.grid(True)
+```
+
+We can deactivate this secular backwards integration with the following flag: (now, the code will raise an error if the starting separation is below $10M$)
+
+```{code-cell} ipython3
+try:
+    settings = dict(
+        secular_bwd_int=False,
+    )
+
+    t, modes = generate_modes_opt(
+        q,
+        chi_1,
+        chi_2,
+        omega_start,
+        eccentricity=0.5,
+        rel_anomaly=0.0,
+        approximant="SEOBNRv5EHM",
+        settings=settings,
+    )
+except Exception as e:
+    print(e)
+```
+
+It is also possible to modify the minimum starting separation.
+In the following example, we set the minimum starting separation to $7M$, and hence the secular backward integration is not activated
+
+```{code-cell} ipython3
+settings = dict(
+    secular_bwd_int=True,
+    r_start_min=7.0,
+)
+
+t, modes = generate_modes_opt(
+    q,
+    chi_1,
+    chi_2,
+    omega_start,
+    eccentricity=0.5,
+    rel_anomaly=0.0,
+    approximant="SEOBNRv5EHM",
+    settings=settings,
+)
+```
+
+One can explore combinations of the values of 'secular_bwd_int' and 'r_start_min'.
+However, one must be careful while doing this, specially for high eccentricities or high frequencies.
+
+However, there is a lower limit of minimum starting separation of $6M$. Trying to initialize a binary with a separation below $6M$ will very likely introduce some kind of error. Hence, it is no possible to go below $6M$ with `SEOBNRv5EHM`.
+
++++
+
+## Expert mode
 In this mode we also get an `SEOBNRv5EHM` object back which contains more information than just the waveform modes.
 
 ```{code-cell} ipython3
@@ -164,18 +306,18 @@ plt.grid(True)
 
 One also has access to the dynamics, stored as $(t, r, \phi, p_r, p_{\phi}, e, \zeta, x, H,\Omega)$, where
 
-* $t$: time
-* $r$: relative separation
-* $\phi$: azimuthal orbital angle
-* $p_r$: tortoise radial momentum
-* $p_\phi$: angular momentum
-* $e$: eccentricity
-* $\zeta$: relativistic anomaly
-* $x$: orbit-averaged frequency to the 2/3 power, i.e. $x=<\omega>^{2/3}$;
+$t$: time \
+$r$: relative separation \
+$\phi$: azimuthal orbital angle \
+$p_r$: tortoise radial momentum \
+$p_\phi$: angular momentum \
+$e$: eccentricity \
+$\zeta$: relativistic anomaly \
+$x$: orbit-averaged frequency to the 2/3 power, i.e. x=< \omega >^{2/3};
    this variable presents oscillations since we compute it with a PN formula;
-   the true orbit-averaged frequency does not have any oscillation
-* $H$: EOB Hamiltonian
-* $\Omega$: instantaneous angular frequency, i.e. $\Omega=\dot\phi$
+   the true orbit-averaged frequency does not have any oscillation \
+$H$: EOB Hamiltonian \
+$\Omega$: instantaneous angular frequency, i.e. omega=\dot\phi
 
 ```{code-cell} ipython3
 t, r, phi, pr, pphi, e, z, x, H, Omega = model.dynamics.T
@@ -195,12 +337,12 @@ For debugging purposes, other information is also provided, for example, one can
 model.nqc_coeffs
 ```
 
-## A note on conventions
+# A note on conventions
 The internal `SEOBNRv5EHM` generator uses the same conventions as in the `SEOBNRv5HM` model.
 
 +++
 
-## Generate modes and polarizations in physical units with LAL conventions
+# Generate modes and polarizations in physical units with LAL conventions
 
 The GenerateWaveform() class accepts a dictionary of parameters (example below) and from it, one can recover the gravitational modes dictionary with the right convention and physical scaling, the time-domain polarizations and the Fourier-domain polarizations
 
@@ -248,14 +390,11 @@ params_dict = {
         (3, 3),
         (4, 3),
         (4, 4),
-        (5, 5),
     ],  # Specify which modes are to be returned
     "approximant": approximant,
     "eccentricity": eccentricity,
     "rel_anomaly": rel_anomaly,
     "EccIC": 1,  # EccIC = 0 for instantaneous initial orbital frequency, and EccIC = 1 for orbit-averaged initial orbital frequency
-    "conditioning": 1,  # Conditioning of the time-domain polarizations
-    "postadiabatic": False,  # There is no post-adiabatic version of the eccentric model
 }
 ```
 
@@ -319,7 +458,96 @@ plt.grid(True)
 plt.show()
 ```
 
-## Using the `gwsignal` interface (new waveform interface)
+### Backwards evolution
+
++++
+
+We also show here the backwards evolution with the GenerateWaveform class
+
+```{code-cell} ipython3
+m1 = 50.0
+m2 = 30.0
+eccentricity = 0.3
+rel_anomaly = np.pi
+approximant = "SEOBNRv5EHM"
+
+params_dict = {
+    "mass1": m1,
+    "mass2": m2,
+    "approximant": approximant,
+    "eccentricity": eccentricity,
+    "rel_anomaly": rel_anomaly,
+}
+params_dict_back = {
+    "mass1": m1,
+    "mass2": m2,
+    "approximant": approximant,
+    "eccentricity": eccentricity,
+    "rel_anomaly": rel_anomaly,
+    "t_backwards": 1000,
+    # 'warning_bwd_int' : False,  # Setting this to False will avoid the warning message
+}
+
+wfm_gen = GenerateWaveform(params_dict)  # We call the generator with the parameters
+wfm_gen_back = GenerateWaveform(
+    params_dict_back
+)  # We call the generator with the parameters
+```
+
+```{code-cell} ipython3
+# Generate mode dictionary
+times, hlm = wfm_gen.generate_td_modes()
+times_back, hlm_back = wfm_gen_back.generate_td_modes()
+```
+
+```{code-cell} ipython3
+plt.figure()
+plt.plot(times, np.abs(hlm[(2, 2)]), label="Original system")
+plt.plot(times_back, np.abs(hlm_back[(2, 2)]), "--", label="Backwards integration")
+plt.xlabel("Time (seconds)")
+plt.ylabel(r"$\Re[h_{22}]$")
+plt.grid(True)
+plt.legend()
+plt.show()
+```
+
+Note that we can also control the secular backwards integration behavior within the GenerateWaveform class.
+
+```{code-cell} ipython3
+m1 = 50.0
+m2 = 30.0
+eccentricity = 0.4
+rel_anomaly = 0
+approximant = "SEOBNRv5EHM"
+
+params_dict = {
+    "mass1": m1,
+    "mass2": m2,
+    "approximant": approximant,
+    "eccentricity": eccentricity,
+    "rel_anomaly": rel_anomaly,
+    # 'secular_bwd_int' : False,  # Setting this to False will deactivate the secular bwd integration
+    # 'warning_secular_bwd_int' : False,  # Setting this to False will avoid the warning message
+}
+
+wfm_gen = GenerateWaveform(params_dict)
+```
+
+```{code-cell} ipython3
+# Generate mode dictionary
+times, hlm = wfm_gen.generate_td_modes()
+```
+
+```{code-cell} ipython3
+plt.figure()
+plt.plot(times, np.abs(hlm[(2, 2)]))
+plt.xlabel("Time (seconds)")
+plt.ylabel(r"$\Re[h_{22}]$")
+plt.grid(True)
+plt.show()
+```
+
+# Using the `gwsignal` interface (new waveform interface)
 Unlike the internal generator, the interface can accept a much wider variety of inputs both in SI and so-called 'cosmo' units (where say masses are in solar masses). This interface also returns the modes and polarizations in SI units and follows `LAL` conventions.
 
 ```{code-cell} ipython3
@@ -388,10 +616,13 @@ gwsignal_dict = {
     "meanPerAno": meanPerAno * u.rad,
     # 'ModeArray': mode_array,
     "condition": 0,
-    "conditioning": condition,
-    "postadiabatic": False,
     "lmax": 4,
     "lmax_nyquist": 4,
+    # Some additional specific SEOBNRv5EHM parameters
+    "secular_bwd_int": True,
+    "warning_secular_bwd_int": False,
+    "t_backwards": 0,
+    "warning_bwd_int": False,
 }
 
 waveform_approximant = "SEOBNRv5EHM"
@@ -407,7 +638,7 @@ except ValueError as e:
 ```
 
 ```{code-cell} ipython3
-if wf_gen:
+if wf_gen is not None:
     hpc = GenerateTDWaveform(gwsignal_dict, wf_gen)
     time = np.arange(len(hpc.hp)) * gwsignal_dict["deltaT"]
 
@@ -421,9 +652,8 @@ else:
 ```
 
 ```{code-cell} ipython3
-# Generate TD modes
-if wf_gen:
-
+if wf_gen is not None:
+    # Generate TD modes
     hlm = GenerateTDModes(gwsignal_dict, wf_gen)
 
     l, m = 2, -1
@@ -463,14 +693,18 @@ gwsignal_dict = {
     "meanPerAno": meanPerAno * u.rad,
     # 'ModeArray': mode_array,
     "condition": 1,
-    "conditioning": condition,
-    "postadiabatic": False,
     "lmax": 4,
     "lmax_nyquist": 4,
+    # Some additional specific SEOBNRv5EHM parameters
+    "secular_bwd_int": True,
+    "warning_bwd_int": False,
+    "warning_secular_bwd_int": False,
+    "t_backwards": 0,
 }
 
-try:
+waveform_approximant = "SEOBNRv5EHM"
 
+try:
     wf_gen = gwsignal_get_waveform_generator(waveform_approximant)
 except ValueError as e:
     if str(e) != "Approximant not implemented in GWSignal!":
@@ -481,19 +715,15 @@ except ValueError as e:
 ```
 
 ```{code-cell} ipython3
-if wf_gen:
+if wf_gen is not None:
     hpc = GenerateFDWaveform(gwsignal_dict, wf_gen)
     freqs = np.arange(len(hpc.hp)) * gwsignal_dict["deltaF"]
-
     plt.plot(freqs, hpc.hp, label=r"$h_p$")
     plt.plot(freqs, hpc.hc, label=r"$h_x$")
+
     plt.xlabel("Frequency (Hz)")
     plt.ylabel(r"$h_{p,x}$")
     plt.show()
 else:
     print("Plot skipped")
-```
-
-```{code-cell} ipython3
-
 ```

@@ -28,10 +28,15 @@ References
 
    https://dcc.ligo.org/LIGO-T2300060/public
 
-.. [Gamboa2024] *Third post-Newtonian dynamics for eccentric orbits and aligned spins in the effective-one-body waveform model SEOBNRv5EHM*,
-   Gamboa, Khalil, Buonanno
+.. [Gamboa2024a] *Third post-Newtonian dynamics for eccentric orbits and aligned spins in the effective-one-body waveform model SEOBNRv5EHM*,
+   Gamboa, Khalil, Buonanno, 2024.
 
-   https://git.ligo.org/waveforms/reviews/seobnrv5ehm/-/blob/main/docs/SEOBNRv5E_theory.pdf
+   Link: https://arxiv.org/abs/2412.12831
+
+.. [Gamboa2024b] *Accurate waveforms for eccentric, aligned-spin binary black holes: The multipolar effective-one-body model SEOBNRv5EHM*,
+   Gamboa, Buonanno, Enficiaud, Khalil, Ramos-Buades, Pompili, Estelles, Boyle, Kidder, Pfeiffer, Rüter, Scheel, 2024.
+
+   Link: https://arxiv.org/abs/2412.12823
 
 .. [Cotesta2020] *Frequency domain reduced order model of aligned-spin effective-one-body waveforms
    with higher-order modes*, Cotesta, Marsat and Pürrer, 2020.
