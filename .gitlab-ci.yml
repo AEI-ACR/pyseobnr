@@ -58,6 +58,7 @@ docs:
           gxx
           swig
           gsl
+          fftw
           make
           pandoc
           pygsl_lite
@@ -100,6 +101,7 @@ test:
           gxx
           swig
           gsl
+          fftw
           make
           pytest
           lalsuite
