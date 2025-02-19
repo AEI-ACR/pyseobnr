@@ -10,12 +10,22 @@ import numpy as np
 import pytest
 
 import pyseobnr
+from pyseobnr.eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
+    Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C as Ham_aligned_opt,
+)
+from pyseobnr.eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
+    Ham_AvgS2precess_simple_cython_PA_AD as Ham_prec_pa_cy,
+)
+from pyseobnr.eob.waveform.waveform import SEOBNRv5RRForce
+from pyseobnr.eob.waveform.waveform_ecc import SEOBNRv5RRForceEcc
 from pyseobnr.generate_waveform import (
     GenerateWaveform,
     SupportedApproximants,
     generate_modes_opt,
 )
 from pyseobnr.models.common import VALID_MODES, VALID_MODES_ECC
+from pyseobnr.models.SEOBNRv5EHM import SEOBNRv5EHM_opt
+from pyseobnr.models.SEOBNRv5HM import SEOBNRv5HM_opt, SEOBNRv5PHM_opt
 
 
 @pytest.fixture
@@ -98,6 +108,66 @@ def test_mode_arrays_settings(basic_settings):
         for func in calls_to_check:
             with pytest.raises(TypeError):
                 _ = getattr(wfm_gen, func)()
+
+
+def test_default_settings_HM():
+    RR_f = SEOBNRv5RRForce()
+    cls = SEOBNRv5HM_opt(
+        q=1,
+        chi_1=0,
+        chi_2=0,
+        omega0=0.15,
+        H=Ham_aligned_opt,
+        RR=RR_f,
+    )
+
+    # old value 2.4627455127717882e-05 computed with old value of MTSUN_SI in LAL
+    #   previous: MTSUN_SI = 4.925491025543575903411922162094833998e-6
+    #   current : MTSUN_SI = 4.925490947641266978197229498498379006e-6
+    assert cls.dt == 2.4627454738206332e-05  # 2.4627455127717882e-05
+    assert cls.return_modes == [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)]
+
+
+def test_default_settings_PHM():
+    RR_f = SEOBNRv5RRForce()
+    cls = SEOBNRv5PHM_opt(
+        q=1,
+        chi1_x=0,
+        chi1_y=0,
+        chi1_z=0.1,
+        chi2_x=0,
+        chi2_y=0,
+        chi2_z=0.1,
+        omega_start=0.15,
+        H=Ham_prec_pa_cy,
+        RR=RR_f,
+    )
+
+    # old value 2.4627455127717882e-05 computed with old value of MTSUN_SI in LAL
+    #   previous: MTSUN_SI = 4.925491025543575903411922162094833998e-6
+    #   current : MTSUN_SI = 4.925490947641266978197229498498379006e-6
+    assert cls.dt == 2.4627454738206332e-05  # 2.4627455127717882e-05
+    assert cls.return_modes == [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)]
+
+
+def test_default_settings_EHM():
+    RR_f = SEOBNRv5RRForceEcc("Ecc")
+    cls = SEOBNRv5EHM_opt(
+        q=1,
+        chi_1=0.1,
+        chi_2=0.1,
+        omega_start=0.15,
+        eccentricity=0.1,
+        rel_anomaly=0.1,
+        H=Ham_aligned_opt,
+        RR=RR_f,
+    )
+
+    # old value 2.4627455127717882e-05 computed with old value of MTSUN_SI in LAL
+    #   previous: MTSUN_SI = 4.925491025543575903411922162094833998e-6
+    #   current : MTSUN_SI = 4.925490947641266978197229498498379006e-6
+    assert cls.dt == 2.4627454738206332e-05  # 2.4627455127717882e-05
+    assert cls.return_modes == [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)]
 
 
 def test_mode_arrays_settings_with_lmax_HM(basic_settings):
