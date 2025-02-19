@@ -17,8 +17,6 @@ from scipy import optimize
 from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
 from scipy import integrate
 
-from lalinference.imrtgr import nrutils
-
 from .integrate_ode import compute_dynamics_opt as compute_dynamics
 from .integrate_ode import augment_dynamics
 from pyseobnr.eob.utils.containers cimport EOBParams
