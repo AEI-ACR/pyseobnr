@@ -451,7 +451,10 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 (4, 3): 200 * self.nu * (1 - 0.8 * self.chi_A),
                 (5, 5): 2000,
             }
-            if np.abs(self.q - 1) < 1e-14 and np.abs(self.chi_A) < 1e-14:
+
+            # same condition as in compute_rholm_single otherwise we get NaNs from a division with
+            # 0 in compute_special_coeffs
+            if np.abs(self.nu - 0.25) < 1e-14 and np.abs(self.chi_A) < 1e-14:
                 pass
             else:
                 compute_special_coeffs(
@@ -1072,7 +1075,9 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 (5, 5): 2000,
             }
 
-            if np.abs(self.q - 1) < 1e-14 and np.abs(self.chi_A) < 1e-14:
+            # same condition as in compute_rholm_single otherwise we get NaNs from a division with
+            # 0 in compute_special_coeffs
+            if np.abs(self.nu - 0.25) < 1e-14 and np.abs(self.chi_A) < 1e-14:
                 pass
             else:
                 compute_special_coeffs(
