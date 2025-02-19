@@ -14,6 +14,7 @@ Welcome to pyseobnr's documentation!
    source/basic_usage
    source/expert_mode
    source/citations
+   source/how_to_contribute
 
 .. the notebooks in the markdown myst format
 
