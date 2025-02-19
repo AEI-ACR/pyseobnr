@@ -5,7 +5,10 @@ import pandas as pd
 
 from pyseobnr.eob.utils.utils import estimate_time_max_amplitude
 from pyseobnr.eob.waveform.compute_hlms import compute_IMR_modes
-from pyseobnr.generate_waveform import generate_modes_opt
+from pyseobnr.eob.waveform.waveform import (
+    compute_special_coeffs as compute_special_coeffs_original,
+)
+from pyseobnr.generate_waveform import SupportedApproximants, generate_modes_opt
 
 
 def test_qnm_rotation_always_positive():
@@ -170,3 +173,64 @@ def test_estimate_t_for_max_amplitude_HM():
     # the estimated amplitude at 10M does not vary too much
     # without the fix, we obtain 0.02275764373726919 for this specific setup
     assert inter_at_10M["val"].std() / inter_at_10M["val"].max() < 1e-3
+
+
+def test_compute_special_coeffs_not_called():
+    """Checks the conditions under which compute_special_coeffs is called"""
+
+    # this test checks that the conditions inside cython
+    # if np.abs(self.nu - 0.25) < 1e-14 and np.abs(self.chi_A) < 1e-14:
+    # and the python code are equivalent.
+    # If they are not equivalent, the computations generate division by 0.
+
+    omega_start = 0.025216785328447282
+    omega_ref = 0.08304037180901577
+    q = 1.0000003704854963
+
+    approximant: SupportedApproximants
+    for approximant in "SEOBNRv5HM", "SEOBNRv5PHM":
+
+        with patch(
+            "pyseobnr.generate_waveform.SEOBNRv5HM.compute_special_coeffs"
+        ) as p_compute_special_coeffs:
+            # we have 0 spin, q is close to 1, we should not call compute_special_coeffs
+            # as this would yield NaNs (0 division)
+            generate_modes_opt(
+                q=q,
+                chi1=0,
+                chi2=0,
+                omega_start=omega_start,
+                omega_ref=omega_ref,
+                approximant=approximant,
+                settings={},
+                debug=True,
+            )
+
+            p_compute_special_coeffs.assert_not_called()
+
+            # we have now almost spin, q is close to 1, we should be able to call compute_special_coeffs
+            # without creating any NaNs
+            array_fcoeffs = None
+
+            def track_params(*args, **kwargs):
+                nonlocal array_fcoeffs
+                compute_special_coeffs_original(*args, **kwargs)
+                array_fcoeffs = np.array(args[2].flux_params.f_coeffs).copy()
+
+            p_compute_special_coeffs.reset_mock()
+            p_compute_special_coeffs.side_effect = track_params
+
+            generate_modes_opt(
+                q=q,
+                chi1=2.3602683827876965e-06,
+                chi2=2.3505263976724266e-06,
+                omega_start=omega_start,
+                omega_ref=omega_ref,
+                approximant=approximant,
+                settings={},
+                debug=True,
+            )
+
+            p_compute_special_coeffs.assert_called_once()
+            assert array_fcoeffs is not None
+            assert bool(np.any(np.isnan(array_fcoeffs))) is False
