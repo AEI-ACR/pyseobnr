@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from copy import deepcopy
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Final
 
 import lal
 import numpy as np
@@ -54,6 +54,7 @@ from pyseobnr.eob.waveform.waveform import (
 )
 from pyseobnr.models.model import Model
 
+from .common import VALID_MODES
 from .SEOBNRv5Base import SEOBNRv5ModelBaseWithpSEOBSupport
 
 logger = logging.getLogger(__name__)
@@ -210,12 +211,20 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         self.deltaT_sampling = self.settings.get("deltaT_sampling", False)
 
     def _default_settings(self):
+
+        M_default: Final = 50
+
+        # dt is set equal to 0.1M for a system of 10 solar masses.
+        dt: Final = (
+            M_default * lal.MTSUN_SI / 10
+        )  # = 5 * 4.925490947641266978197229498498379006e-06 = 2.4627454738206332e-05
+
         settings = dict(
-            M=50.0,  # Total mass in solar masses
-            dt=2.4627455127717882e-05,  # Desired time spacing, *in seconds*
+            M=M_default,  # Total mass in solar masses
+            dt=dt,  # Desired time spacing, *in seconds*
             debug=False,  # Run in debug mode
             postadiabatic=False,  # Use postadiabatic?
-            return_modes=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)],
+            return_modes=[_ for _ in VALID_MODES if _ != (5, 5)],
         )
         return settings
 
@@ -716,15 +725,20 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         self._sign_final_spin: int | None = None
 
     def _default_settings(self):
+        M_default: Final = 50
+        # dt is set equal to 0.1M for a system of 10 solar masses.
+        dt: Final = (
+            M_default * lal.MTSUN_SI / 10
+        )  # = 5 * 4.925490947641266978197229498498379006e-06 = 2.4627454738206332e-05
         settings = dict(
-            M=50.0,  # Total mass in solar masses
-            dt=2.4627455127717882e-05,  # Desired time spacing, *in seconds*
+            M=M_default,  # Total mass in solar masses
+            dt=dt,  # Desired time spacing, *in seconds*
             debug=False,  # Run in debug mode
             initial_conditions="adiabatic",
             initial_conditions_postadiabatic_type="analytic",
             postadiabatic=False,  # Use postadiabatic?
             postadiabatic_type="analytic",
-            return_modes=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)],
+            return_modes=[_ for _ in VALID_MODES if _ != (5, 5)],
             polarizations_from_coprec=False,  # True for computing directly polarizations
             beta_approx=0,
             rd_approx=True,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from copy import deepcopy
-from typing import Any, Dict, cast, get_args
+from typing import Any, Dict, Final, cast, get_args
 
 import lal
 import numpy as np
@@ -235,12 +235,19 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
 
     @staticmethod
     def _default_settings():
+
+        M_default: Final = 50
+        # dt is set equal to 0.1M for a system of 10 solar masses.
+        dt: Final = (
+            M_default * lal.MTSUN_SI / 10
+        )  # = 5 * 4.925490947641266978197229498498379006e-06 = 2.4627454738206332e-05
+
         settings = dict(
-            M=50.0,  # Total mass in solar masses
-            dt=2.4627455127717882e-05,  # Desired time spacing, *in seconds*
+            M=M_default,  # Total mass in solar masses
+            dt=dt,  # Desired time spacing, *in seconds*
             debug=False,  # Run in debug mode
             postadiabatic=False,  # Use postadiabatic?
-            return_modes=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)],
+            return_modes=VALID_MODES_ECC,
             atol=1e-12,
             dissipative_ICs="root",
             EccIC=1,
