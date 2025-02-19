@@ -3,6 +3,7 @@ Test that the aligned-spin eccentric model SEOBNRv5EHM.
 
 """
 
+import os
 from pathlib import Path
 from unittest import mock
 
@@ -99,6 +100,10 @@ class TestEccentric:
         assert model_ehm.dynamics is not None
         p_compute_dynamics_ecc_secular_opt.assert_called_once()
 
+    @pytest.mark.skipif(
+        "CI_TEST_DYNAMIC_REGRESSIONS" not in os.environ,
+        reason="regressions on dynamics are for specific systems only",
+    )
     def test_regression_full_model(self):
         """Regression tests on the full model"""
         q = 1.5
