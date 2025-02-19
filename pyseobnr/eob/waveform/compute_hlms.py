@@ -8,7 +8,6 @@ from copy import deepcopy
 from typing import Any, Dict, Final
 
 import numpy as np
-from lalinference.imrtgr import nrutils
 from pygsl_lite import spline
 from scipy.interpolate import InterpolatedUnivariateSpline
 
@@ -27,6 +26,10 @@ from ..fits.EOB_fits import (
 )
 from ..fits.IV_fits import InputValueFits
 from ..fits.MR_fits import MergerRingdownFits
+from ..utils.nr_utils import (
+    bbh_final_mass_non_precessing_UIB2016,
+    bbh_final_spin_non_precessing_HBR2016,
+)
 from .compute_MR import compute_MR_mode_free
 from .waveform import compute_factors, unrotate_leading_pn
 
@@ -210,8 +213,8 @@ def compute_IMR_modes(
     if final_state:
         final_mass, final_spin = final_state
     else:
-        final_mass = nrutils.bbh_final_mass_non_precessing_UIB2016(m1, m2, chi1, chi2)
-        final_spin = nrutils.bbh_final_spin_non_precessing_HBR2016(
+        final_mass = bbh_final_mass_non_precessing_UIB2016(m1, m2, chi1, chi2)
+        final_spin = bbh_final_spin_non_precessing_HBR2016(
             m1, m2, chi1, chi2, version="M3J4"
         )
 
