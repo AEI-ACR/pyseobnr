@@ -92,8 +92,11 @@ def compute_MR_mode_free(
     if np.real(omega_complex) > 2 * np.pi * f_nyquist and lmax_nyquist >= ell:
         raise ValueError(
             f"Internal function call failed: Input domain error. Ringdown frequency of ({ell},{m}) "
-            f"mode greater than maximum frequency from Nyquist theorem. Decrease the time spacing to "
-            f"resolve this mode."
+            f"mode greater than maximum frequency from Nyquist theorem.\n\n"
+            f"This indicates that the current time spacing is too large to accurately resolve the ringdown for this mode.\n\n"
+            f"To resolve this issue, you can either decrease the time spacing or adjust the 'lmax_nyquist' parameter in your "
+            f"parameter dictionary. For example, setting 'lmax_nyquist=2' will restrict the check to the ell=2 modes, or "
+            f"'lmax_nyquist=1' will disable the check entirely."
         )
     sigmaR = -np.imag(omega_complex)
     sigmaI = -np.real(omega_complex)
