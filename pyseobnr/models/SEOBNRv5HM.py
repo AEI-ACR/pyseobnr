@@ -54,12 +54,12 @@ from pyseobnr.eob.waveform.waveform import (
 )
 from pyseobnr.models.model import Model
 
-from .common import VALID_MODES
+from .SEOBNRv5Base import SEOBNRv5ModelBaseWithpSEOBSupport
 
 logger = logging.getLogger(__name__)
 
 
-class SEOBNRv5HM_opt(Model):
+class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
     """Represents an aligned-spin SEOBNRv5HM waveform with new MR choices."""
 
     def __init__(
@@ -177,12 +177,14 @@ class SEOBNRv5HM_opt(Model):
         # asks for mixed modes so we must compute all the modes
         # that are needed even if we will not return them
 
-        # All the modes we will need to output
-        self.return_modes = self.settings.get("return_modes", None)
-
         # Check that the modes are valid, i.e. something we
         # can return
-        self._validate_modes()
+
+        # All the modes we will need to output
+        self.return_modes = self.settings.get("return_modes", None)
+        self.max_ell_returned = self._validate_modes(
+            settings
+        )  # we need to pass the user settings here
         self.lmax_nyquist = self.settings.get("lmax_nyquist", self.max_ell_returned)
         # Now deal with which mixed modes the user wants, if any
 
@@ -196,7 +198,7 @@ class SEOBNRv5HM_opt(Model):
         # Make sure the array contains what we need
         self._ensure_consistency()
 
-        self._initialize_params(self.phys_pars)
+        self._initialize_params(phys_pars=self.phys_pars)
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
         if self.settings.get("postadiabatic", False):
@@ -217,86 +219,22 @@ class SEOBNRv5HM_opt(Model):
         )
         return settings
 
-    def _validate_modes(self):
-        """
-        Check that the mode array is sensible, i.e.
-        has something and the modes being asked for are valid.
-        """
+    def _set_H_coeffs(self):
+        dc = {}
+        # Actual coeffs inside the Hamiltonian
+        a6_fit = a6_NS(self.nu) + self.da6
+        dSO_fit = dSO(self.nu, self.ap, self.am)
+        dc["a6"] = a6_fit
+        dc["dSO"] = dSO_fit + self.ddSO
 
-        if not self.return_modes:
-            logger.error("The mode list specified is empty!")
-            raise ValueError
-        ell_mx = 2
-        for mode in self.return_modes:
-            ell, m = mode
-
-            if mode not in VALID_MODES:
-                logger.error(f"The specified mode, {mode} is not available!")
-                logger.error(f"The allowed modes are: {VALID_MODES}")
-                raise ValueError
-            if ell > ell_mx:
-                ell_mx = ell
-
-        self.max_ell_returned = ell_mx
-
-    def _ensure_consistency(self):
-        """Make sure that the modes contains everything needed to compute mixed modes
-
-        Args:
-            modes (list): Current list of modes to compute
-        """
-        for mode in self.mixed_modes:
-            ell, m = mode
-            if (m, m) not in self.computed_modes:
-                self.computed_modes.append((m, m))
-
-    def _initialize_params(self, phys_pars):
-        """
-        Re-initialize all parameters to make sure everything is reset
-        """
-        self.eob_pars = EOBParams(phys_pars, {}, mode_array=list(self.computed_modes))
-        self.eob_pars.flux_params.rho_initialized = False
-        self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
-        self.eob_pars.flux_params.prefixes_abs = np.abs(
-            self.eob_pars.flux_params.prefixes
-        )
-        self.eob_pars.flux_params.extra_PN_terms = self.settings.get(
-            "extra_PN_terms", True
-        )
-        self.step_back = self.settings.get("step_back", 250.0)
-
-        # PA/ODE integration tolerances
-        self.tol_PA = self.settings.get("tol_PA", 1e-11)
-        self.rtol_ode = self.settings.get("rtol_ode", 1e-11)
-        self.atol_ode = self.settings.get("atol_ode", 1e-12)
-
-        default_deviation_dict = {f"{ell},{emm}": 0.0 for ell, emm in VALID_MODES}
-
-        # Plunge-merger deviations
-        self.dA_dict = default_deviation_dict | self.settings.get("dA_dict", {})
-        self.dw_dict = default_deviation_dict | self.settings.get("dw_dict", {})
-
-        self.dTpeak = self.settings.get("dTpeak", 0.0)
-
-        # EOB Hamiltonian deviation
-        self.da6 = self.settings.get("da6", 0.0)
-        self.ddSO = self.settings.get("ddSO", 0.0)
-
-        # QNM deviations
-        self.domega_dict = default_deviation_dict | self.settings.get("domega_dict", {})
-        self.dtau_dict = default_deviation_dict | self.settings.get("dtau_dict", {})
-        for value in self.dtau_dict.values():
-            if value <= -1:
-                raise ValueError(
-                    "dtau must be larger than -1, otherwise the remnant rings up instead "
-                    "of ringing down."
-                )
+        cfs = CalibCoeffs(dc)
+        self.H.calibration_coeffs = cfs
 
     def __call__(self):
         # Evaluate the model
 
         # Initialize the containers
-        self._initialize_params(self.phys_pars)
+        self._initialize_params(phys_pars=self.phys_pars)
 
         # Compute the shift from reference point to peak of (2,2) mode
         NR_deltaT_fit = NR_deltaT_NS(self.nu) + NR_deltaT(self.nu, self.ap, self.am)
@@ -320,17 +258,6 @@ class SEOBNRv5HM_opt(Model):
                         key
                     ]
         self._evaluate_model()
-
-    def _set_H_coeffs(self):
-        dc = {}
-        # Actual coeffs inside the Hamiltonian
-        a6_fit = a6_NS(self.nu) + self.da6
-        dSO_fit = dSO(self.nu, self.ap, self.am)
-        dc["a6"] = a6_fit
-        dc["dSO"] = dSO_fit + self.ddSO
-
-        cfs = CalibCoeffs(dc)
-        self.H.calibration_coeffs = cfs
 
     def _evaluate_model(self):
         r_ISCO, _ = Kerr_ISCO(
@@ -621,7 +548,7 @@ class SEOBNRv5HM_opt(Model):
             raise e
 
 
-class SEOBNRv5PHM_opt(Model):
+class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
     """Represents a precessing SEOBNRv5PHM waveform with new MR choices."""
 
     def __init__(
@@ -761,7 +688,7 @@ class SEOBNRv5PHM_opt(Model):
 
         # Check that the modes are valid, i.e. something we
         # can return
-        self._validate_modes()
+        self.max_ell_returned = self._validate_modes(user_settings=settings)
         self.lmax_nyquist = self.settings.get("lmax_nyquist", self.max_ell_returned)
         # Now deal with which mixed modes the user wants, if any
 
@@ -774,24 +701,16 @@ class SEOBNRv5PHM_opt(Model):
         self.computed_modes = deepcopy(self.return_modes)
         # Make sure the array contains what we need
         self._ensure_consistency()
-        self._initialize_params(self.phys_pars)
+        self._initialize_params(phys_pars=self.phys_pars)
 
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
+
         # Uncomment and comment the line above to make the python Hamiltonian work
         # self.H = H()
 
-        # self.modes_list = [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)]
-
         # sign of the final spin
         self._sign_final_spin: int | None = None
-
-        # Whether one is sampling over the deltaT parameter that determines the merger-ringdown attachment.
-        # This does not allow attaching the merger-ringdown at the last point of the dynamics.
-        self.deltaT_sampling = self.settings.get("deltaT_sampling", False)
-
-        # Whether one is including QNM deviations in the precession rate computation
-        self.omega_prec_deviation = self.settings.get("omega_prec_deviation", True)
 
     def _default_settings(self):
         settings = dict(
@@ -810,81 +729,19 @@ class SEOBNRv5PHM_opt(Model):
         )
         return settings
 
-    def _validate_modes(self):
-        """
-        Check that the mode array is sensible, i.e.
-        has something and the modes being asked for are valid.
-        """
-
-        if not self.return_modes:
-            logger.error("The mode list specified is empty!")
-            raise ValueError
-        ell_mx = 2
-        for mode in self.return_modes:
-            ell, m = mode
-
-            if mode not in VALID_MODES:
-                logger.error(f"The specified mode, {mode} is not available!")
-                logger.error(f"The allowed modes are: {VALID_MODES}")
-                raise ValueError
-            if ell > ell_mx:
-                ell_mx = ell
-
-        self.max_ell_returned = ell_mx
-
-    def _ensure_consistency(self):
-        """Make sure that the modes contains everything needed to compute mixed modes
-
-        Args:
-            modes (list): Current list of modes to compute
-        """
-        for mode in self.mixed_modes:
-            ell, m = mode
-            if (m, m) not in self.computed_modes:
-                self.computed_modes.append((m, m))
-
-    def _initialize_params(self, phys_pars):
+    def _initialize_params(
+        self, *, phys_pars: dict | None, eob_pars: EOBParams | None = None
+    ):
         """
         Re-initialize all parameters to make sure everything is reset
         """
-        self.eob_pars: EOBParams = EOBParams(
-            phys_pars, {}, mode_array=list(self.computed_modes)
-        )
-        self.eob_pars.flux_params.rho_initialized = False
-        self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
-        self.eob_pars.flux_params.prefixes_abs = np.abs(
-            self.eob_pars.flux_params.prefixes
-        )
-        self.step_back = self.settings.get("step_back", 250.0)
+        assert eob_pars is None
+        super()._initialize_params(phys_pars=phys_pars)
 
-        self.eob_pars.flux_params.extra_PN_terms = self.settings.get(
-            "extra_PN_terms", True
-        )
+        # Whether one is including QNM deviations in the precession rate computation
+        self.omega_prec_deviation = self.settings.get("omega_prec_deviation", True)
 
         self.eob_pars.aligned = False
-
-        # EOB Hamiltonian deviation
-        default_deviation_dict = {f"{ell},{emm}": 0.0 for ell, emm in VALID_MODES}
-
-        # Plunge-merger deviations
-        self.dA_dict = default_deviation_dict | self.settings.get("dA_dict", {})
-        self.dw_dict = default_deviation_dict | self.settings.get("dw_dict", {})
-
-        self.dTpeak = self.settings.get("dTpeak", 0.0)
-
-        # EOB Hamiltonian deviation
-        self.da6 = self.settings.get("da6", 0.0)
-        self.ddSO = self.settings.get("ddSO", 0.0)
-
-        # QNM deviations
-        self.domega_dict = default_deviation_dict | self.settings.get("domega_dict", {})
-        self.dtau_dict = default_deviation_dict | self.settings.get("dtau_dict", {})
-        for value in self.dtau_dict.values():
-            if value <= -1:
-                raise ValueError(
-                    "dtau must be larger than -1, otherwise the remnant rings up instead "
-                    "of ringing down."
-                )
 
     def _set_H_coeffs(self):
         dc = {}
@@ -900,7 +757,7 @@ class SEOBNRv5PHM_opt(Model):
         # Evaluate the model
 
         # Initialize the containers
-        self._initialize_params(self.phys_pars)
+        self._initialize_params(phys_pars=self.phys_pars)
 
         # Set the Hamiltonian coefficients
         self._set_H_coeffs()

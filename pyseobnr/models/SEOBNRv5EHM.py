@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import re
 from copy import deepcopy
@@ -45,17 +47,20 @@ from ..eob.waveform.waveform_ecc import (
 )
 from .common import VALID_MODES_ECC
 from .model import Model
+from .SEOBNRv5Base import SEOBNRv5ModelBase
 
 logger = logging.getLogger(__name__)
 
 
-class SEOBNRv5EHM_opt(Model):
+class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
     """
     Represents an aligned-spin eccentric waveform model, whose
     eccentricity-zero limit is the SEOBNRv5HM model.
 
     [Gamboa2024a]_ , [Gamboa2024b]_
     """
+
+    model_valid_modes = VALID_MODES_ECC
 
     def __init__(
         self,
@@ -197,7 +202,9 @@ class SEOBNRv5EHM_opt(Model):
         self.return_modes = self.settings.get("return_modes", None)
 
         # Check that the modes are valid, i.e. something we can return
-        self._validate_modes()
+        self.max_ell_returned = self._validate_modes(
+            settings
+        )  # we need to pass the user settings here
         self.lmax_nyquist = self.settings.get("lmax_nyquist", self.max_ell_returned)
 
         # Now deal with which mixed modes the user wants, if any
@@ -214,7 +221,7 @@ class SEOBNRv5EHM_opt(Model):
 
         # Initialize parameters
         self.prefixes = compute_newtonian_prefixes(self.m_1, self.m_2)
-        self._initialize_params(self.phys_pars)
+        self._initialize_params(phys_pars=self.phys_pars)
 
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
@@ -258,62 +265,19 @@ class SEOBNRv5EHM_opt(Model):
 
         return settings
 
-    def _validate_modes(self):
-        """
-        Check that the mode array is sensible, i.e. it has something
-        and the modes being asked for are valid.
-        """
-
-        if not self.return_modes:
-            logger.error("The mode list specified is empty!")
-            raise ValueError
-        ell_mx = 2
-        for mode in self.return_modes:
-            ell, m = mode
-
-            if mode not in VALID_MODES_ECC:
-                logger.error(
-                    "The specified mode %s is not available. The valid modes are %s",
-                    mode,
-                    VALID_MODES_ECC,
-                )
-
-                raise ValueError(
-                    f"Invalid mode specified, valid modes are {VALID_MODES_ECC}"
-                )
-
-            if ell > ell_mx:
-                ell_mx = ell
-
-        self.max_ell_returned = ell_mx
-
-    def _ensure_consistency(self):
-        """
-        Make sure that the modes contains everything needed to compute
-        mixed modes.
-        """
-
-        for mode in self.mixed_modes:
-            ell, m = mode
-            if (m, m) not in self.computed_modes:
-                self.computed_modes.append((m, m))
-
-    def _initialize_params(self, phys_pars):
+    def _initialize_params(
+        self, *, phys_pars: dict | None, eob_pars: EOBParams | None = None
+    ):
         """
         Re-initialize all parameters to make sure everything is reset.
         """
+        super()._initialize_params(
+            phys_pars=None,
+            eob_pars=EOBParams(
+                phys_pars, {}, mode_array=self.computed_modes, ecc_model=True
+            ),
+        )
 
-        self.eob_pars = EOBParams(
-            phys_pars, {}, mode_array=self.computed_modes, ecc_model=True
-        )
-        self.eob_pars.flux_params.rho_initialized = False
-        self.eob_pars.flux_params.prefixes = np.array(self.prefixes)
-        self.eob_pars.flux_params.prefixes_abs = np.abs(
-            self.eob_pars.flux_params.prefixes
-        )
-        self.eob_pars.flux_params.extra_PN_terms = self.settings.get(
-            "extra_PN_terms", True
-        )
         # The choice of step-back is determined by the range of
         # NR_deltaT in the parameter space of application.
         # The largest value is reached for maximum q and
@@ -385,7 +349,7 @@ class SEOBNRv5EHM_opt(Model):
         """
 
         # Initialize the parameters of the model
-        self._initialize_params(self.phys_pars)
+        self._initialize_params(phys_pars=self.phys_pars)
         self._compute_starting_values()
 
         # Compute the shift from reference point to peak of (2,2) mode
