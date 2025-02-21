@@ -246,7 +246,6 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
             M=M_default,  # Total mass in solar masses
             dt=dt,  # Desired time spacing, *in seconds*
             debug=False,  # Run in debug mode
-            postadiabatic=False,  # Use postadiabatic?
             return_modes=VALID_MODES_ECC,
             atol=1e-12,
             dissipative_ICs="root",

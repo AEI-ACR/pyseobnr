@@ -38,7 +38,7 @@ _default_deviation_dict: Final[dict[str, float]] = {
 }
 
 
-def concatenate_modes(hlms_1: Dict[Any, Any], hlms_2: Dict[Any, Any]) -> Dict[Any, Any]:
+def concatenate_modes(hlms_1: dict[Any, Any], hlms_2: dict[Any, Any]) -> dict[Any, Any]:
     """Concatenate 2 dictionaries of waveform modes
 
     This is used to put together the low and fine sampling waveform modes.
@@ -65,7 +65,7 @@ def interpolate_modes_fast(
     modes_dict: dict[tuple[int, int], Any],
     phi_orb: np.ndarray,
     m_max: int = 5,
-) -> dict[str, Any]:
+) -> dict[tuple[int, int], Any]:
     """Construct inertial frame modes on a new regularly
     spaced time grid.
 
@@ -85,7 +85,7 @@ def interpolate_modes_fast(
     Returns:
         dict: Dictionary of modes interpolated onto t_new
     """
-    modes_intrp = {}
+    modes_intrp: dict[tuple[int, int], Any] = {}
 
     n = len(t_old)
     intrp_orb = spline.cspline(n)
@@ -112,53 +112,53 @@ def interpolate_modes_fast(
 
 
 def compute_IMR_modes(
-    t,
-    hlms,
-    t_for_compute,
-    hlms_for_compute,
-    m1,
-    m2,
-    chi1,
-    chi2,
-    t_attach,
-    f_nyquist,
-    lmax_nyquist,
+    t: np.ndarray,
+    hlms: dict[tuple[int, int], np.ndarray],
+    t_for_compute: np.ndarray,
+    hlms_for_compute: dict[tuple[int, int], np.ndarray],
+    m1: float,
+    m2: float,
+    chi1: float,
+    chi2: float,
+    t_attach: float,
+    f_nyquist: float,
+    lmax_nyquist: int,
     mixed_modes: list[tuple[int, int]] | None = None,
-    final_state=None,
-    qnm_rotation=0.0,
-    align=True,
+    final_state: list | tuple[float, float] = None,
+    qnm_rotation: float = 0.0,
+    align: bool = True,
     dw_dict: dict[str, float] | None = None,
     domega_dict: dict[str, float] | None = None,
     dtau_dict: dict[str, float] | None = None,
-):
-    """This computes the IMR modes given the inspiral modes and the
+) -> tuple[np.ndarray, dict[tuple[int, int], np.ndarray]]:
+    """Computes the IMR modes given the inspiral modes and the
     attachment time.
 
     Args:
-        t (np.ndarray): The interpolated time array of the inspiral modes
-        hlms (np.ndarray): Dictionary containing the inspiral modes
-        t_for_compute (np.ndarray): The fine dynamics time array
-        hlms_for_compute (np.ndarray): The waveform modes on the fine dynamics
-        m1 (float): Mass of primary
-        m2 (float): Mass of secondary
-        chi1 (float): z-component of the primary dimensionless spin
-        chi2 (float): z-component of the secondary dimensionless spin
-        t_attach (float): Attachment time
-        f_nyquist (float): Nyquist frequency, needed for checking that RD frequency is resolved
-        lmax_nyquist (int): Determines for which modes the nyquist test is applied for
-        mixed_modes (List): List of mixed modes to consider. Defaults to [(3,2),(4,3)]
-        final_state (List): Final mass and spin of the remnant. Default to None. If None,
-                            compute internally.
-        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame
-                            (Eq. 33 of Hamilton et al.)
-        align (bool): If True, align the waveform at the peak of the (2,2) mode.
-        dw_dict (dict): Dictionary of fractional deviation at instantaneous frequency at the mode
-                        peak amplitude
-        domega_dict (dict): Dictionary of fractional deviations of QNM frequency for each mode
-        dtau_dict (dict): Dictionary of fractional deviation of QNM damping time for each mode
+        t: The interpolated time array of the inspiral modes
+        hlms: Dictionary containing the inspiral modes
+        t_for_compute: The fine dynamics time array
+        hlms_for_compute: The waveform modes on the fine dynamics
+        m1: Mass of primary
+        m2: Mass of secondary
+        chi1: z-component of the primary dimensionless spin
+        chi2: z-component of the secondary dimensionless spin
+        t_attach: Attachment time
+        f_nyquist: Nyquist frequency, needed for checking that RD frequency is resolved
+        lmax_nyquist: Determines for which modes the nyquist test is applied for
+        mixed_modes: List of mixed modes to consider. Defaults to ``[(3,2),(4,3)]``
+        final_state: Final mass and spin of the remnant (as tuple or list of 2 elements).
+            Default to ``None``. If ``None``, compute internally.
+        qnm_rotation: Factor rotating the QNM mode frequency in the co-precessing frame
+            (Eq. 33 of Hamilton et al.)
+        align: If True, align the waveform at the peak of the (2,2) mode.
+        dw_dict: Dictionary of fractional deviation at instantaneous frequency at the mode
+            peak amplitude
+        domega_dict: Dictionary of fractional deviations of QNM frequency for each mode
+        dtau_dict: Dictionary of fractional deviation of QNM damping time for each mode
 
     Returns:
-        dict: Dictionary containing the waveform modes
+        time array and dictionary containing the waveform modes
     """
 
     # We want to attach the ringdown always at the same time,
@@ -590,7 +590,7 @@ def compute_mixed_mode(
 def NQC_correction(
     inspiral_modes: Dict,
     t_modes: np.ndarray,
-    polar_dynamics: np.ndarray,
+    polar_dynamics: tuple[np.ndarray, np.ndarray, np.ndarray],
     t_peak: float,
     nrDeltaT: float,
     m_1: float,
@@ -625,9 +625,7 @@ def NQC_correction(
 
     # Compute omega
 
-    r = polar_dynamics[0]
-    pr = polar_dynamics[1]
-    omega_orb = polar_dynamics[2]
+    r, pr, omega_orb = polar_dynamics
     input_value_fits = InputValueFits(m_1, m_2, [0.0, 0.0, chi_1], [0.0, 0.0, chi_2])
     fits_dict = dict(
         amp=input_value_fits.habs(),
@@ -697,15 +695,17 @@ def NQC_correction(
 
 
 def apply_nqc_corrections(
-    hlms: Dict[Any, Any], nqc_coeffs: Dict[Any, Any], polar_dynamics: np.ndarray
+    hlms: dict[tuple[int, int], Any],
+    nqc_coeffs: dict[tuple[int, int], Any],
+    polar_dynamics: list[np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray],
 ):
     """
     Loop over modes and multiply them by NQC correction
 
     Args:
-        hlms (Dict): Dictionary of inspiral modes
-        nqc_coeffs (Dict): Dictionary of NQC coefficients
-        polar_dynamics (np.ndarray): Dynamics array
+        hlms: Dictionary of inspiral modes
+        nqc_coeffs: Dictionary of NQC coefficients
+        polar_dynamics: Dynamics array
 
     """
     r, pr, omega_orb = polar_dynamics
