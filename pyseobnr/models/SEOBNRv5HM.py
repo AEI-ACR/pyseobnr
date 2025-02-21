@@ -9,7 +9,6 @@ import lal
 import numpy as np
 import quaternion
 import scri
-from lalinference.imrtgr import nrutils
 from pygsl_lite import spline
 from scipy.interpolate import CubicSpline
 from scipy.optimize import root
@@ -31,6 +30,7 @@ from pyseobnr.eob.fits.IV_fits import InputValueFits
 from pyseobnr.eob.hamiltonian import Hamiltonian
 from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
 from pyseobnr.eob.utils.math_ops_opt import my_norm
+from pyseobnr.eob.utils.nr_utils import bbh_final_mass_non_precessing_UIB2016
 from pyseobnr.eob.utils.utils import estimate_time_max_amplitude
 from pyseobnr.eob.utils.utils_precession_opt import (
     SEOBRotatehIlmFromhJlm_opt_v1,
@@ -1134,7 +1134,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             # r=10 M
 
             # Get the final mass
-            final_mass = nrutils.bbh_final_mass_non_precessing_UIB2016(
+            final_mass = bbh_final_mass_non_precessing_UIB2016(
                 self.m_1, self.m_2, chi1LN_om_r10M, chi2LN_om_r10M
             )
 

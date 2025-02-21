@@ -6,25 +6,27 @@ Contains the functions needed for computing the post-adiabatic dynamics as well 
 """
 
 cimport cython
+
 from typing import Dict
+
 import numpy as np
-from libc.math cimport log, sqrt, exp, abs,fabs, tgamma,sin,cos, tanh, sinh, asinh
 
-from .initial_conditions_aligned_opt import computeIC_opt as computeIC
+from libc.math cimport abs, asinh, cos, exp, fabs, log, sin, sinh, sqrt, tanh, tgamma
 
-
-from pygsl_lite import  roots, errno
-from scipy import optimize
+from pygsl_lite import errno, roots
+from scipy import integrate, optimize
 from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
-from scipy import integrate
 
-from lalinference.imrtgr import nrutils
-
-from .integrate_ode import compute_dynamics_opt as compute_dynamics
+from ..utils.nr_utils import (
+    bbh_final_spin_non_precessing_HBR2016
+)
+from .initial_conditions_aligned_opt import computeIC_opt as computeIC
 from .integrate_ode import augment_dynamics
-from pyseobnr.eob.utils.containers cimport EOBParams
-from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
-from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
+from .integrate_ode import compute_dynamics_opt as compute_dynamics
+
+from ..hamiltonian.Hamiltonian_C cimport Hamiltonian_C
+from ..utils.containers cimport EOBParams
+from ..waveform.waveform cimport RadiationReactionForce
 
 fin_diff_coeffs_order_9 = np.array([
     [-761./280., 8., -14., 56./3., -35./2., 56./5., -14./3., 8./7., -1./8.],
@@ -127,7 +129,7 @@ cpdef Kerr_ISCO(
     Compute the Kerr ISCO radius and angular momentum
     from the remnant spin predicted by NR fits
     """
-    a = nrutils.bbh_final_spin_non_precessing_HBR2016(
+    a = bbh_final_spin_non_precessing_HBR2016(
             m1, m2, chi1, chi2, version="M3J4"
     )
     # Compute the ISCO radius for this spin

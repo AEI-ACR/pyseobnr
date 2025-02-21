@@ -4,32 +4,33 @@ Contains the functions needed for computing the precessing post-adiabatic dynami
 """
 
 cimport cython
+
 from typing import Dict
+
 import numpy as np
-import  quaternion
-from libc.math cimport log, sqrt, exp, abs,fabs, tgamma,sin,cos, tanh, sinh, asinh
+import quaternion
 
-from .initial_conditions_aligned_opt import computeIC_opt as computeIC
-from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
+from libc.math cimport abs, asinh, cos, exp, fabs, log, sin, sinh, sqrt, tanh, tgamma
 
-from pygsl_lite import  roots, errno
-from scipy import optimize
+from pygsl_lite import errno, roots
+from scipy import integrate, optimize
 from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
-from scipy import integrate
 
-from lalinference.imrtgr import nrutils
-
-from pyseobnr.eob.utils.containers cimport EOBParams
-from pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C cimport Hamiltonian_v5PHM_C
-from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
-
+from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
+from ..hamiltonian.Hamiltonian_v5PHM_C cimport Hamiltonian_v5PHM_C
+from ..utils.containers cimport EOBParams
+from ..utils.math_ops_opt import my_dot, my_norm
+from ..utils.nr_utils import (
+    bbh_final_spin_non_precessing_HBR2016,
+    bbh_final_spin_precessing_HBR2016,
+)
+from ..waveform.waveform cimport RadiationReactionForce
+from .initial_conditions_aligned_opt import computeIC_opt as computeIC
 from .initial_conditions_aligned_precessing import computeIC_augm
-from .pn_evolution_opt import compute_quasiprecessing_PNdynamics_opt
-from .pn_evolution_opt import build_splines_PN
 from .integrate_ode_prec import compute_dynamics_prec_opt
-from pyseobnr.eob.utils.math_ops_opt import my_dot, my_norm
-
+from .pn_evolution_opt import build_splines_PN, compute_quasiprecessing_PNdynamics_opt
 from .postadiabatic_C import Kerr_ISCO, Newtonian_j0, univariate_spline_integral
+
 
 @cython.profile(True)
 @cython.linetrace(True)
@@ -99,7 +100,7 @@ cpdef precessing_final_spin(
         phi12 = np.arccos(np.clip(angle,-1,1))
 
     # Call non-precessing HBR fit to get the *sign* of the final spin
-    cdef double final_spin_nonprecessing = nrutils.bbh_final_spin_non_precessing_HBR2016(
+    cdef double final_spin_nonprecessing = bbh_final_spin_non_precessing_HBR2016(
         m1, m2, chi1_LN, chi2_LN, version="M3J4"
     )
 
@@ -108,7 +109,7 @@ cpdef precessing_final_spin(
       sign_final_spin = -1
 
     # Compute the magnitude of the final spin using the precessing fit
-    final_spin = nrutils.bbh_final_spin_precessing_HBR2016(
+    final_spin = bbh_final_spin_precessing_HBR2016(
         m1, m2, a1, a2, tilt1, tilt2, phi12, version="M3J4"
     )
 
