@@ -304,5 +304,5 @@ def EOBNonQCCorrection(r, phi, pr, pphi, omega, coeffs):
         coeffs["b2"] + coeffs["b3"] / sqrtR + coeffs["b4"] / r
     )
 
-    nqc = mag * np.cos(phase) + 1j * mag * np.sin(phase)
+    nqc = mag * np.exp(1j * phase)
     return nqc

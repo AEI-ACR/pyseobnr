@@ -69,7 +69,7 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         chi_1: float,
         chi_2: float,
         omega0: float,
-        H: Hamiltonian,
+        H: type[Hamiltonian],
         RR: Callable,
         settings: Dict[Any, Any] = None,
     ) -> None:
@@ -202,9 +202,13 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         self._initialize_params(phys_pars=self.phys_pars)
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
-        if self.settings.get("postadiabatic", False):
-            self.PA_style = self.settings.get("PA_style", "analytic")
-            self.PA_order = self.settings.get("PA_order", 8)
+
+        self.settings["postadiabatic_type"] = self.settings.get(
+            "postadiabatic_type", "analytic"
+        )
+        if self.settings["postadiabatic_type"] not in ["numeric", "analytic"]:
+            raise ValueError("Incorrect value for postadiabatic_type")
+        self.PA_order: Final = self.settings.get("PA_order", 8)
 
         # Whether one is sampling over the deltaT parameter that determines the merger-ringdown attachment.
         # This does not allow attaching the merger-ringdown at the last point of the dynamics.
@@ -300,7 +304,7 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     r_stop=r_stop,
                 )
             else:
-                if self.PA_style == "root":
+                if self.settings["postadiabatic_type"] == "numeric":
                     dynamics_low, dynamics_fine = compute_combined_dynamics(
                         self.omega0,
                         self.H,
@@ -318,7 +322,10 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                         PA_order=self.PA_order,
                         r_stop=r_stop,
                     )
-                elif self.PA_style == "analytic":
+                else:
+                    assert (
+                        self.settings["postadiabatic_type"] == "analytic"
+                    )  # already checked in the constructor
                     dynamics_low, dynamics_fine = compute_combined_dynamics_fast(
                         self.omega0,
                         self.H,
@@ -720,6 +727,9 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
         # Uncomment and comment the line above to make the python Hamiltonian work
         # self.H = H()
+
+        if self.settings["postadiabatic_type"] not in ["numeric", "analytic"]:
+            raise ValueError("Incorrect value for postadiabatic_type")
 
         # sign of the final spin
         self._sign_final_spin: int | None = None
