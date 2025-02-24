@@ -19,17 +19,24 @@ def test_pSEOB_settings_passed_to_underlying_models():
 
     for current_dict in dict_params:
         approximant: SupportedApproximants
-        for approximant in set(get_args(SupportedApproximants)) - {"SEOBNRv5EHM"}:
+        for approximant in set(get_args(SupportedApproximants)):
+
+            if approximant == "SEOBNRv5EHM":
+                valid_modes = ("2,2", "2,1", "3,3", "3,2", "4,4", "4,3")
+                module_name = "pyseobnr.models.SEOBNRv5EHM"
+            else:
+                valid_modes = ("2,2", "2,1", "3,3", "3,2", "4,4", "4,3", "5,5")
+                module_name = "pyseobnr.models.SEOBNRv5HM"
 
             random_dict = {
                 k: random.uniform(-1 if current_dict != "dtau" else -0.9999, 1)
-                for k in ("2,2", "2,1", "3,3", "3,2", "4,4", "4,3", "5,5")
+                for k in valid_modes
             }
 
             with mock.patch(
-                "pyseobnr.models.SEOBNRv5HM.NQC_correction", wraps=NQC_correction
+                f"{module_name}.NQC_correction", wraps=NQC_correction
             ) as p_NQC_correction, mock.patch(
-                "pyseobnr.models.SEOBNRv5HM.compute_IMR_modes", wraps=compute_IMR_modes
+                f"{module_name}.compute_IMR_modes", wraps=compute_IMR_modes
             ) as p_compute_IMR_modes:
 
                 *_, model = generate_modes_opt(
@@ -69,17 +76,21 @@ def test_pSEOB_check_dtau_above_m1_yields_an_error():
     chi_2 = 0.3
 
     approximant: SupportedApproximants
-    for approximant in set(get_args(SupportedApproximants)) - {"SEOBNRv5EHM"}:
-        dtau_dict = {
-            k: random.uniform(-0.9999, 1)
-            for k in ("2,2", "2,1", "3,3", "3,2", "4,4", "4,3", "5,5")
-        }
+    for approximant in set(get_args(SupportedApproximants)):
+        if approximant == "SEOBNRv5EHM":
+            valid_modes = ("2,2", "2,1", "3,3", "3,2", "4,4", "4,3")
+            module_name = "pyseobnr.models.SEOBNRv5EHM"
+        else:
+            valid_modes = ("2,2", "2,1", "3,3", "3,2", "4,4", "4,3", "5,5")
+            module_name = "pyseobnr.models.SEOBNRv5HM"
+
+        dtau_dict = {k: random.uniform(-0.9999, 1) for k in valid_modes}
         dtau_dict[random.choice(list(dtau_dict.keys()))] = -2
 
         with mock.patch(
-            "pyseobnr.models.SEOBNRv5HM.NQC_correction", wraps=NQC_correction
+            f"{module_name}.NQC_correction", wraps=NQC_correction
         ) as p_NQC_correction, mock.patch(
-            "pyseobnr.models.SEOBNRv5HM.compute_IMR_modes", wraps=compute_IMR_modes
+            f"{module_name}.compute_IMR_modes", wraps=compute_IMR_modes
         ) as p_compute_IMR_modes:
 
             with pytest.raises(
@@ -116,18 +127,25 @@ def test_pSEOB_settings_passed_with_missing_modes():
     for current_dict in dict_params:
 
         approximant: SupportedApproximants
-        for approximant in set(get_args(SupportedApproximants)) - {"SEOBNRv5EHM"}:
+        for approximant in set(get_args(SupportedApproximants)):
+
+            if approximant == "SEOBNRv5EHM":
+                valid_modes_minus_33 = ("2,2", "2,1", "3,2", "4,4", "4,3")
+                module_name = "pyseobnr.models.SEOBNRv5EHM"
+            else:
+                valid_modes_minus_33 = ("2,2", "2,1", "3,2", "4,4", "4,3", "5,5")
+                module_name = "pyseobnr.models.SEOBNRv5HM"
 
             # 3,3 is missing from here
             random_dict = {
                 k: random.uniform(-1 if current_dict != "dtau" else -0.9999, 1)
-                for k in ("2,2", "2,1", "3,2", "4,4", "4,3", "5,5")
+                for k in valid_modes_minus_33
             }
 
             with mock.patch(
-                "pyseobnr.models.SEOBNRv5HM.NQC_correction", wraps=NQC_correction
+                f"{module_name}.NQC_correction", wraps=NQC_correction
             ) as p_NQC_correction, mock.patch(
-                "pyseobnr.models.SEOBNRv5HM.compute_IMR_modes", wraps=compute_IMR_modes
+                f"{module_name}.compute_IMR_modes", wraps=compute_IMR_modes
             ) as p_compute_IMR_modes:
 
                 *_, model = generate_modes_opt(
