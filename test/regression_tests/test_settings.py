@@ -1,7 +1,8 @@
 import decimal
 import fractions
 import re
-from typing import Final, get_args
+from contextlib import ExitStack
+from typing import Final, cast, get_args
 from unittest import mock
 
 import lal
@@ -54,7 +55,7 @@ def basic_settings():
     return params_dict
 
 
-def test_mode_arrays_settings(basic_settings):
+def test_generate_waveform_mode_arrays_settings(basic_settings):
     """Checks the behaviour wrt. mode_array setting"""
 
     # cannot accept both
@@ -642,7 +643,7 @@ def test_lmax_in_generate_waveform(basic_settings):
             )
 
 
-def test_f_ref_f_min_f_max_behaviour(basic_settings):
+def test_generate_waveform_f_ref_f_min_f_max_behaviour(basic_settings):
     """Checks the logic in setting f_ref (and f_min/f_start)"""
 
     assert "f_ref" not in basic_settings  # for this test to work
@@ -738,7 +739,44 @@ def test_f_ref_f_min_f_max_behaviour(basic_settings):
         )
 
 
-def test_generate_modes_opt_settings_all_models(basic_settings):
+def test_generate_modes_opt_settings_can_be_none():
+    """Checks that generate_modes_opt allows for None settings"""
+
+    class MyException(Exception):
+        pass
+
+    with mock.patch.object(
+        pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5HM_opt,
+        "__call__",
+        autospec=True,
+    ) as p_model_call:
+
+        p_model_call.side_effect = MyException
+
+        with pytest.raises(
+            MyException,
+        ):
+            _ = generate_modes_opt(
+                q=1.1, chi1=0, chi2=0, omega_start=20, approximant="SEOBNRv5HM"
+            )
+
+    with mock.patch.object(
+        pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5PHM_opt,
+        "__call__",
+        autospec=True,
+    ) as p_model_call:
+
+        p_model_call.side_effect = MyException
+
+        with pytest.raises(
+            MyException,
+        ):
+            _ = generate_modes_opt(
+                q=1.1, chi1=0, chi2=0, omega_start=20, approximant="SEOBNRv5PHM"
+            )
+
+
+def test_generate_modes_opt_settings_all_models():
     """Checks error reporting of incorrect parameters to generate_modes_opt"""
 
     with pytest.raises(
@@ -764,19 +802,8 @@ def test_generate_modes_opt_settings_all_models(basic_settings):
         )
 
 
-def test_spins_cannot_be_booleans():
+def test_generate_waveform_spins_cannot_be_booleans():
     """Checks that passing a boolean for a spin value returns an error"""
-
-    with pytest.raises(
-        ValueError,
-        match="Boolean spin values unsupported",
-    ):
-        _ = generate_modes_opt(
-            q=1.1,
-            chi1=True,
-            chi2=0.3,
-            omega_start=0.015,
-        )
 
     params: Final = {
         "mass1": 40.0,
@@ -822,7 +849,22 @@ def test_spins_cannot_be_booleans():
         GenerateWaveform(params2)
 
 
-def test_params_through_generate_waveform_cannot_be_booleans():
+def test_generate_modes_opt_spins_cannot_be_booleans():
+    """Checks that passing a boolean for a spin value returns an error"""
+
+    with pytest.raises(
+        ValueError,
+        match="Boolean spin values unsupported",
+    ):
+        _ = generate_modes_opt(
+            q=1.1,
+            chi1=True,
+            chi2=0.3,
+            omega_start=0.015,
+        )
+
+
+def test_generate_modes_opt_params_cannot_be_booleans():
     """Extends the boolean tests on all parameters"""
 
     with pytest.raises(
@@ -835,6 +877,10 @@ def test_params_through_generate_waveform_cannot_be_booleans():
             chi2=0.3,
             omega_start=0.015,
         )
+
+
+def test_generate_waveform_params_cannot_be_booleans():
+    """Extends the boolean tests on all parameters"""
 
     f_min = 0.015 / (np.pi * (40.0 + 40 / 1.1) * lal.MTSUN_SI)
     params: Final = {
@@ -1055,25 +1101,120 @@ def test_generate_modes_opt_settings_hm(basic_settings):
         )
         p_model_call.assert_called_once()
 
+        p_model_call.reset_mock()
+        _ = generate_modes_opt(
+            q=1.1,
+            chi1=0,
+            chi2=1,
+            omega_start=0.00001,
+            approximant="SEOBNRv5HM",
+        )
+        p_model_call.assert_called_once()
+
+
+def test_generate_modes_opt_settings_phm(basic_settings):
+    """Checks error reporting of incorrect parameters to generate_modes_opt for PHM"""
+    theta = np.pi / 4
+    phi = 11 * np.pi / 12
+
+    r = 1 + 1e-3
+
+    incorrect_spin = np.array(
+        [
+            r * np.sin(theta) * np.cos(phi),
+            r * np.sin(theta) * np.sin(phi),
+            r * np.cos(theta),
+        ]
+    )
+
+    rm1 = 0.9
+    correct_spin = np.array(
+        [
+            rm1 * np.sin(theta) * np.cos(phi),
+            rm1 * np.sin(theta) * np.sin(phi),
+            rm1 * np.cos(theta),
+        ]
+    )
+
+    # pytest-mocker is hard to use with context managers
     with mock.patch.object(
-        pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5HM_opt,
+        pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5PHM_opt,
         "__call__",
         autospec=True,
     ) as p_model_call:
 
-        def compute_dynamics(self):
-            self.t = "something"
-            self.waveform_modes = "something else"
+        class LocalException(Exception):
+            pass
 
-        p_model_call.side_effect = compute_dynamics
+        p_model_call.side_effect = LocalException
 
-        _ = generate_modes_opt(
-            q=1.1,
-            chi1=1,
-            chi2=0,
-            omega_start=0.00001,
-            approximant="SEOBNRv5HM",
-        )
+        with pytest.raises(
+            ValueError,
+            match="Dimensionless spin magnitudes cannot be greater than 1!",
+        ):
+            _ = generate_modes_opt(
+                q=1.1,
+                chi1=incorrect_spin,
+                chi2=0,
+                omega_start=0.00001,
+                approximant="SEOBNRv5PHM",
+            )
+            p_model_call.assert_not_called()
+
+        with pytest.raises(
+            ValueError,
+            match="Dimensionless spin magnitudes cannot be greater than 1!",
+        ):
+            _ = generate_modes_opt(
+                q=1.1,
+                chi1=0,
+                chi2=incorrect_spin,
+                omega_start=0.00001,
+                approximant="SEOBNRv5PHM",
+            )
+            p_model_call.assert_not_called()
+
+        with pytest.raises(LocalException):
+            _ = generate_modes_opt(
+                q=1.1,
+                chi1=correct_spin,
+                chi2=0,
+                omega_start=0.00001,
+                approximant="SEOBNRv5PHM",
+            )
+        p_model_call.assert_called_once()
+
+        p_model_call.reset_mock()
+        with pytest.raises(LocalException):
+            _ = generate_modes_opt(
+                q=1.1,
+                chi1=0,
+                chi2=correct_spin,
+                omega_start=0.00001,
+                approximant="SEOBNRv5PHM",
+            )
+        p_model_call.assert_called_once()
+
+        p_model_call.reset_mock()
+        with pytest.raises(LocalException):
+            _ = generate_modes_opt(
+                q=1.1,
+                chi1=1,
+                chi2=0,
+                omega_start=0.00001,
+                approximant="SEOBNRv5PHM",
+            )
+        p_model_call.assert_called_once()
+
+        p_model_call.reset_mock()
+        with pytest.raises(LocalException):
+            _ = generate_modes_opt(
+                q=1.1,
+                chi1=0,
+                chi2=1,
+                omega_start=0.00001,
+                approximant="SEOBNRv5PHM",
+            )
         p_model_call.assert_called_once()
 
 
@@ -1082,43 +1223,78 @@ def test_generate_modes_opt_precessing_chi_array_float_int():
     q = 41.83615272380585
     omega0 = 0.02
 
+    class MyException(Exception):
+        pass
+
+    class_map: Final = {
+        "SEOBNRv5HM": pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5HM_opt,
+        "SEOBNRv5PHM": pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5PHM_opt,
+        "SEOBNRv5EHM": pyseobnr.generate_waveform.SEOBNRv5EHM.SEOBNRv5EHM_opt,
+    }
+
     for chi_2 in (0, 0.3):
         chi_1 = np.array([0.0, 0.0, 0.98917404])
 
         approx: SupportedApproximants
         for approx in get_args(SupportedApproximants):
-            _ = generate_modes_opt(
-                q,
-                chi_1,
-                chi_2,
-                omega0,
-                approximant=approx,
-                debug=False,
-                settings={
-                    "beta_approx": None,
-                    "M": 154.2059835575123,
-                    "dt": 6.103515625e-05,
-                },
-            )
+
+            # we prevent the execution of the waveform generation by mocking
+            with mock.patch.object(
+                class_map[approx],
+                "__call__",
+                autospec=True,
+            ) as p_model_call:
+                p_model_call.side_effect = MyException
+
+                with pytest.raises(MyException):
+                    _ = generate_modes_opt(
+                        q,
+                        chi_1,
+                        chi_2,
+                        omega0,
+                        approximant=approx,
+                        debug=False,
+                        settings={
+                            "beta_approx": None,
+                            "M": 154.2059835575123,
+                            "dt": 6.103515625e-05,
+                        },
+                    )
+
+                p_model_call.assert_called_once()
 
     for chi_1 in (0, 0.3):
         chi_2 = np.array([0.0, 0.0, 0.98917404])
 
         approx: SupportedApproximants
         for approx in get_args(SupportedApproximants):
-            _ = generate_modes_opt(
-                q,
-                chi_1,
-                chi_2,
-                omega0,
-                approximant=approx,
-                debug=False,
-                settings={
-                    "beta_approx": None,
-                    "M": 154.2059835575123,
-                    "dt": 6.103515625e-05,
-                },
-            )
+
+            # we prevent the execution of the waveform generation by mocking
+            with mock.patch.object(
+                class_map[approx],
+                "__call__",
+                autospec=True,
+            ) as p_model_call:
+                p_model_call.side_effect = MyException
+
+                p_model_call.side_effect = MyException
+
+                with pytest.raises(MyException):
+                    _ = generate_modes_opt(
+                        q,
+                        chi_1,
+                        chi_2,
+                        omega0,
+                        approximant=approx,
+                        debug=False,
+                        settings={
+                            "beta_approx": None,
+                            "M": 154.2059835575123,
+                            "dt": 6.103515625e-05,
+                        },
+                    )
+
+                p_model_call.assert_called_once()
 
 
 def test_generate_modes_opt_settings_ehm(basic_settings):
@@ -1244,7 +1420,7 @@ def test_generate_modes_opt_settings_ehm(basic_settings):
         p_model_call.assert_called_once()
 
 
-def test_generate_waveform_ehm(basic_settings):
+def test_generate_waveform_ehm():
     """Checks error reporting of incorrect parameters to GenerateWaveform for EHM"""
     params: Final = {
         "mass1": 40.0,
@@ -1300,3 +1476,75 @@ def test_generate_waveform_ehm(basic_settings):
         with pytest.raises(MyException):
             gen.generate_td_modes()
         p_generate_modes_opt.assert_called_once()
+
+
+@pytest.fixture
+def get_exit_stack():
+    exit_s = ExitStack()
+    yield exit_s
+    exit_s.close()
+
+
+def test_post_adiabatic_settings(get_exit_stack):
+    """Checks the settings associated to the post-adiabatic features"""
+
+    class MyException(Exception):
+        pass
+
+    exit_s = get_exit_stack
+
+    all_classes = [
+        pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5PHM_opt,
+        pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5HM_opt,
+    ]
+    all_mocks = []
+    for current_class in all_classes:
+        p_current_mock = exit_s.enter_context(
+            mock.patch.object(
+                current_class,
+                "__call__",
+                autospec=True,
+            )
+        )
+
+        p_current_mock.side_effect = MyException
+        all_mocks += [p_current_mock]
+
+    approx: SupportedApproximants
+    approximants_supporting_adiabatic: list[SupportedApproximants] = cast(
+        list[SupportedApproximants],
+        list(set(get_args(SupportedApproximants)) - {"SEOBNRv5EHM"}),
+    )
+    for approx in approximants_supporting_adiabatic:
+        print(approx)
+        with pytest.raises(MyException):
+            _ = generate_modes_opt(
+                q=1,
+                chi1=0,
+                chi2=0,
+                omega_start=0.1,
+                approximant=approx,
+                settings={"postadiabatic_type": "numeric", "postadiabatic": True},
+            )
+
+        assert sum(_.call_count for _ in all_mocks) == 1
+
+        for current_mock in all_mocks:
+            current_mock.reset_mock()
+
+    for approx in approximants_supporting_adiabatic:
+        with pytest.raises(ValueError, match="Incorrect value for postadiabatic_type"):
+            _ = generate_modes_opt(
+                q=1,
+                chi1=0,
+                chi2=0,
+                omega_start=0.1,
+                approximant=approx,
+                # root was the type used in a previous version of v5HM
+                settings={"postadiabatic_type": "root", "postadiabatic": True},
+            )
+
+        assert sum(_.call_count for _ in all_mocks) == 0
+
+        for current_mock in all_mocks:
+            current_mock.reset_mock()

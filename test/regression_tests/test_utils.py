@@ -88,12 +88,12 @@ def test_interpolate_dynamics():
     # we run this once to record the call to interpolate_dynamics
     with patch(
         "pyseobnr.eob.dynamics.integrate_ode.interpolate_dynamics"
-    ) as p_interpolate_dynamics_ecc:
+    ) as p_interpolate_dynamics:
 
         class LocalException(Exception):
             pass
 
-        p_interpolate_dynamics_ecc.side_effect = LocalException
+        p_interpolate_dynamics.side_effect = LocalException
 
         with pytest.raises(LocalException):
             _, _ = generate_modes_opt(
@@ -104,10 +104,10 @@ def test_interpolate_dynamics():
                 approximant="SEOBNRv5HM",
             )
 
-        p_interpolate_dynamics_ecc.assert_called_once()
-        dyn_fine = p_interpolate_dynamics_ecc.call_args_list[0].args[0]
-        peak_omega = p_interpolate_dynamics_ecc.call_args_list[0].kwargs["peak_omega"]
-        step_back = p_interpolate_dynamics_ecc.call_args_list[0].kwargs["step_back"]
+        p_interpolate_dynamics.assert_called_once()
+        dyn_fine = p_interpolate_dynamics.call_args_list[0].args[0]
+        peak_omega = p_interpolate_dynamics.call_args_list[0].kwargs["peak_omega"]
+        step_back = p_interpolate_dynamics.call_args_list[0].kwargs["step_back"]
 
     t1 = datetime.datetime.now()
     for _ in range(1000):
