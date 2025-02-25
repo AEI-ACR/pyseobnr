@@ -114,10 +114,10 @@
     # .pre-commit-config.yaml will read from there
     profile                = "black"
     src_paths              = ["pyseobnr", "test"]
-    sections               = "FUTURE,STDLIB,FIRSTPARTY,THIRDPARTY,TESTS,TOOLKIT,LOCALFOLDER"
+    sections               = "FUTURE,STDLIB,FIRSTPARTY,THIRDPARTY,TESTS,PYSEOBNR,LOCALFOLDER"
     extra_standard_library = "tomllib"
     known_tests            = "pytest"
-    known_toolkit          = "pyseobnr"
+    known_pyseobnr         = "pyseobnr"
 
 [tool.flake8]
     # remember to sync with .pre-commit-config.yaml
