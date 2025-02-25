@@ -1,31 +1,23 @@
-# cython: language_level=3, profile=True, linetrace=True, binding=True
+# cython: language_level=3, profile=False, linetrace=False, binding=True
 
 """
 Contains the functions needed for computing the "analytic" post-adiabatic dynamics
 """
 
 cimport cython
-from typing import Dict
 import numpy as np
-#import findiff
-from scipy.integrate import solve_ivp, ode
+from libc.math cimport sqrt, fabs
+
+from ..utils.containers cimport EOBParams
+from ..hamiltonian.Hamiltonian_C cimport (
+    Hamiltonian_C,
+)
+from ..waveform.waveform cimport RadiationReactionForce
+
 from .initial_conditions_aligned_opt import computeIC_opt as computeIC
-
-
-from pygsl_lite import  roots, errno
-from scipy import optimize
-from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
-from scipy import integrate
-
 from .integrate_ode import compute_dynamics_opt as compute_dynamics
-from .integrate_ode import augment_dynamics
-from pyseobnr.eob.utils.containers cimport EOBParams
-from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
-from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
-from libc.math cimport log, sqrt, exp, abs,fabs, tgamma,sin,cos, tanh, sinh, asinh
-
-
-from pyseobnr.eob.dynamics.postadiabatic_C cimport fin_diff_derivative, cumulative_integral, Kerr_ISCO, compute_adiabatic_solution
+from .rhs_aligned import augment_dynamics
+from .postadiabatic_C cimport fin_diff_derivative, cumulative_integral, Kerr_ISCO, compute_adiabatic_solution
 
 
 @cython.wraparound(False)
@@ -33,8 +25,6 @@ from pyseobnr.eob.dynamics.postadiabatic_C cimport fin_diff_derivative, cumulati
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double pr_eqn(
     double pr_sol,
     double r,
@@ -58,37 +48,33 @@ cpdef double pr_eqn(
     q[0] = r
     p[0] = pr_sol
     p[1] = pphi
-    cdef double dAdr,dBnpdr,dBnpadr,dxidr,dQdr,dQdprst,dHodddr,xi,omega,omega_circ
-    cdef double A,Bnp,Bnpa,Q,Heven,Hodd,H_val
-    cdef double aux_derivs[7]
+    cdef:
+        double omega
+        double omega_circ
+
     cdef double nu = params.p_params.nu
-    aux_derivs[:] = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
+    cdef double[7] aux_derivs = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
+    cdef double dQdprst = aux_derivs[5]
 
-    dAdr = aux_derivs[0]
-    dBnpdr = aux_derivs[1]
-    dBnpadr = aux_derivs[2]
-    dxidr = aux_derivs[3]
-    dQdr = aux_derivs[4]
-    dQdprst = aux_derivs[5]
-    dHodddr = aux_derivs[6]
+    # H_val,xi,A,Bnp,Bnpa,Q,Heven,Hodd = H._call(q,p,chi_1,chi_2,m_1,m_2)
+    cdef double[8] ret = H(q, p, chi_1, chi_2, m_1, m_2, verbose=True)
+    omega = H.omega(q, p, chi_1, chi_2, m_1, m_2)
 
-    H_val,xi,A,Bnp,Bnpa,Q,Heven,Hodd = H(q,p,chi_1,chi_2,m_1,m_2,verbose=True)
-    omega = H.omega(q,p,chi_1,chi_2,m_1,m_2)
+    cdef double H_val = ret[0]
+    cdef double xi = ret[1]
+    cdef double A = ret[2]
+    cdef double Bnp = ret[3]
+    cdef double Heven = ret[6]
 
     params.dynamics.p_circ[1] = pphi
-    omega_circ = H.omega(q,params.dynamics.p_circ,chi_1,chi_2,m_1,m_2)
+    omega_circ = H.omega(q, params.dynamics.p_circ, chi_1, chi_2, m_1, m_2)
 
-    cdef (double,double) flux = RR.RR(q, p, omega,omega_circ,H_val,params)
+    cdef (double, double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
 
-
-    cdef double result =  xi/(2*(1+Bnp))*(flux[1]/dpphi_dr*2*nu*H_val*Heven/A - xi*dQdprst)
-
-
+    cdef double result = xi/(2*(1+Bnp))*(flux[1]/dpphi_dr*2*nu*H_val*Heven/A - xi*dQdprst)
     return result
 
 
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_pr(
     double[:] r,
     double[:] pr,
@@ -109,23 +95,33 @@ cpdef compute_pr(
     SEOBNRv5 theory doc at every radial grid point.
     See DCC:T2300060
     """
-    cdef double[:] dpphi_dr = - fin_diff_derivative(r, pphi)
+    cdef double[:] dpphi_dr = -fin_diff_derivative(r, pphi)
     cdef int i
     for i in range(r.shape[0]):
-
-        pr[i]= pr_eqn(pr[i],r[i], pphi[i], dpphi_dr[i],
-                H, RR, chi_1, chi_2, m_1, m_2,
-                params,q,p)
+        pr[i] = pr_eqn(
+            pr[i],
+            r[i],
+            pphi[i],
+            dpphi_dr[i],
+            H,
+            RR,
+            chi_1,
+            chi_2,
+            m_1,
+            m_2,
+            params,
+            q,
+            p
+        )
 
     return pr
+
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double pphi_eqn(
     double pphi_sol,
     double r,
@@ -148,15 +144,32 @@ cpdef double pphi_eqn(
     """
     q[0] = r
     p[0] = pr
-    p[1] =  pphi_sol
+    p[1] = pphi_sol
     cdef double nu = params.p_params.nu
-    params.dynamics.p_circ[1] =  pphi_sol
+    params.dynamics.p_circ[1] = pphi_sol
 
-    cdef double dAdr,dBnpdr,dBnpadr,dxidr,dQdr,dQdprst,dHOdddr,xi,omega,omega_circ,result
-    cdef double A,Bnp,Bnpa,Q,Heven,Hodd,H_val
-    cdef double aux_derivs[7]
+    cdef:
+        double dAdr,
+        double dBnpdr
+        double dBnpadr
+        double dxidr
+        double dQdr
+        double dQdprst
+        double dHodddr
+        double xi
+        double omega
+        double omega_circ
+        double result
+    cdef:
+        double A
+        double Bnp
+        double Bnpa
+        double Q
+        double Heven
+        # double Hodd
+        double H_val
 
-    aux_derivs[:] = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
+    cdef double[7] aux_derivs = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
 
     dAdr = aux_derivs[0]
     dBnpdr = aux_derivs[1]
@@ -166,15 +179,25 @@ cpdef double pphi_eqn(
     dQdprst = aux_derivs[5]
     dHodddr = aux_derivs[6]
 
-    H_val,xi,A,Bnp,Bnpa,Q,Heven,Hodd = H(q,p,chi_1,chi_2,m_1,m_2,verbose=True)
-    omega = H.omega(q,p,chi_1,chi_2,m_1,m_2)
+    # H_val,xi,A,Bnp,Bnpa,Q,Heven,Hodd = H._call(q, p, chi_1, chi_2, m_1, m_2)
+    cdef double[8] ret = H(q, p, chi_1, chi_2, m_1, m_2, verbose=True)
+    omega = H.omega(q, p, chi_1, chi_2, m_1, m_2)
+
+    H_val = ret[0]
+    xi = ret[1]
+    A = ret[2]
+    Bnp = ret[3]
+    Bnpa = ret[4]
+    Q = ret[5]
+    Heven = ret[6]
+    # Hodd = ret[7]
 
     params.dynamics.p_circ[1] = pphi_sol
-    omega_circ = H.omega(q,params.dynamics.p_circ,chi_1,chi_2,m_1,m_2)
+    omega_circ = H.omega(q, params.dynamics.p_circ, chi_1, chi_2, m_1, m_2)
 
     cdef double drdt = A/(2*nu*H_val*Heven)*(2*pr/xi*(1+Bnp)+xi*dQdprst)
 
-    cdef (double,double) flux = RR.RR(q, p, omega,omega_circ,H_val,params)
+    cdef (double, double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
 
     cdef double pr2 = pr*pr
     cdef double xi2 = xi*xi
@@ -186,7 +209,10 @@ cpdef double pphi_eqn(
 
     cdef double C_2 = dAdr*(1/r2+ap2/r2*Bnpa)+A*(-2/r3-2*ap**2/r3*Bnpa+ap2/r2*dBnpadr)
     cdef double C_1 = dHodddr/pphi_sol*2*Heven
-    cdef double C_0_pt1 = dAdr*(1+pr2/xi2*Bnp+pr2/xi2+Q) + A*(-2*pr2/xi3*Bnp*dxidr+pr2/xi2*dBnpdr-2*pr2/xi3*dxidr+dQdr)
+    cdef double C_0_pt1 = (
+        dAdr*(1+pr2/xi2*Bnp+pr2/xi2+Q)
+        + A*(-2*pr2/xi3*Bnp*dxidr+pr2/xi2*dBnpdr-2*pr2/xi3*dxidr+dQdr)
+    )
     cdef double tmp = 2*Heven*nu*H_val/xi
     cdef double C_0_pt2 = dpr_dr*drdt*tmp - pr/pphi_sol*tmp*flux[1]
     cdef double C_0 = C_0_pt1+C_0_pt2
@@ -201,9 +227,6 @@ cpdef double pphi_eqn(
     return result
 
 
-
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_pphi(
     double[:] r,
     double[:] pr,
@@ -225,16 +248,27 @@ cpdef compute_pphi(
     See DCC:T2300060
     """
 
-    cdef double[:] dpr_dr = - fin_diff_derivative(r, pr)
+    cdef double[:] dpr_dr = -fin_diff_derivative(r, pr)
     cdef int i
     for i in range(r.shape[0]):
-
-        pphi[i]  = pphi_eqn(pphi[i],r[i], pr[i], dpr_dr[i], H, RR, chi_1, chi_2, m_1, m_2, params,q,p)
+        pphi[i] = pphi_eqn(
+            pphi[i],
+            r[i],
+            pr[i],
+            dpr_dr[i],
+            H,
+            RR,
+            chi_1,
+            chi_2,
+            m_1,
+            m_2,
+            params,
+            q,
+            p)
 
     return pphi
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 cpdef compute_postadiabatic_solution(
     double[:] r,
     double[:] pphi,
@@ -256,7 +290,7 @@ cpdef compute_postadiabatic_solution(
     """
     pr = np.zeros(r.size)
     cdef int n
-    cdef double tol_current
+
     for n in range(1, order+1):
         parity = n % 2
         if parity:
@@ -292,8 +326,7 @@ cpdef compute_postadiabatic_solution(
 
     return pr, pphi
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 cpdef compute_postadiabatic_dynamics(
     double omega0,
     Hamiltonian_C H,
@@ -336,9 +369,9 @@ cpdef compute_postadiabatic_dynamics(
     cdef double nu = m_1*m_2/(m_1+m_2)**2
     cdef double r_final_prefactor = 2.7+chi_eff*(1-4.*nu)
     r_ISCO, _ = Kerr_ISCO(chi_1, chi_2, m_1, m_2)
-    cdef double r_final = max(10,r_final_prefactor * r_ISCO)
-    cdef double r_switch_prefactor = 1.6
-    cdef double r_switch = r_switch_prefactor * r_ISCO
+    cdef double r_final = max(10, r_final_prefactor * r_ISCO)
+    # cdef double r_switch_prefactor = 1.6
+    # cdef double r_switch = r_switch_prefactor * r_ISCO
 
     cdef double dr0 = 0.2
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
@@ -351,7 +384,7 @@ cpdef compute_postadiabatic_dynamics(
     r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
     cdef double[::1] q = np.zeros(2)
     cdef double[::1] p = np.zeros(2)
-    pphi = compute_adiabatic_solution(r, H, chi_1, chi_2, m_1, m_2,q,p, tol=tol,)
+    pphi = compute_adiabatic_solution(r, H, chi_1, chi_2, m_1, m_2, q, p, tol=tol)
 
     pr, pphi = compute_postadiabatic_solution(
         r,
@@ -372,21 +405,19 @@ cpdef compute_postadiabatic_dynamics(
     dt_dr = np.zeros(r.shape[0])
     dphi_dr = np.zeros(r.shape[0])
     cdef int i
-    cdef double dH_dpr,dH_dpphi,csi
-    cdef double dyn[6]
+    cdef double dH_dpr, dH_dpphi, csi
+    cdef double[6] dyn
     for i in range(r.shape[0]):
         q = np.array([r[i], 0])
         p = np.array([pr[i], pphi[i]])
 
-        dyn[:] = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
+        dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
         dH_dpr = dyn[2]
         dH_dpphi = dyn[3]
-
 
         csi = dyn[5]
         dt_dr[i] = 1 / (dH_dpr * csi)
         dphi_dr[i] = dH_dpphi / (dH_dpr * csi)
-
 
     t = cumulative_integral(r, dt_dr)
 
@@ -394,17 +425,12 @@ cpdef compute_postadiabatic_dynamics(
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi]
 
-
-
-
     return postadiabatic_dynamics
 
 
 @cython.boundscheck(False)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_combined_dynamics(
     double omega0,
     Hamiltonian_C H,
@@ -448,9 +474,8 @@ cpdef compute_combined_dynamics(
         PA_success = False
         ode_y_init = None
 
-
-    #print("PA_success: ", PA_success)
-    #print("ode_y_init: ", ode_y_init)
+    # print("PA_success: ", PA_success)
+    # print("ode_y_init: ", ode_y_init)
     ode_dynamics_low, ode_dynamics_high = compute_dynamics(
         omega0,
         H,
@@ -471,7 +496,7 @@ cpdef compute_combined_dynamics(
     )
 
     if PA_success is True:
-        postadiabatic_dynamics = augment_dynamics(postadiabatic_dynamics,chi_1,chi_2,m_1,m_2,H)
+        postadiabatic_dynamics = augment_dynamics(postadiabatic_dynamics, chi_1, chi_2, m_1, m_2, H)
         ode_dynamics_low[:, 0] += postadiabatic_dynamics[-1, 0]
         ode_dynamics_high[:, 0] += postadiabatic_dynamics[-1, 0]
         combined_dynamics = np.vstack(
@@ -479,6 +504,5 @@ cpdef compute_combined_dynamics(
         )
     else:
         combined_dynamics = ode_dynamics_low
-
 
     return combined_dynamics, ode_dynamics_high

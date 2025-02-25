@@ -26,7 +26,7 @@ cdef class PhysicalParams:
         self.H_val = dc["H_val"]
         self._compute_derived_quants()
 
-    cpdef update_spins(self,double chi_1,double chi_2):
+    cpdef void update_spins(self,double chi_1,double chi_2):
         """
         Update the aligned spins and the derived quantities
         """
@@ -35,7 +35,7 @@ cdef class PhysicalParams:
         self._compute_derived_quants()
 
     @cython.cdivision(True)
-    cdef _compute_derived_quants(self):
+    cdef void _compute_derived_quants(self):
         """
         Compute auxiliary spin quantities
         """

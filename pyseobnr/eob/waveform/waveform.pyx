@@ -273,7 +273,7 @@ cpdef double evaluate_nqc_correction_flux(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef compute_tail(
+cpdef void compute_tail(
     double omega,
     double H,
     double[:, :] Tlm

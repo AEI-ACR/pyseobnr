@@ -32,7 +32,7 @@ cdef class SEOBNRv5RRForce(RadiationReactionForce):
         double H,
         EOBParams eob_par)
 
-cpdef compute_tail(double omega, double H, double[:,:] Tlm)
+cpdef void compute_tail(double omega, double H, double[:,:] Tlm)
 
 cdef double complex compute_mode(
     double v_phi2,
