@@ -2,6 +2,7 @@
 """
 Contains functions associated with evolving the equations of motion
 """
+import enum
 
 import numpy as np
 import pygsl_lite.errno as errno
@@ -15,6 +16,46 @@ from scipy.interpolate import CubicSpline
 from ..utils.utils import interpolate_dynamics, iterative_refinement
 from .initial_conditions_aligned_opt import computeIC_opt
 from .rhs_aligned import augment_dynamics, compute_H_and_omega, get_rhs
+
+
+@enum.unique
+class ColsDyn(enum.IntEnum):
+    """
+    Column indices for the dynamics of an aligned spins system.
+
+    .. note::
+
+        The first columns up until ``pphi`` (included) point to
+        the same dynamical variables as in the eccentric model SEOBNRv5EHM
+        and precessing SEOBNRv5PHM.
+
+    The columns after :py:math:`p_\\phi` exist only after the call to
+    :py:func:`~.rhs_aligned.augment_dynamics`.
+    """
+
+    #: Time
+    t = 0
+
+    #: Relative separation
+    r = 1
+
+    #: Azimuthal angle
+    phi = 2
+
+    #: (Tortoise) radial momentum (conjugate to the tortoise radius)
+    pr = 3
+
+    #: Orbital angular momentum
+    pphi = 4
+
+    #: Hamiltonian value
+    H = 5
+
+    #: Instantaneous orbital frequency
+    omega = 6
+
+    #: Omega circ
+    omega_circ = 7
 
 
 class control_y_new(_control):
@@ -196,12 +237,6 @@ def compute_dynamics_opt(
         step_back = ts[-1] - ts[idx_close]
     dyn_coarse = np.c_[ts[:idx_close], dyn[:idx_close]]
     dyn_fine = np.c_[ts[idx_close:], dyn[idx_close:]]
-
-    # print(f"t_desired={t_desired}")
-    # print(f"len(dyn_coarse)={len(dyn_coarse)}")
-    # print(f"len(dyn_fine)={len(dyn_fine)}")
-    # print(f"End time: {ts[-1]}")
-    # print(f"idx_close:{idx_close}, t[idx_close]={ts[idx_close]}")
 
     dyn_coarse = augment_dynamics(dyn_coarse, chi_1, chi_2, m_1, m_2, H)
 

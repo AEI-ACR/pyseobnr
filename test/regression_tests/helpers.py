@@ -251,7 +251,7 @@ def create_eob_params(
     eob_params_call1.dynamics.p_circ = np.array([0.0, 0.0])
 
     assert eob_params_call1.aligned is True
-    assert eob_params_call1.c_coeffs is None
+    assert eob_params_call1.c_coeffs is not None
 
     assert (np.array(eob_params_call1.flux_params.delta_coeffs) == 0).all()
     assert (np.array(eob_params_call1.flux_params.delta_coeffs_vh) == 0).all()
@@ -270,7 +270,8 @@ def create_eob_params(
             eob_params_call1.flux_params.extra_coeffs_log[l, m, v] = gsf_coeffs[key]
 
     hamiltonian = Ham_aligned_opt(eob_params_call1)
-    hamiltonian.calibration_coeffs = CalibCoeffs(
+
+    hamiltonian.eob_params.c_coeffs = CalibCoeffs(
         {
             "a6": a6_NS(nu),
             "dSO": dSO(

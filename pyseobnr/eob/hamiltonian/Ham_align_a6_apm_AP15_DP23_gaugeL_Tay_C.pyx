@@ -1,157 +1,204 @@
 
-# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False, profile=True,linetrace=True,binding=True
-cimport cython
+# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False
+# cython: profile=False, linetrace=False, binding=True
+
+import cython
+
 import numpy as np
 cimport numpy as np
-from pyseobnr.eob.utils.containers cimport EOBParams,CalibCoeffs
 
-from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
-from libc.math cimport log, sqrt, exp, abs, tgamma,sin,cos
-
-cpdef (double,double) evaluate_H(double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2,double M, double nu,
-double X_1, double X_2, double a6, double dSO):
-        """
-        Evaluate the Hamiltonian and xi
-
-        Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
-          chi1 (double): Dimensionless z-spin of the primary.
-          chi2 (double): Dimensionless z-spin of the secondary.
-          m_1 (double): Primary mass component.
-          m_2 (double): Secondary mass component.
-          M (double): Total mass.
-          nu (double): Reduced mass ratio.
-          X_1 (double): m_1/M
-          X_2 (double): m_2/M
-          a6 (doubble): nonspinning calibration parameter
-          dSO (double): spin-orbit calibration parameter
-
-        Returns:
-           (tuple)  H,xi
-
-        """
-        # Coordinate definitions
-
-        cdef double r = q[0]
-        cdef double phi = q[1]
-
-        cdef double prst = p[0]
-        cdef double L = p[1]
-
-        cdef double pphi = L
+from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport (
+  Hamiltonian_C,
+  Hamiltonian_C_call_return_t,
+  Hamiltonian_C_grad_return_t,
+  Hamiltonian_C_dynamics_return_t,
+  Hamiltonian_C_auxderivs_return_t
+)
+from libc.math cimport log, sqrt
 
 
-        cdef double r2 = r*r
-        cdef double r3 = r2*r
-        cdef double r4 = r2*r2
-        cdef double r5 = r*r4
+@cython.cpow(True)
+cpdef (double, double) evaluate_H(
+    double[:]q,
+    double[:]p,
+    double chi_1,
+    double chi_2,
+    double m_1,
+    double m_2,
+    double M,
+    double nu,
+    double X_1,
+    double X_2,
+    double a6,
+    double dSO
+):
+    """
+    Evaluate the Hamiltonian and xi
 
-        cdef double L2 = L*L
-        cdef double L4 = L2*L2
-        cdef double lr = log(r)
+    Args:
+      q (double[:]): Canonical positions (r,phi).
+      p (double[:]): Canonical momenta  (prstar,pphi).
+      chi1 (double): Dimensionless z-spin of the primary.
+      chi2 (double): Dimensionless z-spin of the secondary.
+      m_1 (double): Primary mass component.
+      m_2 (double): Secondary mass component.
+      M (double): Total mass.
+      nu (double): Reduced mass ratio.
+      X_1 (double): m_1/M
+      X_2 (double): m_2/M
+      a6 (doubble): nonspinning calibration parameter
+      dSO (double): spin-orbit calibration parameter
 
-        cdef double nu2 = nu*nu
-        cdef double nu3 = nu2*nu
-        cdef double nu4 = nu3*nu
+    Returns:
+        (tuple)  H,xi
 
-        cdef double prst2 = prst*prst
-        cdef double prst4 = prst2*prst2
-        cdef double prst6 = prst4*prst2
-        cdef double prst8 = prst6*prst2
+    """
+    # Coordinate definitions
 
-        # Actual Hamiltonian expressions
-        cdef double d5 = 0
+    cdef double r = q[0]
+    # cdef double phi = q[1]
 
-        cdef double Dbpm = r*(6730497718123.02*nu3 + 22295347200.0*nu2*d5 + 133772083200.0*nu2*r2 + 1822680546449.21*nu2*r + 80059249540278.2*nu2 + 22295347200.0*nu*d5*r - 193226342400.0*nu*d5 + 2589101062873.81*nu*r2 + 10611661054566.2*nu*r - 12049908701745.2*nu + 5107745331375.71*r2 - 326837426.241486*r*(14700.0*nu + 42911.0) - 39476764256925.6*r - (-5041721180160.0*nu2 - 25392914995744.3*nu - 879923036160.0*r2 - 283115520.0*r*(14700.0*nu + 42911.0) + 104186110149937.0)*lr + 5787938193408.0*lr**2 + 275059053208689.0)/(55296.0*nu*(14515200.0*nu3 - 42636451.6032331*nu2 - 7680.0*nu*(315.0*d5 + 890888.810272497) + 4331361844.61149*nu + 1002013764.01019) - 967680.0*r3*(-138240.0*nu2 - 2675575.66847905*nu - 5278341.3229329) - 9216.0*r2*(-197773496.793534*nu2 - 7680.0*nu*(315.0*d5 + 405152.309729121) + 2481453539.84635*nu + 5805304367.87913) + r*(5927865218923.02*nu3 + 70778880.0*nu2*(315.0*d5 + 2561145.80918574) - 138141470005001.0*nu2 - 4718592.0*nu*(40950.0*d5 + 86207832.4415642) + 450172889755120.0*nu + 86618264430493.3*(1 - 0.496948781616935*nu)**2 + 188440788778196.0) + 5787938193408.0*r*lr**2 + (-1698693120.0*nu*(11592.0*nu + 69847.0) + 879923036160.0*r3 + 283115520.0*r2*(14700.0*nu + 42911.0) + 49152.0*r*(102574080.0*nu2 + 409207698.136075*nu - 2119671837.36038))*lr)
+    cdef double prst = p[0]
+    cdef double L = p[1]
 
-        cdef double Apm = 7680.0*r4*(-5416406.59541186*nu2 + 28.0*nu*(1920.0*a6 + 733955.307463037) + 2048.0*nu*(756.0*nu + 336.0*r + 407.0)*lr - 7.0*r*(-185763.092693281*nu2 + 938918.400156317*nu - 245760.0) - 3440640.0)/(241555486248.807*nu4 + 1120.0*nu3*(-17833256.898555*r2 - 163683964.822551*r - 1188987459.03162) + 7.0*nu2*(-39321600.0*a6*(3.0*r + 59.0) + 745857848.115604*a6 + 1426660551.8844*r5 - 3089250703.76879*r4 - 6178501407.53758*r3 + 2064783811.32587*r2 + 122635399361.987*r + 276057889687.011) + 67645734912.0*nu2*lr**2 + 53760.0*nu*(7680.0*a6*(r4 + 2.0*r3 + 4.0*r2 + 8.0*r + 16.0) + 128.0*r*(-6852.34813868015*r4 + 4264.6962773603*r3 + 8529.39255472061*r2 + 13218.7851094412*r - 33722.4297811176) + 113485.217444961*r*(-r4 + 2.0*r3 + 4.0*r2 + 8.0*r + 16.0) + 148.04406601634*r*(349.0*r4 + 1926.0*r3 + 3852.0*r2 + 7704.0*r + 36400.0)) + 32768.0*nu*(-1882456.23663972*nu2 - 38842241.4769507*nu + 161280.0*r5 + 480.0*r4*(756.0*nu + 1079.0) + 960.0*r3*(756.0*nu + 1079.0) + 1920.0*r2*(588.0*nu + 1079.0) + 240.0*r*(-3024.0*nu2 - 7466.27061066206*nu + 17264.0) + 13447680.0)*lr + 13212057600.0*r5)
+    # cdef double pphi = L
 
-        cdef double ap = chi_1*X_1 + chi_2*X_2
+    cdef double r2 = r*r
+    cdef double r3 = r2*r
+    cdef double r4 = r2*r2
+    cdef double r5 = r*r4
 
-        cdef double ap2 = ap*ap
+    cdef double L2 = L*L
+    cdef double L4 = L2*L2
+    cdef double lr = log(r)
 
-        cdef double xi = sqrt(Dbpm)*r2*(Apm + ap2/r2)/(ap2 + r2)
+    cdef double nu2 = nu*nu
+    cdef double nu3 = nu2*nu
+    cdef double nu4 = nu3*nu
 
-        cdef double pr = prst/xi
+    cdef double prst2 = prst*prst
+    cdef double prst4 = prst2*prst2
+    cdef double prst6 = prst4*prst2
+    cdef double prst8 = prst6*prst2
 
-        cdef double flagNLOSS2 = 1.00000000000000
+    # Actual Hamiltonian expressions
+    cdef double d5 = 0
 
-        cdef double delta = X_1 - X_2
+    cdef double Dbpm = r*(6730497718123.02*nu3 + 22295347200.0*nu2*d5 + 133772083200.0*nu2*r2 + 1822680546449.21*nu2*r + 80059249540278.2*nu2 + 22295347200.0*nu*d5*r - 193226342400.0*nu*d5 + 2589101062873.81*nu*r2 + 10611661054566.2*nu*r - 12049908701745.2*nu + 5107745331375.71*r2 - 326837426.241486*r*(14700.0*nu + 42911.0) - 39476764256925.6*r - (-5041721180160.0*nu2 - 25392914995744.3*nu - 879923036160.0*r2 - 283115520.0*r*(14700.0*nu + 42911.0) + 104186110149937.0)*lr + 5787938193408.0*lr**2 + 275059053208689.0)/(55296.0*nu*(14515200.0*nu3 - 42636451.6032331*nu2 - 7680.0*nu*(315.0*d5 + 890888.810272497) + 4331361844.61149*nu + 1002013764.01019) - 967680.0*r3*(-138240.0*nu2 - 2675575.66847905*nu - 5278341.3229329) - 9216.0*r2*(-197773496.793534*nu2 - 7680.0*nu*(315.0*d5 + 405152.309729121) + 2481453539.84635*nu + 5805304367.87913) + r*(5927865218923.02*nu3 + 70778880.0*nu2*(315.0*d5 + 2561145.80918574) - 138141470005001.0*nu2 - 4718592.0*nu*(40950.0*d5 + 86207832.4415642) + 450172889755120.0*nu + 86618264430493.3*(1 - 0.496948781616935*nu)**2 + 188440788778196.0) + 5787938193408.0*r*lr**2 + (-1698693120.0*nu*(11592.0*nu + 69847.0) + 879923036160.0*r3 + 283115520.0*r2*(14700.0*nu + 42911.0) + 49152.0*r*(102574080.0*nu2 + 409207698.136075*nu - 2119671837.36038))*lr)
 
-        cdef double am = chi_1*X_1 - chi_2*X_2
+    cdef double Apm = 7680.0*r4*(-5416406.59541186*nu2 + 28.0*nu*(1920.0*a6 + 733955.307463037) + 2048.0*nu*(756.0*nu + 336.0*r + 407.0)*lr - 7.0*r*(-185763.092693281*nu2 + 938918.400156317*nu - 245760.0) - 3440640.0)/(241555486248.807*nu4 + 1120.0*nu3*(-17833256.898555*r2 - 163683964.822551*r - 1188987459.03162) + 7.0*nu2*(-39321600.0*a6*(3.0*r + 59.0) + 745857848.115604*a6 + 1426660551.8844*r5 - 3089250703.76879*r4 - 6178501407.53758*r3 + 2064783811.32587*r2 + 122635399361.987*r + 276057889687.011) + 67645734912.0*nu2*lr**2 + 53760.0*nu*(7680.0*a6*(r4 + 2.0*r3 + 4.0*r2 + 8.0*r + 16.0) + 128.0*r*(-6852.34813868015*r4 + 4264.6962773603*r3 + 8529.39255472061*r2 + 13218.7851094412*r - 33722.4297811176) + 113485.217444961*r*(-r4 + 2.0*r3 + 4.0*r2 + 8.0*r + 16.0) + 148.04406601634*r*(349.0*r4 + 1926.0*r3 + 3852.0*r2 + 7704.0*r + 36400.0)) + 32768.0*nu*(-1882456.23663972*nu2 - 38842241.4769507*nu + 161280.0*r5 + 480.0*r4*(756.0*nu + 1079.0) + 960.0*r3*(756.0*nu + 1079.0) + 1920.0*r2*(588.0*nu + 1079.0) + 240.0*r*(-3024.0*nu2 - 7466.27061066206*nu + 17264.0) + 13447680.0)*lr + 13212057600.0*r5)
 
-        cdef double apam = am*ap
+    cdef double ap = chi_1*X_1 + chi_2*X_2
 
-        cdef double am2 = am*am
+    cdef double ap2 = ap*ap
 
-        cdef double apamd = apam*delta
+    cdef double xi = sqrt(Dbpm)*r2*(Apm + ap2/r2)/(ap2 + r2)
 
-        cdef double QSalign2 = flagNLOSS2*pr**4*(-0.46875*am2*(4.0*nu2 - 5.0*nu + 1.0) - 0.15625*ap2*(32.0*nu2 - 33.0*nu - 5.0) + 0.3125*apamd*(18.0*nu - 1.0))/r3
+    cdef double pr = prst/xi
 
-        cdef double flagQPN55 = 1.00000000000000
+    cdef double flagNLOSS2 = 1.00000000000000
 
-        cdef double flagQPN5 = 1.00000000000000
+    cdef double delta = X_1 - X_2
 
-        cdef double flagQPN4 = 1.00000000000000
+    cdef double am = chi_1*X_1 - chi_2*X_2
 
-        cdef double Qpm = flagQPN4*(0.121954868780449*nu*prst8/r + prst6*(6.0*nu3 - 5.4*nu2 - 2.78300763695006*nu)/r2 + prst4*(10.0*nu3 - 131.0*nu2 + 92.7110442849544*nu)/r3) + flagQPN5*(prst8*(-6.0*nu4 + 3.42857142857143*nu3 + 3.33842023648322*nu2 + 1.38977750996128*nu)/r2 + prst6*(-14.0*nu4 + 188.0*nu3 - 89.5298327361234*nu2 - 33.9782122170436*nu)/r3 + prst4*(602.318540416564*nu3 + nu2*(118.4*lr - 1796.13660498019) + nu*(452.542166996693 - 51.6952380952381*lr))/r4) + flagQPN55*(1.48275342024365*nu*prst8/r**2.5 - 11.3175085791863*nu*prst6/r**3.5 + 147.443752990146*nu*prst4/r**4.5) + prst4*(-6.0*nu2 + 8.0*nu)/r2
+    cdef double apam = am*ap
 
-        cdef double Qq = QSalign2 + Qpm
+    cdef double am2 = am*am
 
-        cdef double Bnpa = -r*(r + 2.0)/(ap2*r*(r + 2.0) + r4)
+    cdef double apamd = apam*delta
 
-        cdef double flagNLOSS = 1.00000000000000
+    cdef double QSalign2 = flagNLOSS2*pr**4*(-0.46875*am2*(4.0*nu2 - 5.0*nu + 1.0) - 0.15625*ap2*(32.0*nu2 - 33.0*nu - 5.0) + 0.3125*apamd*(18.0*nu - 1.0))/r3
 
-        cdef double BnpSalign2 = flagNLOSS*(0.1875*am2*(4.0*nu - 1.0) + ap2*(3.0*nu + 2.8125) - 2.625*apamd)/r3 + flagNLOSS2*(0.015625*am2*(4.0*nu2 + 115.0*nu - 37.0) + 0.015625*ap2*(-1171.0*nu - 861.0) + 0.03125*apamd*(26.0*nu + 449.0))/r4
+    cdef double flagQPN55 = 1.00000000000000
 
-        cdef double Bnp = Apm*Dbpm + BnpSalign2 + ap2/r2 - 1.0
+    cdef double flagQPN5 = 1.00000000000000
 
-        cdef double ASalignCal2 = 0.0
+    cdef double flagQPN4 = 1.00000000000000
 
-        cdef double ASalign2 = flagNLOSS*(0.125*am2*(4.0*nu + 1.0) + 1.125*ap2 - 1.25*apamd)/r4 + flagNLOSS2*(0.046875*am2*(28.0*nu2 - 27.0*nu - 3.0) - 0.390625*ap2*(7.0*nu + 9.0) - 1.21875*apamd*(2.0*nu - 3.0))/r**5
+    cdef double Qpm = flagQPN4*(0.121954868780449*nu*prst8/r + prst6*(6.0*nu3 - 5.4*nu2 - 2.78300763695006*nu)/r2 + prst4*(10.0*nu3 - 131.0*nu2 + 92.7110442849544*nu)/r3) + flagQPN5*(prst8*(-6.0*nu4 + 3.42857142857143*nu3 + 3.33842023648322*nu2 + 1.38977750996128*nu)/r2 + prst6*(-14.0*nu4 + 188.0*nu3 - 89.5298327361234*nu2 - 33.9782122170436*nu)/r3 + prst4*(602.318540416564*nu3 + nu2*(118.4*lr - 1796.13660498019) + nu*(452.542166996693 - 51.6952380952381*lr))/r4) + flagQPN55*(1.48275342024365*nu*prst8/r**2.5 - 11.3175085791863*nu*prst6/r**3.5 + 147.443752990146*nu*prst4/r**4.5) + prst4*(-6.0*nu2 + 8.0*nu)/r2
 
-        cdef double A = (ASalign2 + ASalignCal2 + Apm + ap2/r2)/(ap2*(1.0 + 2.0/r)/r2 + 1.0)
+    cdef double Qq = QSalign2 + Qpm
 
-        cdef double lap = ap
+    cdef double Bnpa = -r*(r + 2.0)/(ap2*r*(r + 2.0) + r4)
 
-        cdef double Heven = sqrt(A*(Bnpa*L2*lap**2/r2 + L2/r2 + Qq + prst2*(Bnp + 1.0)/xi**2 + 1.0))
+    cdef double flagNLOSS = 1.00000000000000
 
-        cdef double lam = am
+    cdef double BnpSalign2 = flagNLOSS*(0.1875*am2*(4.0*nu - 1.0) + ap2*(3.0*nu + 2.8125) - 2.625*apamd)/r3 + flagNLOSS2*(0.015625*am2*(4.0*nu2 + 115.0*nu - 37.0) + 0.015625*ap2*(-1171.0*nu - 861.0) + 0.03125*apamd*(26.0*nu + 449.0))/r4
 
-        cdef double Ga3 = 0.0416666666666667*L*ap2*delta*lam/r2 + L*lap*(-0.25*ap2 + 0.208333333333333*apamd)/r2
+    cdef double Bnp = Apm*Dbpm + BnpSalign2 + ap2/r2 - 1.0
 
-        cdef double SOcalib = L*nu*dSO*lap/r3
+    cdef double ASalignCal2 = 0.0
 
-        cdef double flagNLOSO2 = 1.00000000000000
+    cdef double ASalign2 = flagNLOSS*(0.125*am2*(4.0*nu + 1.0) + 1.125*ap2 - 1.25*apamd)/r4 + flagNLOSS2*(0.046875*am2*(28.0*nu2 - 27.0*nu - 3.0) - 0.390625*ap2*(7.0*nu + 9.0) - 1.21875*apamd*(2.0*nu - 3.0))/r**5
 
-        cdef double flagNLOSO = 1.00000000000000
+    cdef double A = (ASalign2 + ASalignCal2 + Apm + ap2/r2)/(ap2*(1.0 + 2.0/r)/r2 + 1.0)
 
-        cdef double gam = flagNLOSO*(L2*(0.46875 - 0.28125*nu)/r2 + (0.34375*nu + 0.09375)/r) + flagNLOSO2*(L4*(0.29296875*nu2 - 0.3515625*nu - 0.41015625)/r4 + L2*(-0.798177083333333*nu2 - 0.2734375*nu - 0.23046875)/r3 + (0.536458333333333*nu2 - 0.03125*nu + 0.078125)/r2) + 0.25
+    cdef double lap = ap
 
-        cdef double gap = flagNLOSO*(L2*(-1.40625*nu - 0.46875)/r2 + (0.71875*nu - 0.09375)/r) + flagNLOSO2*(L4*(1.34765625*nu2 + 0.5859375*nu + 0.41015625)/r4 + L2*(-2.07161458333333*nu2 - 2.0859375*nu + 0.23046875)/r3 + (0.567708333333333*nu2 - 5.53125*nu - 0.078125)/r2) + 1.75
+    cdef double Heven = sqrt(A*(Bnpa*L2*lap**2/r2 + L2/r2 + Qq + prst2*(Bnp + 1.0)/xi**2 + 1.0))
 
-        cdef double Hodd = (Ga3 + L*delta*gam*lam + L*gap*lap + SOcalib)/(2.0*ap2 + 2.0*r2 + r*(ap2 + r2 - 2.0*r))
+    cdef double lam = am
 
-        cdef double Heff = Heven + Hodd
+    cdef double Ga3 = 0.0416666666666667*L*ap2*delta*lam/r2 + L*lap*(-0.25*ap2 + 0.208333333333333*apamd)/r2
 
-        # Evaluate H_real/nu
-        cdef double H = M * sqrt(1+2*nu*(Heff-1)) / nu
+    cdef double SOcalib = L*nu*dSO*lap/r3
 
-        return H,xi
+    cdef double flagNLOSO2 = 1.00000000000000
+
+    cdef double flagNLOSO = 1.00000000000000
+
+    cdef double gam = flagNLOSO*(L2*(0.46875 - 0.28125*nu)/r2 + (0.34375*nu + 0.09375)/r) + flagNLOSO2*(L4*(0.29296875*nu2 - 0.3515625*nu - 0.41015625)/r4 + L2*(-0.798177083333333*nu2 - 0.2734375*nu - 0.23046875)/r3 + (0.536458333333333*nu2 - 0.03125*nu + 0.078125)/r2) + 0.25
+
+    cdef double gap = flagNLOSO*(L2*(-1.40625*nu - 0.46875)/r2 + (0.71875*nu - 0.09375)/r) + flagNLOSO2*(L4*(1.34765625*nu2 + 0.5859375*nu + 0.41015625)/r4 + L2*(-2.07161458333333*nu2 - 2.0859375*nu + 0.23046875)/r3 + (0.567708333333333*nu2 - 5.53125*nu - 0.078125)/r2) + 1.75
+
+    cdef double Hodd = (Ga3 + L*delta*gam*lam + L*gap*lap + SOcalib)/(2.0*ap2 + 2.0*r2 + r*(ap2 + r2 - 2.0*r))
+
+    cdef double Heff = Heven + Hodd
+
+    # Evaluate H_real/nu
+    cdef double H = M * sqrt(1+2*nu*(Heff-1)) / nu
+
+    return H, xi
 
 
-
+@cython.cpow(True)
 cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
-    cdef public CalibCoeffs calibration_coeffs
-    #cdef public EOBParams EOBpars
-    def __cinit__(self,EOBParams params):
-        self.EOBpars = params
 
-    def __call__(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2,bint verbose=False):
-        return self._call(q,p,chi_1,chi_2,m_1,m_2,verbose=verbose)
+    def __call__(
+      self,
+      double[:] q,
+      double[:] p,
+      double chi_1,
+      double chi_2,
+      double m_1,
+      double m_2,
+      bint verbose=False):
 
-    cpdef _call(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2,bint verbose=False):
+        cdef:
+            double H
+            double xi
+            double A
+            double Bnp
+            double Bnpa
+            double Qq
+            double Heven
+            double Hodd
+
+        H, xi, A, Bnp, Bnpa, Qq, Heven, Hodd = self._call(q, p, chi_1, chi_2, m_1, m_2)
+        if not verbose:
+            return H, xi
+
+        return H, xi, A, Bnp, Bnpa, Qq, Heven, Hodd
+
+    cpdef Hamiltonian_C_call_return_t _call(
+        self,
+        double[:] q,
+        double[:] p,
+        double chi_1,
+        double chi_2,
+        double m_1,
+        double m_2):
 
         """
         Evaluate the aligned-spin SEOBNRv5HM Hamiltonian as well as several potentials.
@@ -173,19 +220,12 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
 
-        cdef double pphi = L
-
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
-
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO = self.EOBpars.c_coeffs.dSO
 
         # Extra quantities used in the Hamiltonian
         cdef double M = self.EOBpars.p_params.M
@@ -278,16 +318,11 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         cdef double Heff = Heven + Hodd
 
-
-
         # Evaluate H_real/nu
         cdef double H = M * sqrt(1+2*nu*(Heff-1)) / nu
-        if not verbose:
-            return H,xi
-        else:
-            return H,xi,A,Bnp,Bnpa,Qq,Heven,Hodd
+        return H,xi,A,Bnp,Bnpa,Qq,Heven,Hodd
 
-    cpdef grad(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+    cpdef Hamiltonian_C_grad_return_t grad(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
         Compute the gradient of the Hamiltonian in polar coordinates.
@@ -306,19 +341,14 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
 
         cdef double pphi = L
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
-
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO = self.EOBpars.c_coeffs.dSO
 
         # Extra quantities used in the Jacobian
         cdef double M = self.EOBpars.p_params.M
@@ -522,10 +552,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double x194 = x15*x192
         cdef double x195 = 4.0*pphi**3*x11
 
-
         # Evaluate Hamiltonian
-        cdef double H,xi
-        H,xi =  evaluate_H(q,p,chi_1,chi_2,m_1,m_2,M,nu,X_1,X_2,a6,dSO)
+        cdef double H = evaluate_H(q,p,chi_1,chi_2,m_1,m_2,M,nu,X_1,X_2,a6,dSO)[0]
 
         # Heff Jacobian expressions
         cdef double dHeffdr = 0.5*x169*(x160*x162*(-x171*(-x150*(875.0*nu + 1125.0) + 0.234375*x165 + x166*(10.0*nu - 15.0)) - x178 - x38*(0.5*x163 + x164 + 4.5*x4)) - x160*x167*(-x11*x5 - x16*x170)/x161**2 + x168*(-663.496888455656*nu*r**(-5.5)*x54 - nu*x25*x64 + 39.6112800271521*nu*x55*x57 + 6.78168402777778e-8*x11*x141*x142*x146*x154*x158*x7 + x11*x54*(118.4*x174 - 51.6952380952381*x63) + 7.59859378406358e-45*x112*x135*x138*x154*x182*x54*x86*x87 - 9.25454462627843e-34*x112*x180*x181/x134**3 - 2.24091649004576e-37*x135*x140*x142*x154*x180*x183*x38 + 1.69542100694444e-8*x140*x141*x142*x146*x154*x38*(38400.0*x10*x109*x145*x155*x90 + 7680.0*x109*x145*x155*x173*x37 + 7680.0*x109*x155*x180*x37*x90 - x11*(x147*(36.0*nu - 9.0) + x148*(-63.0*X_1 + 63.0*X_2) + x4*(9.0*nu + 8.4375)) - x156*x177 - x172 - x38*(x148*x153 + 0.0625*x149*x4 + 0.0625*x151) - 2.29252167428035e-22*x145*x157*x182*x37/x125) + 1.69542100694444e-8*x140*x141*x142*x146*x158*x182*x38 - 8.47710503472222e-8*x159*x171 - x24*x76 + x25*x28*x4*x80*x84 + x28*x4*x49*x80*(x175 + x81 + x82)/x83**2 - x30 - x33*x57*x73 - x39*x54*x78 - x4*x85 - 3.70688355060912*x58*x62 - 2.0*x65*x69 - 3.0*x68*x79 - 2.0*x70*x74 - 4.41515887225116e-12*x140*x146*x183*x184*x185/x111**3 - 6.62902677807736e-23*x135*x181*x184/x111**5 + 1.01821851311268e-18*x112*x125*x135*x138*x54*x7**3/r**12 - 1.65460508380811e-18*x139/r**14)) + x9*(-dSO*x11*x12*x13 + pphi*x17*x18*(-x15*(-0.0625*nu + 1.07291666666667*x31 + 0.15625) - x25*x41 - x30*x42 - x34*x43 - x40*x44) + pphi*x3*(-x15*(-11.0625*nu + 1.13541666666667*x31 - 0.15625) - x25*x26 - x27*x30 - x32*x34 - x35*x40) - x13*x23*x24 - 0.0833333333333333*x16*x20) - 0.25*(r*(x6 - 2.0) + x6 + x7)*(pphi*x52 + pphi*x53 + x13*x45 + x13*x48 + x20*x47)/(x7 + 0.5*x8)**2
@@ -545,7 +573,7 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         return dHdr, dHdphi, dHdpr, dHdpphi
 
     cpdef hessian(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
-        
+
         """
         Evaluate the Hessian of the Hamiltonian.
 
@@ -563,19 +591,13 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
-
         cdef double pphi = L
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
-
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO = self.EOBpars.c_coeffs.dSO
 
         # Extra quantities used in the Jacobian
         cdef double M = self.EOBpars.p_params.M
@@ -1196,8 +1218,7 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double y415 = -y414
 
         # Evaluate Hamiltonian
-        cdef double H,xi
-        H,xi = self._call(q,p,chi_1,chi_2,m_1,m_2)
+        cdef double H = self._call(q,p,chi_1,chi_2,m_1,m_2)[0]
 
         # Evaluate Heff Jacobian
         cdef double dHeffdr = 0.5*x169*(x160*x162*(-x171*(-x150*(875.0*nu + 1125.0) + 0.234375*x165 + x166*(10.0*nu - 15.0)) - x178 - x38*(0.5*x163 + x164 + 4.5*x4)) - x160*x167*(-x11*x5 - x16*x170)/x161**2 + x168*(-663.496888455656*nu*r**(-5.5)*x54 - nu*x25*x64 + 39.6112800271521*nu*x55*x57 + 6.78168402777778e-8*x11*x141*x142*x146*x154*x158*x7 + x11*x54*(118.4*x174 - 51.6952380952381*x63) + 7.59859378406358e-45*x112*x135*x138*x154*x182*x54*x86*x87 - 9.25454462627843e-34*x112*x180*x181/x134**3 - 2.24091649004576e-37*x135*x140*x142*x154*x180*x183*x38 + 1.69542100694444e-8*x140*x141*x142*x146*x154*x38*(38400.0*x10*x109*x145*x155*x90 + 7680.0*x109*x145*x155*x173*x37 + 7680.0*x109*x155*x180*x37*x90 - x11*(x147*(36.0*nu - 9.0) + x148*(-63.0*X_1 + 63.0*X_2) + x4*(9.0*nu + 8.4375)) - x156*x177 - x172 - x38*(x148*x153 + 0.0625*x149*x4 + 0.0625*x151) - 2.29252167428035e-22*x145*x157*x182*x37/x125) + 1.69542100694444e-8*x140*x141*x142*x146*x158*x182*x38 - 8.47710503472222e-8*x159*x171 - x24*x76 + x25*x28*x4*x80*x84 + x28*x4*x49*x80*(x175 + x81 + x82)/x83**2 - x30 - x33*x57*x73 - x39*x54*x78 - x4*x85 - 3.70688355060912*x58*x62 - 2.0*x65*x69 - 3.0*x68*x79 - 2.0*x70*x74 - 4.41515887225116e-12*x140*x146*x183*x184*x185/x111**3 - 6.62902677807736e-23*x135*x181*x184/x111**5 + 1.01821851311268e-18*x112*x125*x135*x138*x54*x7**3/r**12 - 1.65460508380811e-18*x139/r**14)) + x9*(-dSO*x11*x12*x13 + pphi*x17*x18*(-x15*(-0.0625*nu + 1.07291666666667*x31 + 0.15625) - x25*x41 - x30*x42 - x34*x43 - x40*x44) + pphi*x3*(-x15*(-11.0625*nu + 1.13541666666667*x31 - 0.15625) - x25*x26 - x27*x30 - x32*x34 - x35*x40) - x13*x23*x24 - 0.0833333333333333*x16*x20) - 0.25*(r*(x6 - 2.0) + x6 + x7)*(pphi*x52 + pphi*x53 + x13*x45 + x13*x48 + x20*x47)/(x7 + 0.5*x8)**2
@@ -1246,7 +1267,7 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
     cdef double xi(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
-        Compute the tortoise factor \csi to convert between pr and prst.
+        Compute the tortoise factor \\csi to convert between pr and prst.
 
         Args:
           q (double[:]): Canonical positions (r,phi).
@@ -1261,22 +1282,10 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
-        cdef double prst = p[0]
-        cdef double L = p[1]
-
-        cdef double pphi = L
-
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs.a6
-        cdef double dSO = c_coeffs.dSO
-
+        cdef double a6 = self.EOBpars.c_coeffs.a6
 
         # Extra quantities used in the Jacobian
-        cdef double M = self.EOBpars.p_params.M
         cdef double nu = self.EOBpars.p_params.nu
         cdef double X_1 = self.EOBpars.p_params.X_1
         cdef double X_2 = self.EOBpars.p_params.X_2
@@ -1296,7 +1305,7 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         return xi
 
-    cpdef dynamics(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+    cpdef Hamiltonian_C_dynamics_return_t dynamics(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
         Compute the dynamics from the Hamiltonian,i.e., dHdr, dHdphi, dHdpr, dHdpphi,H and xi.
@@ -1314,18 +1323,13 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
-
         cdef double pphi = L
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO = self.EOBpars.c_coeffs.dSO
 
         # Extra quantities used in the Jacobian
         cdef double M = self.EOBpars.p_params.M
@@ -1549,10 +1553,7 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double  dHdphi = M2 * dHeffdphi / nuH
         cdef double  dHdpr = M2 * dHeffdpr / nuH
         cdef double  dHdpphi = M2 * dHeffdpphi / nuH
-        cdef double result[6]
-        result[:] = [dHdr, dHdphi, dHdpr, dHdpphi,H,xi]
-        return result
-        #return dHdr, dHdphi, dHdpr, dHdpphi,H,xi
+        return dHdr, dHdphi, dHdpr, dHdpphi,H,xi
 
     cpdef double omega(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
 
@@ -1572,19 +1573,13 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
-
         cdef double pphi = L
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
-
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO = self.EOBpars.c_coeffs.dSO
 
         # Extra quantities used in the Jacobian
         cdef double M = self.EOBpars.p_params.M
@@ -1666,20 +1661,24 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
 
         # Evaluate Hamiltonian
-        cdef double H,xi
-        H,xi =  evaluate_H(q,p,chi_1,chi_2,m_1,m_2,M,nu,X_1,X_2,a6,dSO)
+        cdef double H = evaluate_H(q,p,chi_1,chi_2,m_1,m_2,M,nu,X_1,X_2,a6,dSO)[0]
 
         # Heff Jacobian expressions
-
         cdef double dHeffdpphi = z49*(z49*(147.443752990146*nu*r**(-4.5)*z50 - 11.3175085791863*nu*r**(-3.5)*z51 + 1.69542100694444e-8*prst**2*z38*z6**2*z71*(z10 + z23*(0.03125*z12*z3*(26.0*nu + 449.0) + 0.015625*z36*(115.0*nu + z54 - 37.0) + z39*(-1171.0*nu - 861.0)) + 7680.0*z37*z47*z70/z71 + z8*(0.125*z14*(-21.0*X_1 + 21.0*X_2) + 0.0625*z36*(12.0*nu - 3.0) + z4*(3.0*nu + 2.8125)))/(z69**2*z70) + 1.48275342024365*r**(-2.5)*z53 + z23*z50*(nu*(452.542166996693 - 51.6952380952381*z41) + z18*(118.4*z41 - 1796.13660498019) + 602.318540416564*z43) + 0.121954868780449*z28*z53 - z29*z34*z35 + z30 + z50*z8*(92.7110442849544*nu - 131.0*z18 + 10.0*z43) + z50*z9*(8.0*nu - 6.0*z18) + z51*z8*(-33.9782122170436*nu - 89.5298327361234*z18 - 14.0*z40 + 188.0*z43) + z51*z9*(-2.78300763695006*nu - 5.4*z18 + 6.0*z43) + z52*z9*(1.38977750996128*nu + 3.33842023648322*z18 - 6.0*z40 + 3.42857142857143*z43) + 1.0 + 1.27277314139085e-19*z50*z6**4*(0.0625*z11*z13*z3*(18.0*nu - 1.0) - 0.46875*z36*(-5.0*nu + z54 + 1.0) - 0.15625*z4*(-33.0*nu + 32.0*z18 - 5.0))*(z63 - 1.59227685093395e-9*z64 - 1.67189069348064e-7*z65 + 9.55366110560367e-9*z66 + 1.72773095804465e-13*z67 + 1.72773095804465e-13*z68)**2/(r**13*z69**4*(-0.0438084424460039*nu - 0.143521050466841*r + 0.0185696317637669*z0 + 0.291062041428379*z18 + 0.0210425293255724*z42 + 0.0244692826489756*z43 + 0.0385795738434214*z55 + 0.00941289164152486*z56 + 0.00662650629087394*z57 - 1.18824456940711e-6*z59 + 0.000486339502879429*z60 - 3.63558293513537e-15*z62 + 1)**2))/(z10*(2.0*z28 + 1.0) + 1.0))**(-0.5)*(-pphi*z33*z35*z5 + 2.0*pphi*z9)/(z10*(4.0*z28 + 2.0) + 2.0) + (nu*dSO*z3*z8 + pphi*z12*(z17*z25 + z20*z26 + z24*z27) + pphi*z3*(z15*z17 + z19*z20 + z21*z24) + 0.0416666666666667*z10*z12 + z12*(z25*z30 + z26*z31 + z27*z32 + z28*(0.34375*nu + 0.09375) + z9*(-0.03125*nu + 0.536458333333333*z18 + 0.078125) + 0.25) + z3*z9*(0.0416666666666667*z13*z14 - 0.25*z4) + z3*(z15*z30 + z19*z31 + z21*z32 + z28*(0.71875*nu - 0.09375) + z9*(-5.53125*nu + 0.567708333333333*z18 - 0.078125) + 1.75))/(r*(-2.0*r + z6) + 2.0*z0 + z5)
 
         # Compute H Jacobian
-
         cdef double omega = M * M * dHeffdpphi / (nu*H)
 
         return omega
 
-    cpdef auxderivs(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+    cpdef Hamiltonian_C_auxderivs_return_t auxderivs(
+        self,
+        double[:] q,
+        double[:] p,
+        double chi_1,
+        double chi_2,
+        double m_1,
+        double m_2):
 
         """
         Compute derivatives of the potentials which are used in the post-adiabatic approximation.
@@ -1700,21 +1699,19 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         # Coordinate definitions
 
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
 
-        cdef double pphi = L
+        # cdef double pphi = L
         cdef double Chi1 = chi_1
         cdef double Chi2 = chi_2
         cdef double Nu = m_1*m_2
         cdef double M = m_1+m_2
         cdef double X1 = m_1/M
         cdef double X2 = m_2/M
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO = c_coeffs['dSO']
+
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO = self.EOBpars.c_coeffs.dSO
 
         cdef double x0 =r**2
         cdef double  x1=1/x0

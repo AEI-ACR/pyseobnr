@@ -17,6 +17,10 @@ from scipy.interpolate import CubicSpline
 from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
 from ..hamiltonian.Hamiltonian_v5PHM_C cimport (
     Hamiltonian_v5PHM_C,
+    Hamiltonian_v5PHM_C_grad_result_t,
+    Hamiltonian_v5PHM_C_dynamics_result_t,
+    Hamiltonian_v5PHM_C_auxderivs_result_t,
+    Hamiltonian_v5PHM_C_call_result_t
 )
 from ..utils.containers cimport EOBParams
 from ..utils.math_ops_opt import my_norm
@@ -169,8 +173,8 @@ cpdef double j0_eqn(
 
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
 
-    H.calibration_coeffs["dSO"] = dSO_new
-    cdef double[4] dH_dq = H.grad(
+    H.calibration_coeffs.dSO = dSO_new
+    cdef Hamiltonian_v5PHM_C_grad_result_t dH_dq = H.grad(
         q,
         p,
         chi1_v,
@@ -336,9 +340,9 @@ cpdef double pr_eqn(
 
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
 
-    H.calibration_coeffs["dSO"] = dSO_new
+    H.calibration_coeffs.dSO = dSO_new
 
-    cdef double[6] dynamics = H.dynamics(
+    cdef Hamiltonian_v5PHM_C_dynamics_result_t dynamics = H.dynamics(
         q,
         p,
         chi1_v,
@@ -457,13 +461,13 @@ cpdef double pr_eqn_analytic(
     cdef double am = chi1_LN * X1 - chi2_LN * X2
 
     cdef double dSO_new = dSO_poly_fit(nu, ap, am)
-    H.calibration_coeffs["dSO"] = dSO_new
+    H.calibration_coeffs.dSO = dSO_new
 
     cdef double A, Bnp, Heven, H_val
     cdef double xi, omega, omega_circ
     # cdef double dAdr, dBnpdr, dBnpadr, dxidr, dQdr, dQdprst, dHodddr, dBpdr
 
-    cdef double[9] aux_derivs = H.auxderivs(
+    cdef Hamiltonian_v5PHM_C_auxderivs_result_t aux_derivs = H.auxderivs(
         q,
         p,
         chi1_v,
@@ -486,7 +490,7 @@ cpdef double pr_eqn_analytic(
     # dBpdr = aux_derivs[7]
     # dHevendr = aux_derivs[8]
 
-    cdef double[9] ret = H._call(
+    cdef Hamiltonian_v5PHM_C_call_result_t ret = H._call(
         q,
         p,
         chi1_v,
@@ -763,9 +767,9 @@ cpdef double pphi_eqn(
 
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
 
-    H.calibration_coeffs["dSO"] = dSO_new
+    H.calibration_coeffs.dSO = dSO_new
 
-    cdef double[6] dynamics = H.dynamics(
+    cdef Hamiltonian_v5PHM_C_dynamics_result_t dynamics = H.dynamics(
         q,
         p,
         chi1_v,
@@ -888,7 +892,7 @@ cpdef double pphi_eqn_analytic(
     cdef double am = chi1_LN * X1 - chi2_LN * X2
 
     cdef double dSO_new = dSO_poly_fit(nu, ap, am)
-    H.calibration_coeffs["dSO"] = dSO_new
+    H.calibration_coeffs.dSO = dSO_new
 
     cdef:
         double dAdr
@@ -905,7 +909,7 @@ cpdef double pphi_eqn_analytic(
         double result
     cdef double A, Bp, Bnp, Bnpa, Q, Heven, H_val
 
-    cdef double[9] aux_derivs = H.auxderivs(
+    cdef Hamiltonian_v5PHM_C_auxderivs_result_t aux_derivs = H.auxderivs(
         q,
         p,
         chi1_v,
@@ -928,7 +932,7 @@ cpdef double pphi_eqn_analytic(
     dBpdr = aux_derivs[7]
     # dHevendr = aux_derivs[8]
 
-    cdef double[9] ret = H._call(
+    cdef Hamiltonian_v5PHM_C_call_result_t ret = H._call(
         q,
         p,
         chi1_v,
@@ -1266,7 +1270,7 @@ cpdef compute_postadiabatic_solution(
             params.p_params.chi1_L = chi1_L[i]
             params.p_params.chi2_L = chi2_L[i]
 
-            H.calibration_coeffs["dSO"] = dSO_new[i]
+            H.calibration_coeffs.dSO = dSO_new[i]
 
             om = H.omega(
                 q,
@@ -1369,7 +1373,7 @@ cpdef compute_postadiabatic_dynamics(
     cdef double chi_perp_eff = np.linalg.norm(chi1_v*X1+chi2_v*X2-ap*LNhat)
 
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
-    H.calibration_coeffs["dSO"] = dSO_new
+    H.calibration_coeffs.dSO = dSO_new
 
     cdef double r0
     r0, _, _ =computeIC_augm(omega_start, H, RR, chi1_v, chi2_v, m_1, m_2, params=params)
@@ -1461,7 +1465,7 @@ cpdef compute_postadiabatic_dynamics(
         am = chi1_LN * X1 - chi2_LN * X2
         dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
 
-        H.calibration_coeffs["dSO"] = dSO_new
+        H.calibration_coeffs.dSO = dSO_new
 
         om = H.omega(
             q,
@@ -1501,7 +1505,7 @@ cpdef compute_postadiabatic_dynamics(
     dt_dr = np.zeros(r.shape[0])
     dphi_dr = np.zeros(r.shape[0])
     cdef double dH_dpr, dH_dpphi, csi
-    cdef double[6] dyn
+    cdef Hamiltonian_v5PHM_C_dynamics_result_t dyn
     cdef double[::1] p_circ = np.zeros(2)
 
     dyn_augm = []
@@ -1525,7 +1529,7 @@ cpdef compute_postadiabatic_dynamics(
         am = chi1_LN * X1 - chi2_LN * X2
 
         dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
-        H.calibration_coeffs["dSO"] = dSO_new
+        H.calibration_coeffs.dSO = dSO_new
 
         dyn = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
         dH_dpr = dyn[2]

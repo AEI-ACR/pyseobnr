@@ -22,7 +22,7 @@ from ..eob.fits.fits_Hamiltonian import NR_deltaT, NR_deltaT_NS, a6_NS, dSO
 from ..eob.fits.GSF_fits import GSF_amplitude_fits
 from ..eob.fits.IV_fits import InputValueFits
 from ..eob.hamiltonian.hamiltonian import Hamiltonian
-from ..eob.utils.containers import CalibCoeffs, EOBParams
+from ..eob.utils.containers import EOBParams
 from ..eob.utils.utils import estimate_time_max_amplitude
 from ..eob.utils.utils_eccentric import (
     compute_attachment_time_qc,
@@ -356,6 +356,7 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
 
         # Initialize the parameters of the model
         self._initialize_params(phys_pars=self.phys_pars)
+        assert id(self.H.eob_params) == id(self.eob_pars)
         self._compute_starting_values()
 
         # Compute the shift from reference point to peak of (2,2) mode
@@ -392,7 +393,12 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
         """
 
         dc = {"a6": a6_NS(self.nu), "dSO": dSO(self.nu, self.ap, self.am)}
-        self.H.calibration_coeffs = CalibCoeffs(dc)
+        self.H.calibration_coeffs.a6 = dc["a6"]
+        self.H.calibration_coeffs.dSO = dc["dSO"]
+        assert self.H.eob_params.c_coeffs.a6 == dc["a6"]
+        assert self.H.eob_params.c_coeffs.dSO == dc["dSO"]
+        assert self.eob_pars.c_coeffs.a6 == dc["a6"]
+        assert self.eob_pars.c_coeffs.dSO == dc["dSO"]
 
     def _evaluate_model(self):
         """

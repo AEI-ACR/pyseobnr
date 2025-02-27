@@ -11,6 +11,9 @@ from libc.math cimport sqrt, fabs
 from ..utils.containers cimport EOBParams
 from ..hamiltonian.Hamiltonian_C cimport (
     Hamiltonian_C,
+    Hamiltonian_C_auxderivs_return_t,
+    Hamiltonian_C_dynamics_return_t,
+    Hamiltonian_C_call_return_t
 )
 from ..waveform.waveform cimport RadiationReactionForce
 
@@ -53,11 +56,11 @@ cpdef double pr_eqn(
         double omega_circ
 
     cdef double nu = params.p_params.nu
-    cdef double[7] aux_derivs = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
+    cdef Hamiltonian_C_auxderivs_return_t aux_derivs = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
     cdef double dQdprst = aux_derivs[5]
 
     # H_val,xi,A,Bnp,Bnpa,Q,Heven,Hodd = H._call(q,p,chi_1,chi_2,m_1,m_2)
-    cdef double[8] ret = H(q, p, chi_1, chi_2, m_1, m_2, verbose=True)
+    cdef Hamiltonian_C_call_return_t ret = H._call(q, p, chi_1, chi_2, m_1, m_2)
     omega = H.omega(q, p, chi_1, chi_2, m_1, m_2)
 
     cdef double H_val = ret[0]
@@ -169,7 +172,7 @@ cpdef double pphi_eqn(
         # double Hodd
         double H_val
 
-    cdef double[7] aux_derivs = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
+    cdef Hamiltonian_C_auxderivs_return_t aux_derivs = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
 
     dAdr = aux_derivs[0]
     dBnpdr = aux_derivs[1]
@@ -180,7 +183,7 @@ cpdef double pphi_eqn(
     dHodddr = aux_derivs[6]
 
     # H_val,xi,A,Bnp,Bnpa,Q,Heven,Hodd = H._call(q, p, chi_1, chi_2, m_1, m_2)
-    cdef double[8] ret = H(q, p, chi_1, chi_2, m_1, m_2, verbose=True)
+    cdef Hamiltonian_C_call_return_t ret = H._call(q, p, chi_1, chi_2, m_1, m_2)
     omega = H.omega(q, p, chi_1, chi_2, m_1, m_2)
 
     H_val = ret[0]
@@ -406,7 +409,7 @@ cpdef compute_postadiabatic_dynamics(
     dphi_dr = np.zeros(r.shape[0])
     cdef int i
     cdef double dH_dpr, dH_dpphi, csi
-    cdef double[6] dyn
+    cdef Hamiltonian_C_dynamics_return_t dyn
     for i in range(r.shape[0]):
         q = np.array([r[i], 0])
         p = np.array([pr[i], pphi[i]])

@@ -123,7 +123,7 @@ def compute_IC_PA(
     am_start = chi1_LN_start * X1 - chi2_LN_start * X2
 
     dSO_start = dSO_poly_fit(params.p_params.nu, ap_start, am_start)
-    H.calibration_coeffs["dSO"] = dSO_start
+    H.calibration_coeffs.dSO = dSO_start
 
     # Evaluate omega_circ and the Hamiltonian at the intial conditions
     q = np.array([r0, 0.0])
