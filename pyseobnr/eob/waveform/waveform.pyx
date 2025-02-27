@@ -137,8 +137,6 @@ LOOKUP_TABLE[:] = [
 @cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int m):
     """
     Calculates the Newtonian multipole prefactors, see Eq. 25-27 in
@@ -1086,8 +1084,6 @@ cpdef void compute_rho_coeffs(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cdef public void compute_delta_coeffs(
     double nu,
     double dm,
@@ -1112,21 +1108,21 @@ cdef public void compute_delta_coeffs(
     * https://journals.aps.org/prd/pdf/10.1103/PhysRevD.86.024011
     """
 
-    cdef double nu2 = nu*nu
-    cdef double nu3 = nu*nu2
+    # cdef double nu2 = nu*nu
+    # cdef double nu3 = nu*nu2
 
-    cdef double a2 = a*a
-    cdef double a3 = a*a2
-    cdef double dm2 = dm*dm
+    # cdef double a2 = a*a
+    # cdef double a3 = a*a2
+    # cdef double dm2 = dm*dm
 
-    cdef double chiA2 = chiA * chiA
-    cdef double chiS2 = chiS * chiS
-    cdef double chiA3 = chiA2 * chiA
-    cdef double chiS3 = chiS2 * chiS
+    # cdef double chiA2 = chiA * chiA
+    # cdef double chiS2 = chiS * chiS
+    # cdef double chiA3 = chiA2 * chiA
+    # cdef double chiS3 = chiS2 * chiS
 
     cdef double m1Plus3nu = -1.0 + 3.0 * nu
-    cdef double m1Plus3nu2 = m1Plus3nu * m1Plus3nu
-    cdef double m1Plus3nu3 = m1Plus3nu * m1Plus3nu2
+    # cdef double m1Plus3nu2 = m1Plus3nu * m1Plus3nu
+    # cdef double m1Plus3nu3 = m1Plus3nu * m1Plus3nu2
 
     cdef double aDelta = 0.0
 
@@ -1276,8 +1272,6 @@ cdef double complex compute_deltalm_single(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cdef void compute_delta(
     double v,
     double vh,
@@ -1287,10 +1281,9 @@ cdef void compute_delta(
     """
     Compute the  full :math:`\\delta_{\\ell m}` contribution for all modes
     """
-    cdef int i, j, l, m
+    cdef int i, l, m
     cdef double vs[PN_limit]
     cdef double vhs[PN_limit]
-    cdef double complex delta = 0.0
     for i in range(PN_limit):
         vs[i] = v**i
         vhs[i] = vh**i
@@ -1341,7 +1334,6 @@ cdef double complex compute_rholm_single(
     cdef double complex rho_final = 0.0
     cdef double rho = 1.0
 
-    cdef double rho_log = 0.0
     cdef double f = 0.0
     cdef double complex f_final = 0.0
     cdef double eulerlogxabs = euler_gamma + log(2.0 * m * v)
@@ -1383,41 +1375,17 @@ cdef double complex compute_rholm_single(
     return rho_final
 
 
-# @cython.cpow(True)
-# @cython.wraparound(False)
-# @cython.boundscheck(False)
-# @cython.cdivision(True)
-# @cython.nonecheck(False)
-# @cython.initializedcheck(False)
-# @cython.profile(True)
-# @cython.linetrace(True)
-# cdef void compute_rholm(double v,double vh,double nu, EOBParams eob_pars):
-#     """
-#     Compute the full \\rho_{\\ell m}​ contribution for all modes.
-#     """
-#     cdef int i,l,m
-#     cdef double vs[PN_limit]
-#     for i in range(PN_limit):
-#         vs[i] = v**i
-#
-#     for l in range(2,ell_max+1):
-#         for m in range(1,l+1):
-#             eob_pars.flux_params.rholm[l,m] = compute_rholm_single(vs,vh,l,m,eob_pars)
-
-
 @cython.cpow(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cdef void compute_rholm(double v, double vh, double nu, EOBParams eob_pars):
     cdef int i, l, m
     cdef double vs[PN_limit]
 
-    vs[0] = 0
+    vs[0] = 1
     vs[1] = v
 
     for i in range(2, PN_limit):
@@ -1433,8 +1401,6 @@ cdef void compute_rholm(double v, double vh, double nu, EOBParams eob_pars):
 @cython.boundscheck(False)
 @cython.cdivision(True)
 @cython.nonecheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double  EOBFluxCalculateNewtonianMultipoleAbs(
     double x,
     double phi,
@@ -1460,8 +1426,6 @@ cpdef double  EOBFluxCalculateNewtonianMultipoleAbs(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cdef void update_rho_coeffs(double[:, :, :] rho_coeffs, double[:, :, :] extra_coeffs):
     cdef int l, m, i
     cdef double temp = 0.0
@@ -1479,8 +1443,6 @@ cdef void update_rho_coeffs(double[:, :, :] rho_coeffs, double[:, :, :] extra_co
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double compute_flux(
     double r,
     double phi,
@@ -1539,9 +1501,6 @@ cpdef double compute_flux(
     cdef double complex hlm
 
     # Deal with NQCs
-    cdef double[:] nqc_coeffs
-    cdef double correction = 1.0
-
     for l in range(2, ell_max+1):
         for m in range(1, l+1):
             # Assemble the waveform
@@ -1569,8 +1528,6 @@ cpdef double compute_flux(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double compute_refactorized_flux(
     double chi_1,
     double chi_2,
@@ -1608,8 +1565,8 @@ cpdef double compute_refactorized_flux(
     cdef double sinh_2pia
 
     cdef double alpha
-    cdef double alpha52
-    cdef double alpha3
+    # cdef double alpha52
+    # cdef double alpha3
     cdef double alpha72
     cdef double alpha4
     cdef double alpha92
@@ -1692,12 +1649,12 @@ cpdef double compute_refactorized_flux(
         / 6.283185307179586
     )
 
-    alpha52 = (
-        -0.25 - 0.75 * a**2
-        + expr3 * (-0.25 - 0.75 * a**2)
-    )
+    # alpha52 = (
+    #     -0.25 - 0.75 * a**2
+    #     + expr3 * (-0.25 - 0.75 * a**2)
+    # )
 
-    alpha3 = 0.
+    # alpha3 = 0.
 
     if beaming == 1:
         alpha72 = (
@@ -2217,8 +2174,6 @@ cpdef double compute_refactorized_flux(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef (double, double) RR_force(
     double[::1] q,
     double[::1] p,
@@ -2287,8 +2242,6 @@ cdef class SEOBNRv5RRForce(RadiationReactionForce):
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
-@cython.profile(True)
-@cython.linetrace(True)
 cdef double complex EOBFluxCalculateNewtonianMultipole(
     double x,
     double phi,
@@ -2302,7 +2255,6 @@ cdef double complex EOBFluxCalculateNewtonianMultipole(
     cdef double complex param = params[l, m]
     cdef int epsilon = (l + m) % 2
 
-    cdef double complex y = 0.0
     # Calculate the necessary Ylm
     cdef double complex ylm = sph_harm(-m, l - epsilon, phi, pi / 2)
 
@@ -2317,8 +2269,6 @@ cdef double complex EOBFluxCalculateNewtonianMultipole(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cdef double complex compute_mode(
     double v_phi2,
     double phi,
@@ -2344,9 +2294,6 @@ cdef double complex compute_mode(
     # This is just l!
     cdef double z2 = tgamma(l+1)
     cdef double complex lnr1 = loggamma(l+1.0-2.0j*hathatk)
-
-    cdef double lnr1_abs = cabs(lnr1)
-    cdef double lnr1_arg = carg(lnr1)
 
     Tlm = (
         cexp(
@@ -2377,8 +2324,6 @@ cdef double complex compute_mode(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
     """
     Compute the inspiral modes for aligned *or* precessing binaries.
@@ -2391,7 +2336,8 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
           augmented with the projections of the spins
     """
 
-    cdef double r, pr, pphi, omega_circ, omega, v_phi, v_phi2, H, v, vh, phi, chi_1, chi_2
+    # cdef double r, pr
+    cdef double pphi, omega_circ, omega, v_phi, v_phi2, H, v, vh, phi, chi_1, chi_2
     cdef int l, m, i, j
     cdef double[:] row
 
@@ -2400,11 +2346,10 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
     cdef double source2
     cdef (int, int) ell_m
     cdef double nu = eob_pars.p_params.nu
-    cdef double complex tmp
 
     cdef double vs[PN_limit]
     cdef double vhs[PN_limit]
-    cdef double complex rho
+
     compute_rho_coeffs(
         eob_pars.p_params.nu,
         eob_pars.p_params.delta,
@@ -2427,18 +2372,24 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
         eob_pars.flux_params.delta_coeffs_vh)
 
     cdef int N = dynamics.shape[0]
-    cdef dict modes = {
-        (ell_m[0], ell_m[1]): np.zeros(N, dtype=np.complex128)
-        for ell_m in eob_pars.mode_array
-    }
-    cdef double complex[:, :, :] temp_modes = np.zeros((ell_max, ell_max, N), dtype=np.complex128)
+    cdef double complex[:, :, ::1] temp_modes = np.zeros((ell_max, ell_max, N), dtype=np.complex128)
+
+    cdef int nb_modes = len(eob_pars.mode_array)
+    cdef int[:, ::1] l_modes = np.empty((nb_modes, 2), dtype=np.intc)
+    for j in range(nb_modes):
+        ell_m = eob_pars.mode_array[j]
+        l_modes[j, 0] = ell_m[0]
+        l_modes[j, 1] = ell_m[1]
+
+    vs[0] = 1
+    vhs[0] = 1
 
     # Compute all the modes
     for i in range(N):
         row = dynamics[i]
-        r = row[0]
+        # r = row[0]
         phi = row[1]
-        pr = row[2]
+        # pr = row[2]
         pphi = row[3]
         H = nu*row[4]
         omega = row[5]
@@ -2447,7 +2398,7 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
         vh = (H*omega)**(1./3)
         # Various powers of v that enter the computation
         # of rholm and deltalm
-        for j in range(PN_limit):
+        for j in range(1, PN_limit):
             vs[j] = v**j
             vhs[j] = vh**j
 
@@ -2486,10 +2437,9 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
                 eob_pars.flux_params.delta_coeffs,
                 eob_pars.flux_params.delta_coeffs_vh)
 
-        for j in range(len(eob_pars.mode_array)):
-            ell_m = eob_pars.mode_array[j]
-            l = ell_m[0]
-            m = ell_m[1]
+        for j in range(nb_modes):
+            l = l_modes[j, 0]
+            m = l_modes[j, 1]
             if ((l + m) % 2) == 0:
                 Slm = source1
             else:
@@ -2498,7 +2448,8 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
             # modes[l,m][i] = compute_mode(v_phi2,phi, Slm, vs,vhs,l, m, eob_pars)
             temp_modes[l, m, i] = compute_mode(v_phi2, phi, Slm, vs, vhs, l, m, eob_pars)
 
-    for j in range(len(eob_pars.mode_array)):
+    cdef dict modes = {}
+    for j in range(nb_modes):
         ell_m = eob_pars.mode_array[j]
         l = ell_m[0]
         m = ell_m[1]
@@ -2525,15 +2476,13 @@ cdef double min_threshold(int l, int m):
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_special_coeffs(
     double[:, :] dynamics,
     double t_attach,
     EOBParams eob_pars,
     dict amp_fits,
     dict amp_thresholds,
-    dict modes={(2, 1): 7, (4, 3): 7, (5, 5): 5}
+    dict modes=None
 ):
     """
     Compute the "special" amplitude coefficients.
@@ -2542,9 +2491,12 @@ cpdef compute_special_coeffs(
     """
     # Step 0: spline the dynamics to the attachment point
 
+    if modes is None:
+        modes = {(2, 1): 7, (4, 3): 7, (5, 5): 5}
+
     cdef int i, j, l, m, power
-    cdef double phi, pphi, omega, omega_circ, H, v, vh, vphi, vphi2, source1, source2, Slm
-    cdef double rholm, hlm, K, amp, clm, min_amp
+    cdef double phi, pphi, omega, omega_circ, H, v, vh, vphi, vphi2, source1, source2, Slm, clm1
+    cdef double rholm, hlm, K, amp, min_amp
     cdef double vs[PN_limit]
     cdef double vhs[PN_limit]
 
@@ -2555,11 +2507,6 @@ cpdef compute_special_coeffs(
         spline = CubicSpline(dynamics[:, 0], dynamics[:, i])
         dynamics_all[i-1] = spline(t_attach)
         dynamics_55[i-1] = spline(t_attach-10)
-
-    cdef double m_1 = eob_pars.p_params.m_1
-    cdef double m_2 = eob_pars.p_params.m_2
-    cdef double chi_1 = eob_pars.p_params.chi_1
-    cdef double chi_2 = eob_pars.p_params.chi_2
 
     compute_rho_coeffs(
         eob_pars.p_params.nu,
@@ -2638,7 +2585,7 @@ cpdef compute_special_coeffs(
 
         # Step 5: compute c_lm = (|h_{lm}^{NR}|/K - rho_{lm}(clm=0))/v**power
         clm1 = (amp/K - rholm)*1/v**power
-        clm2 = (-amp/K - rholm)*1/v**power
+        # clm2 = (-amp/K - rholm)*1/v**power
 
         # We always pick the positive solution
         eob_pars.flux_params.f_coeffs[l, m, power] = clm1
@@ -2670,8 +2617,6 @@ cpdef compute_factors(double[::1] phi_orb, int m_max, double complex[:, :] resul
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef unrotate_leading_pn(
     double[::1] re_part,
     double[::1] im_part,
