@@ -16,7 +16,9 @@ from scipy import optimize
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 from ..hamiltonian.Hamiltonian_C cimport (
-    Hamiltonian_C
+    Hamiltonian_C,
+    Hamiltonian_C_dynamics_return_t,
+    Hamiltonian_C_grad_return_t,
 )
 from ..utils.containers cimport EOBParams
 from ..waveform.waveform cimport RadiationReactionForce
@@ -222,7 +224,7 @@ cpdef double j0_eqn(
     q[0] = r
     p[1] = j0_sol
 
-    cdef double[4] dH_dq = H.grad(q, p, chi_1, chi_2, m_1, m_2)
+    cdef Hamiltonian_C_grad_return_t dH_dq = H.grad(q, p, chi_1, chi_2, m_1, m_2)
     cdef double dH_dr = dH_dq[0]
     return dH_dr
 
@@ -291,8 +293,7 @@ cpdef double pr_eqn(
         double omega
         double omega_circ
         double result
-    cdef double[6] dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
-    # cdef (double,double,double,double)  dH_dx = dynamics[:4]
+    cdef Hamiltonian_C_dynamics_return_t dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
 
     dH_dpr = dynamics[2]
     H_val = dynamics[4]
@@ -413,8 +414,7 @@ cpdef double pphi_eqn(
     p[0] = pr
     p[1] = pphi_sol
 
-    cdef double[6] dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
-    # cdef (double,double,double,double) dH_dx = dynamics[:4]
+    cdef Hamiltonian_C_dynamics_return_t dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
     dH_dr = dynamics[0]
     dH_dpr = dynamics[2]
     H_val = dynamics[4]
@@ -631,7 +631,7 @@ cpdef compute_postadiabatic_dynamics(
     dphi_dr = np.zeros(r.shape[0])
     cdef int i
     cdef double dH_dpr, dH_dpphi, csi
-    cdef double[6] dyn
+    cdef Hamiltonian_C_dynamics_return_t dyn
 
     for i in range(r.shape[0]):
         q = np.array([r[i], 0])

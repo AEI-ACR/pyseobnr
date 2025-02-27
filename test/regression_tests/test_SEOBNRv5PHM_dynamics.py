@@ -97,8 +97,8 @@ def test_compute_rhs_precessing():
     )
 
     hamiltonian_prec = Ham_precessing_opt(eob_params_call1)
-    hamiltonian_prec.calibration_coeffs = hamiltonian_aligned.calibration_coeffs
-    hamiltonian_prec.calibration_coeffs["ddSO"] = 0
+    hamiltonian_prec.eob_params.c_coeffs = hamiltonian_aligned.calibration_coeffs
+    hamiltonian_prec.calibration_coeffs.ddSO = 0
 
     dyn_coarse, dyn_fine = compute_dynamics_opt(
         chi_1=eob_params_call1.p_params.chi_1,

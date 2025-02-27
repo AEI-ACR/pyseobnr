@@ -38,7 +38,12 @@ cdef class PhysicalParams:
 
 
 cdef class CalibCoeffs:
-    cdef public dict dc
+    # cdef public dict dc
+
+    cdef public:
+        double a6
+        double dSO
+        double ddSO
 
 
 cdef class Dynamics:

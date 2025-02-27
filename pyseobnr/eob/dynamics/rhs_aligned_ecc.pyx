@@ -16,7 +16,7 @@ from pyseobnr.eob.dynamics.Keplerian_evolution_equations_flags cimport BaseCoupl
 from pyseobnr.eob.dynamics.secular_evolution_equations_flags cimport (
     BaseCoupledExpressionsCalculation as BaseCoupledExpressionsCalculation_secular
 )
-from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
+from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C, Hamiltonian_C_dynamics_return_t
 
 
 cpdef get_rhs_ecc(
@@ -60,7 +60,7 @@ cpdef get_rhs_ecc(
     cdef double H_val, omega, xi
     cdef double deriv[6]
 
-    cdef double[6] dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
+    cdef Hamiltonian_C_dynamics_return_t dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
 
     omega = dynamics[3]
     H_val = dynamics[4]

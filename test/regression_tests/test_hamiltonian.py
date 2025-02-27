@@ -32,6 +32,16 @@ def test_ctor_aligned():
     ):
         _ = Ham_aligned_opt(10, 20)
 
+    # should reject None
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            r"Argument 'eob_params' has incorrect type (expected "
+            r"pyseobnr.eob.utils.containers.EOBParams, got NoneType)"
+        ),
+    ):
+        _ = Ham_aligned_opt(None)
+
 
 def test_ctor_precessing():
     """Checks the construction of the Hamiltonian object"""
@@ -49,6 +59,16 @@ def test_ctor_precessing():
         match=re.escape(r"__cinit__() takes exactly 1 positional argument (2 given)"),
     ):
         _ = Ham_precessing_opt(10, 20)
+
+    # should reject None
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            r"Argument 'eob_params' has incorrect type (expected "
+            r"pyseobnr.eob.utils.containers.EOBParams, got NoneType)"
+        ),
+    ):
+        _ = Ham_precessing_opt(None)
 
 
 @pytest.fixture
@@ -80,12 +100,11 @@ def test_accessors_aligned(eob_params):
         }
     )
 
-    # accessing the instance calibration coefficient
-    hamiltonian.calibration_coeffs = coefficients
+    # accessing through the eob_params of the Hamiltonian
+    hamiltonian.eob_params.c_coeffs = coefficients
 
     assert id(hamiltonian.calibration_coeffs) == id(coefficients)
-    assert id(hamiltonian.EOBpars.c_coeffs) != id(coefficients)
-    assert id(hamiltonian.EOBpars) == id(eob_params)
+    assert id(hamiltonian.eob_params.c_coeffs) == id(coefficients)
 
     coefficients = CalibCoeffs(
         {
@@ -100,12 +119,12 @@ def test_accessors_aligned(eob_params):
     # eob_params inside the current Hamiltonian
     hamiltonian.calibration_coeffs = coefficients
     assert id(hamiltonian.calibration_coeffs) == id(coefficients)
-    assert id(hamiltonian.EOBpars.c_coeffs) != id(coefficients)
+    assert id(hamiltonian.eob_params.c_coeffs) == id(coefficients)
 
     # eob_params has not been changed inside the Hamiltonian
-    assert id(hamiltonian.EOBpars) == id(eob_params)
-    # and the corresponding field in eob_params has not been replaced (this will be corrected)
-    assert id(eob_params.c_coeffs) != id(coefficients)
+    assert id(hamiltonian.eob_params) == id(eob_params)
+    # and the corresponding field in eob_params has been replaced
+    assert id(eob_params.c_coeffs) == id(coefficients)
 
 
 def test_accessors_precessing(eob_params):
@@ -120,10 +139,10 @@ def test_accessors_precessing(eob_params):
     )
 
     # accessing through the eob_params of the Hamiltonian
-    hamiltonian.calibration_coeffs = coefficients
+    hamiltonian.eob_params.c_coeffs = coefficients
 
     assert id(hamiltonian.calibration_coeffs) == id(coefficients)
-    assert id(hamiltonian.EOBpars.c_coeffs) != id(coefficients)
+    assert id(hamiltonian.eob_params.c_coeffs) == id(coefficients)
 
     coefficients = CalibCoeffs(
         {
@@ -138,25 +157,17 @@ def test_accessors_precessing(eob_params):
     # eob_params inside the current Hamiltonian
     hamiltonian.calibration_coeffs = coefficients
     assert id(hamiltonian.calibration_coeffs) == id(coefficients)
-    assert id(hamiltonian.EOBpars.c_coeffs) != id(coefficients)  # TODO fix this
+    assert id(hamiltonian.eob_params.c_coeffs) == id(coefficients)
 
     # eob_params has not been changed inside the Hamiltonian
-    assert id(hamiltonian.EOBpars) == id(eob_params)
+    assert id(hamiltonian.eob_params) == id(eob_params)
     # and the corresponding field in eob_params has been replaced
-    assert id(eob_params.c_coeffs) != id(coefficients)  # TODO fix this
+    assert id(eob_params.c_coeffs) == id(coefficients)
 
 
 def test_hamiltonian_calls_aligned(eob_params):
     """Checks calls consistency"""
-    calibration_coeffs = CalibCoeffs(
-        {
-            "a6": 10,
-            "dSO": 20,
-        }
-    )
-
     hamiltonian = Ham_aligned_opt(eob_params)
-    hamiltonian.calibration_coeffs = calibration_coeffs
 
     call_args = (
         np.array([2.9493765, 131.52477657]),
@@ -214,24 +225,16 @@ def test_hamiltonian_calls_aligned(eob_params):
 
 @pytest.fixture
 def hamiltonian_aligned(eob_params):
-    eob_params.c_coeffs = CalibCoeffs(
-        {
-            "a6": 0,
-            "dSO": 0,
-        }
-    )
     hamiltonian = Ham_aligned_opt(eob_params)
 
-    hamiltonian.calibration_coeffs = eob_params.c_coeffs
+    hamiltonian.calibration_coeffs.a6 = -12.69080059597502
+    hamiltonian.calibration_coeffs.dSO = -28.477359513522586
+    hamiltonian.calibration_coeffs.ddSO = 0
 
-    hamiltonian.calibration_coeffs["a6"] = -12.69080059597502
-    hamiltonian.calibration_coeffs["dSO"] = -28.477359513522586
-    hamiltonian.calibration_coeffs["ddSO"] = 0
-
-    hamiltonian.EOBpars.p_params.M = 1
-    hamiltonian.EOBpars.p_params.nu = 0.23437499999999997
-    hamiltonian.EOBpars.p_params.X_1 = 0.625
-    hamiltonian.EOBpars.p_params.X_2 = 0.375
+    hamiltonian.eob_params.p_params.M = 1
+    hamiltonian.eob_params.p_params.nu = 0.23437499999999997
+    hamiltonian.eob_params.p_params.X_1 = 0.625
+    hamiltonian.eob_params.p_params.X_2 = 0.375
     return hamiltonian
 
 
@@ -325,8 +328,6 @@ def test_hamiltonian_dynamics_gt(hamiltonian_aligned):
 def test_hamiltonian_calls_precessing(eob_params):
     """Checks calls consistency"""
     hamiltonian = Ham_precessing_opt(eob_params)
-    coefficients = CalibCoeffs({"a6": 10, "dSO": 20, "ddSO": 0})
-    hamiltonian.calibration_coeffs = coefficients
 
     call_args = (
         np.array([2.9493765, 131.52477657]),
@@ -402,8 +403,7 @@ def test_hamiltonian_calls_precessing(eob_params):
     )
 
     # csi
-    # TODO: fix
-    # assert hamiltonian.csi(*call_args) == hamiltonian.csi(**kwargs_shuffled)
+    assert hamiltonian.csi(*call_args) == hamiltonian.csi(**kwargs_shuffled)
 
     # auxderivs
     np.testing.assert_array_equal(
@@ -413,35 +413,29 @@ def test_hamiltonian_calls_precessing(eob_params):
 
 @pytest.fixture
 def hamiltonian_precessing(eob_params):
-    eob_params.c_coeffs = CalibCoeffs(
-        {
-            "a6": 0,
-            "dSO": 0,
-        }
-    )
-
     hamiltonian = Ham_precessing_opt(eob_params)
-    hamiltonian.calibration_coeffs = eob_params.c_coeffs
 
-    hamiltonian.calibration_coeffs["a6"] = -12.69080059597502
-    hamiltonian.calibration_coeffs["dSO"] = -33.369866493663814
-    hamiltonian.calibration_coeffs["ddSO"] = 0
+    hamiltonian.calibration_coeffs.a6 = -12.69080059597502
+    hamiltonian.calibration_coeffs.dSO = -33.369866493663814
+    hamiltonian.calibration_coeffs.ddSO = 0
 
-    hamiltonian.EOBpars.p_params.M = 1
-    hamiltonian.EOBpars.p_params.nu = 0.23437499999999997
-    hamiltonian.EOBpars.p_params.X_1 = 0.625
-    hamiltonian.EOBpars.p_params.X_2 = 0.375
+    hamiltonian.eob_params.p_params.M = 1
+    hamiltonian.eob_params.p_params.nu = 0.23437499999999997
+    hamiltonian.eob_params.p_params.X_1 = 0.625
+    hamiltonian.eob_params.p_params.X_2 = 0.375
 
-    hamiltonian.EOBpars.p_params.chi1_L = 0.22617092
-    hamiltonian.EOBpars.p_params.chi_1 = 0.23327279836221107
-    hamiltonian.EOBpars.p_params.chi1_v = np.array([0.25022559, 0.51326609, 0.23226074])
-    hamiltonian.EOBpars.p_params.chi2_L = -0.16629132
-    hamiltonian.EOBpars.p_params.chi_2 = -0.1575542799917961
-    hamiltonian.EOBpars.p_params.chi2_v = np.array(
+    hamiltonian.eob_params.p_params.chi1_L = 0.22617092
+    hamiltonian.eob_params.p_params.chi_1 = 0.23327279836221107
+    hamiltonian.eob_params.p_params.chi1_v = np.array(
+        [0.25022559, 0.51326609, 0.23226074]
+    )
+    hamiltonian.eob_params.p_params.chi2_L = -0.16629132
+    hamiltonian.eob_params.p_params.chi_2 = -0.1575542799917961
+    hamiltonian.eob_params.p_params.chi2_v = np.array(
         [-0.36040643, 0.67769987, -0.02856655]
     )
 
-    hamiltonian.EOBpars.p_params.delta = 0.25000000000000006
+    hamiltonian.eob_params.p_params.delta = 0.25000000000000006
 
     return hamiltonian
 

@@ -12,7 +12,8 @@ cimport numpy as np
 from pyseobnr.eob.utils.containers cimport EOBParams
 from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
 from pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C cimport (
-    Hamiltonian_v5PHM_C
+    Hamiltonian_v5PHM_C,
+    Hamiltonian_v5PHM_C_dynamics_result_t
 )
 
 DTYPE = np.float64
@@ -53,7 +54,7 @@ cpdef (double, double, double, double) get_rhs_prec(
     cdef double chi1_L = params.p_params.chi1_L
     cdef double chi2_L = params.p_params.chi2_L
 
-    cdef double[6] dynamics = H.dynamics(
+    cdef Hamiltonian_v5PHM_C_dynamics_result_t dynamics = H.dynamics(
         q,
         p,
         params.p_params.chi1_v,

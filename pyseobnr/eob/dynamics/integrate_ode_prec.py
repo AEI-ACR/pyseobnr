@@ -180,7 +180,7 @@ def compute_dynamics_prec_opt(
     am_start = chi1_LN_start * X1 - chi2_LN_start * X2
 
     dSO_start = dSO_poly_fit(params.p_params.nu, ap_start, am_start)
-    H.calibration_coeffs["dSO"] = dSO_start
+    H.calibration_coeffs.dSO = dSO_start
 
     # Step 3.2: compute the initial conditions - uses the aligned-spin ID
     if y_init is None:
@@ -358,7 +358,7 @@ def compute_dynamics_prec_opt(
             break
 
         dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
-        H.calibration_coeffs["dSO"] = dSO_new
+        H.calibration_coeffs.dSO = dSO_new
 
         params.p_params.chi_1 = chi1_LN
         params.p_params.chi_2 = chi2_LN
@@ -467,7 +467,7 @@ def compute_dynamics_prec_opt(
     dynamics = np.vstack((dynamics_low, dynamics_fine))
 
     # Return EOB dynamics, LN vectors,  PN stuff
-    return (dynamics_low, dynamics_fine, dynamics, idx_close)
+    return dynamics_low, dynamics_fine, dynamics, idx_close
 
 
 def transition_dynamics_v2(

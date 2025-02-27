@@ -49,14 +49,13 @@ cdef class PhysicalParams:
         self.ap = self.X_1*self.chi_1+self.X_2*self.chi_2
         self.am = self.X_1*self.chi_1-self.X_2*self.chi_2
 
-cdef class CalibCoeffs():
-    def __cinit__(self,dc):
-        self.dc = dc
 
-    def __getitem__(self,str x):
-        return self.dc[x]
-    def __setitem__(self,str x,double y):
-        self.dc[x] = y
+cdef class CalibCoeffs():
+    def __cinit__(self, dc):
+        self.a6 = dc.get("a6", 0)
+        self.dSO = dc.get("dSO", 0)
+        self.ddSO = dc.get("ddSO", 0)
+
 
 cdef class FluxParams:
     @cython.embedsignature(True)
@@ -164,8 +163,8 @@ cdef class EOBParams:
         coeffs,
         aligned=True,
         extra_PN_terms=True,
-        mode_array=[(2,2),(2,1),(3,3),(3,2),(4,4),(4,3),(5,5)],
-        special_modes=[(2,1),(4,3),(5,5)],
+        mode_array=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)],
+        special_modes=[(2, 1), (4, 3), (5, 5)],
         ecc_model=False):
         """
         Initializes the EOB parameters.
@@ -185,14 +184,14 @@ cdef class EOBParams:
         coeffs,
         aligned=True,
         extra_PN_terms=True,
-        mode_array=[(2,2),(2,1),(3,3),(3,2),(4,4),(4,3),(5,5)],
-        special_modes=[(2,1),(4,3),(5,5)],
+        mode_array=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)],
+        special_modes=[(2, 1), (4, 3), (5, 5)],
         ecc_model=False):
 
         # Physical params (e.g. spins)
         self.p_params = PhysicalParams(physical_params)
         # Calibration coefficients
-        #self.c_coeffs = CalibCoeffs(coeffs)
+        self.c_coeffs = CalibCoeffs(coeffs)
         # Flux/waveform quantities
         self.flux_params = FluxParams(special_modes,extra_PN_terms)
         # Dynamics related quantities
