@@ -5,7 +5,7 @@ from pyseobnr.eob.utils.containers cimport EOBParams
 from pyseobnr.eob.waveform.waveform cimport RR_force, RadiationReactionForce
 from pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C cimport Hamiltonian_v5PHM_C
 
-cpdef get_rhs_prec(
+cpdef (double, double, double, double) get_rhs_prec(
     double t,
     double[::1] z,
     Hamiltonian_v5PHM_C H,
