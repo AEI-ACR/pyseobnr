@@ -72,32 +72,86 @@ cpdef augment_dynamics(
     Args:
         dynamics (np.ndarray): The dynamics array: t,r,phi,pr,pphi
     """
-    result = []
-    cdef double[:] p_c = np.zeros(2)
-    cdef double H_val, omega, omega_c
-    cdef double dyn[6]
-    cdef double[:] q
-    cdef double[:] p
-    cdef double[:] row
-    cdef int i, N
-    N = dynamics.shape[0]
 
-    for i in range(N):
-        row = dynamics[i]
-        q = row[1:3]
-        p = row[3:5]
-        p_c[1] = p[1]
+    assert dynamics.shape[1] > 4
 
-        # Evaluate a few things: H, omega, omega_circ
+    cdef:
+        double H_val
+        double omega
+        double omega_c
+        # const double[:] row
 
-        dyn[:] = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
-        omega = dyn[3]
-        H_val = dyn[4]
+        # those inputs should be compatible with the oe of the Hamiltonian calls
+        # otherwise we get a conversion overhead
+        double[2] p_c
+        double[2] q
+        double[2] p
 
-        omega_c = H.omega(q, p_c, chi_1, chi_2, m_1, m_2)
+        double[::1] q_view
+        double[::1] p_view
+        double[::1] pc_view
 
-        result.append([H_val, omega, omega_c])
-    result = np.array(result)
+    cdef double[6] dyn
+
+    cdef:
+        int i
+        int N = dynamics.shape[0]
+
+    cdef:
+        const double* current_row_input
+        double* current_row_output
+
+    p_c[0] = 0
+    p_view = p
+    q_view = q
+    pc_view = p_c
+
+    result = np.empty((N, 3))
+    cdef double[:, ::1] result_view = result
+
+    if dynamics.strides[0] != 1:
+        for i in range(N):
+            # row = dynamics[i]
+            q[0] = dynamics[i, 1]
+            q[1] = dynamics[i, 2]
+
+            p[0] = dynamics[i, 3]
+            p[1] = dynamics[i, 4]
+            p_c[1] = p[1]
+
+            # Evaluate a few things: H, omega, omega_circ
+            dyn = H.dynamics(q_view, p_view, chi_1, chi_2, m_1, m_2)
+            omega = dyn[3]
+            H_val = dyn[4]
+
+            omega_c = H.omega(q_view, pc_view, chi_1, chi_2, m_1, m_2)
+
+            current_row_output = &result_view[i][0]
+            current_row_output[0] = H_val
+            current_row_output[1] = omega
+            current_row_output[2] = omega_c
+    else:
+        for i in range(N):
+            current_row_input = &dynamics[i][0]
+            q[0] = current_row_input[1]
+            q[1] = current_row_input[2]
+
+            p[0] = current_row_input[3]
+            p[1] = current_row_input[4]
+            p_c[1] = current_row_input[4]
+
+            # Evaluate a few things: H, omega, omega_circ
+            dyn = H.dynamics(q_view, p_view, chi_1, chi_2, m_1, m_2)
+            omega = dyn[3]
+            H_val = dyn[4]
+
+            omega_c = H.omega(q_view, pc_view, chi_1, chi_2, m_1, m_2)
+
+            current_row_output = &result_view[i][0]
+            current_row_output[0] = H_val
+            current_row_output[1] = omega
+            current_row_output[2] = omega_c
+
     return np.c_[dynamics, result]
 
 
