@@ -1,17 +1,19 @@
-# cython: language_level=3, boundscheck=False, cdivision=True, profile=True
-# cython: linetrace=True, initializedcheck=False
+# cython: language_level=3, boundscheck=False, cdivision=True, profile=False
+# cython: linetrace=False, initializedcheck=False
 """
 Contains the actual RHS of the EOM, wrapped in cython.
 This allows some of the cython functions used in the RHS to be called more efficiently.
 """
 
+import cython
 import numpy as np
 cimport numpy as np
 
 from pyseobnr.eob.utils.containers cimport EOBParams
 from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
-from pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C cimport Hamiltonian_v5PHM_C
-
+from pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C cimport (
+    Hamiltonian_v5PHM_C
+)
 
 DTYPE = np.float64
 
@@ -20,10 +22,10 @@ DTYPE = np.float64
 # type with a _t-suffix.
 ctypedef np.float64_t DTYPE_t
 
-cdef extern from "numpy/npy_math.h":
-    bint npy_isnan(double x)
 
-cpdef get_rhs_prec(
+@cython.wraparound(False)
+@cython.boundscheck(False)
+cpdef (double, double, double, double) get_rhs_prec(
     double t,
     double[::1] z,
     Hamiltonian_v5PHM_C H,
@@ -51,9 +53,7 @@ cpdef get_rhs_prec(
     cdef double chi1_L = params.p_params.chi1_L
     cdef double chi2_L = params.p_params.chi2_L
 
-    cdef double H_val, omega, omega_circ, xi
-    cdef double dynamics[6]
-    dynamics[:] = H.dynamics(
+    cdef double[6] dynamics = H.dynamics(
         q,
         p,
         params.p_params.chi1_v,
@@ -64,6 +64,8 @@ cpdef get_rhs_prec(
         chi2_LN,
         chi1_L,
         chi2_L,)
+
+    cdef double H_val, omega, omega_circ, xi
     H_val = dynamics[4]
     omega = dynamics[3]
     params.dynamics.p_circ[1] = p[1]
@@ -88,8 +90,4 @@ cpdef get_rhs_prec(
 
     cdef (double, double) RR_f = RR.RR(q, p, omega, omega_circ, H_val, params)
 
-    cdef double deriv[4]
-
-    deriv[:] = [xi * dynamics[2], dynamics[3], -dynamics[0] * xi + RR_f[0], -dynamics[1] + RR_f[1]]
-
-    return deriv
+    return xi * dynamics[2], dynamics[3], -dynamics[0] * xi + RR_f[0], -dynamics[1] + RR_f[1]

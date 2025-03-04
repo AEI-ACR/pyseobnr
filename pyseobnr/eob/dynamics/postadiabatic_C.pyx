@@ -7,26 +7,25 @@ Contains the functions needed for computing the post-adiabatic dynamics as well 
 
 cimport cython
 
-from typing import Dict
-
 import numpy as np
 
-from libc.math cimport abs, asinh, cos, exp, fabs, log, sin, sinh, sqrt, tanh, tgamma
+from libc.math cimport fabs
 
 from pygsl_lite import errno, roots
-from scipy import integrate, optimize
-from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
+from scipy import optimize
+from scipy.interpolate import InterpolatedUnivariateSpline
 
-from ..utils.nr_utils import (
-    bbh_final_spin_non_precessing_HBR2016
+from ..hamiltonian.Hamiltonian_C cimport (
+    Hamiltonian_C
 )
+from ..utils.containers cimport EOBParams
+from ..waveform.waveform cimport RadiationReactionForce
+from ..utils.nr_utils import bbh_final_spin_non_precessing_HBR2016
+
 from .initial_conditions_aligned_opt import computeIC_opt as computeIC
 from .integrate_ode import augment_dynamics
 from .integrate_ode import compute_dynamics_opt as compute_dynamics
 
-from ..hamiltonian.Hamiltonian_C cimport Hamiltonian_C
-from ..utils.containers cimport EOBParams
-from ..waveform.waveform cimport RadiationReactionForce
 
 fin_diff_coeffs_order_9 = np.array([
     [-761./280., 8., -14., 56./3., -35./2., 56./5., -14./3., 8./7., -1./8.],
@@ -55,30 +54,90 @@ interpolated_integral_order_5 = [
 ]
 
 interpolated_integral_order_7 = [
-    [5257./17280, 139849./120960, -(4511./4480), 123133./120960, -(88547./120960), 1537./4480, -(11351./120960), 275./24192],
-    [-(275./24192), 5311./13440, 11261./13440, -(44797./120960), 2987./13440, -(1283./13440), 2999./120960, -(13./4480)],
-    [13./4480, -(4183./120960), 6403./13440, 9077./13440, -(20227./120960), 803./13440, -(191./13440), 191./120960],
-    [-(191./120960), 1879./120960, -(353./4480), 68323./120960, 68323./120960, -(353./4480), 1879./120960, -(191./120960)],
-    [191./120960, -(191./13440), 803./13440, -(20227./120960), 9077./13440, 6403./13440, -(4183./120960), 13./4480],
-    [-(13./4480), 2999./120960, -(1283./13440), 2987./13440, -(44797./120960), 11261./13440, 5311./13440, -(275./24192)],
-    [275./24192, -(11351./120960), 1537./4480, -(88547./120960), 123133./120960, -(4511./4480), 139849./120960, 5257./17280],
+    [
+        5257.0 / 17280,
+        139849.0 / 120960,
+        -(4511.0 / 4480),
+        123133.0 / 120960,
+        -(88547.0 / 120960),
+        1537.0 / 4480,
+        -(11351.0 / 120960),
+        275.0 / 24192,
+    ],
+    [
+        -(275.0 / 24192),
+        5311.0 / 13440,
+        11261.0 / 13440,
+        -(44797.0 / 120960),
+        2987.0 / 13440,
+        -(1283.0 / 13440),
+        2999.0 / 120960,
+        -(13.0 / 4480),
+    ],
+    [
+        13.0 / 4480,
+        -(4183.0 / 120960),
+        6403.0 / 13440,
+        9077.0 / 13440,
+        -(20227.0 / 120960),
+        803.0 / 13440,
+        -(191.0 / 13440),
+        191.0 / 120960,
+    ],
+    [
+        -(191.0 / 120960),
+        1879.0 / 120960,
+        -(353.0 / 4480),
+        68323.0 / 120960,
+        68323.0 / 120960,
+        -(353.0 / 4480),
+        1879.0 / 120960,
+        -(191.0 / 120960),
+    ],
+    [
+        191.0 / 120960,
+        -(191.0 / 13440),
+        803.0 / 13440,
+        -(20227.0 / 120960),
+        9077.0 / 13440,
+        6403.0 / 13440,
+        -(4183.0 / 120960),
+        13.0 / 4480,
+    ],
+    [
+        -(13.0 / 4480),
+        2999.0 / 120960,
+        -(1283.0 / 13440),
+        2987.0 / 13440,
+        -(44797.0 / 120960),
+        11261.0 / 13440,
+        5311.0 / 13440,
+        -(275.0 / 24192),
+    ],
+    [
+        275.0 / 24192,
+        -(11351.0 / 120960),
+        1537.0 / 4480,
+        -(88547.0 / 120960),
+        123133.0 / 120960,
+        -(4511.0 / 4480),
+        139849.0 / 120960,
+        5257.0 / 17280,
+    ],
 ]
 
 
-@cython.profile(True)
-@cython.linetrace(True)
 @cython.cdivision(True)
 @cython.boundscheck(False)
-cdef double single_deriv(double[:] y,double h,double[:] coeffs):
+cdef double single_deriv(double[:] y, double h, double[:] coeffs):
     cdef int i
     cdef double total = 0.0
     for i in range(9):
-        total+=coeffs[i]*y[i]
-    total/=h
+        total += coeffs[i]*y[i]
+    total /= h
     return total
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 @cython.cdivision(True)
 cpdef fin_diff_derivative(
     x: np.array,
@@ -97,28 +156,27 @@ cpdef fin_diff_derivative(
     cdef int i
     for i in range(size):
         if i == 0:
-            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[0])
+            dy_dx[i] = single_deriv(y[0:9], h, fin_diff_coeffs_order_9[0])
         elif i == 1:
-            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[1])
+            dy_dx[i] = single_deriv(y[0:9], h, fin_diff_coeffs_order_9[1])
         elif i == 2:
-            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[2])
+            dy_dx[i] = single_deriv(y[0:9], h, fin_diff_coeffs_order_9[2])
         elif i == 3:
-            dy_dx[i] = single_deriv(y[0:9],h,fin_diff_coeffs_order_9[3])
+            dy_dx[i] = single_deriv(y[0:9], h, fin_diff_coeffs_order_9[3])
         elif i == size - 4:
-            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[5])
+            dy_dx[i] = single_deriv(y[-9:], h, fin_diff_coeffs_order_9[5])
         elif i == size - 3:
-            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[6])
+            dy_dx[i] = single_deriv(y[-9:], h, fin_diff_coeffs_order_9[6])
         elif i == size - 2:
-            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[7])
+            dy_dx[i] = single_deriv(y[-9:], h, fin_diff_coeffs_order_9[7])
         elif i == size - 1:
-            dy_dx[i] = single_deriv(y[-9:],h,fin_diff_coeffs_order_9[8])
+            dy_dx[i] = single_deriv(y[-9:], h, fin_diff_coeffs_order_9[8])
         else:
-            dy_dx[i] = single_deriv(y[i-4:i+5],h,fin_diff_coeffs_order_9[4])
+            dy_dx[i] = single_deriv(y[i-4:i+5], h, fin_diff_coeffs_order_9[4])
 
     return dy_dx
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 cpdef Kerr_ISCO(
     double chi1,
     double chi2,
@@ -139,10 +197,9 @@ cpdef Kerr_ISCO(
 
     # Compute the ISCO L for this spin
     L_ISCO = 2/(3*np.sqrt(3))*(1+2*np.sqrt(3*r_ISCO)-2)
-    return np.array([r_ISCO,L_ISCO])
+    return np.array([r_ISCO, L_ISCO])
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 def Newtonian_j0(r):
     """
     Newtonian expression for orbital angular momentum using
@@ -150,16 +207,25 @@ def Newtonian_j0(r):
     """
     return np.sqrt(r)
 
-@cython.profile(True)
-@cython.linetrace(True)
-cpdef double j0_eqn(double j0_sol, double r, Hamiltonian_C H, double chi_1, double chi_2, double m_1, double m_2,
-            double[:] q, double[:] p):
-    q[0] = r
-    p[1]= j0_sol
 
-    cdef (double,double,double,double) dH_dq = H.grad(q, p, chi_1, chi_2, m_1, m_2)
+cpdef double j0_eqn(
+    double j0_sol,
+    double r,
+    Hamiltonian_C H,
+    double chi_1,
+    double chi_2,
+    double m_1,
+    double m_2,
+    double[:] q,
+    double[:] p
+):
+    q[0] = r
+    p[1] = j0_sol
+
+    cdef double[4] dH_dq = H.grad(q, p, chi_1, chi_2, m_1, m_2)
     cdef double dH_dr = dH_dq[0]
     return dH_dr
+
 
 cpdef compute_adiabatic_solution(
     double[:] r,
@@ -183,20 +249,19 @@ cpdef compute_adiabatic_solution(
         j0_solution = optimize.root(
             j0_eqn,
             j0[i],
-            args=(r[i], H, chi_1, chi_2, m_1, m_2,q,p),
+            args=(r[i], H, chi_1, chi_2, m_1, m_2, q, p),
             tol=tol,
         )
         j0[i] = j0_solution.x
 
     return j0
 
+
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double pr_eqn(
     double pr_sol,
     double r,
@@ -219,34 +284,35 @@ cpdef double pr_eqn(
     q[0] = r
     p[0] = pr_sol
     p[1] = pphi
-    cdef double dH_dpr,H_val,csi,omega,omega_circ,result
-    cdef double dynamics[6]
-    dynamics[:] = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
-    #cdef (double,double,double,double)  dH_dx = dynamics[:4]
+    cdef:
+        double dH_dpr
+        double H_val
+        double csi
+        double omega
+        double omega_circ
+        double result
+    cdef double[6] dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
+    # cdef (double,double,double,double)  dH_dx = dynamics[:4]
 
     dH_dpr = dynamics[2]
     H_val = dynamics[4]
     csi = dynamics[5]
 
-
     params.dynamics.p_circ[1] = pphi
-    omega_circ = H.omega(q,params.dynamics.p_circ,chi_1,chi_2,m_1,m_2)
+    omega_circ = H.omega(q, params.dynamics.p_circ, chi_1, chi_2, m_1, m_2)
 
     omega = dynamics[3]
 
-    cdef (double,double) flux = RR.RR(q, p, omega,omega_circ,H_val,params)
-
+    cdef (double, double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
 
     result = dpphi_dr * dH_dpr * csi - flux[1]
-
-
     return result
 
-cpdef double pr_eqn_wrapper(pr_sol,args):
-    return pr_eqn(pr_sol,*args)
 
-@cython.profile(True)
-@cython.linetrace(True)
+cpdef double pr_eqn_wrapper(pr_sol, args):
+    return pr_eqn(pr_sol, *args)
+
+
 cpdef compute_pr(
     double[:] r,
     double[:] pr,
@@ -268,10 +334,9 @@ cpdef compute_pr(
     arXiv:2105.06983 at every radial grid point
     """
 
-    cdef double[:] dpphi_dr = - fin_diff_derivative(r, pphi)
+    cdef double[:] dpphi_dr = -fin_diff_derivative(r, pphi)
 
-
-    cdef int i
+    cdef int i, iter
     for i in range(r.shape[0]):
         if np.abs(pr[i])<1e-14:
             x0 = 0.0
@@ -280,31 +345,42 @@ cpdef compute_pr(
             x0 = pr[i]*0.95
             x1 = pr[i]*1.05
 
-        mysys = roots.gsl_function(pr_eqn_wrapper, (
-                r[i], pphi[i], dpphi_dr[i],
-                H, RR, chi_1, chi_2, m_1, m_2,
-                params,q,p
-            ))
+        mysys = roots.gsl_function(
+            pr_eqn_wrapper,
+            (
+                r[i],
+                pphi[i],
+                dpphi_dr[i],
+                H,
+                RR,
+                chi_1,
+                chi_2,
+                m_1,
+                m_2,
+                params,
+                q,
+                p
+            )
+        )
         solver = roots.brent(mysys)
-        solver.set(x1,x0)
+        solver.set(x1, x0)
         for iter in range(100):
             status = solver.iterate()
             x_lo = solver.x_lower()
             x_up = solver.x_upper()
-            status = roots.test_interval(x_lo, x_up, tol,tol)
+            status = roots.test_interval(x_lo, x_up, tol, tol)
             result = solver.root()
             if status == errno.GSL_SUCCESS:
                 break
         pr[i] = result
     return pr
 
+
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double pphi_eqn(
     double pphi_sol,
     double r,
@@ -324,37 +400,42 @@ cpdef double pphi_eqn(
     Evaluate the equation for even-PA orders, corresponding to corrections to pphi.
     See Eq. (2.7) of arXiv:2105.06983
     """
-    cdef double dH_dr,dH_dpr,H_val,csi,omega,omega_circ,result
+    cdef:
+        double dH_dr
+        double dH_dpr
+        double H_val
+        double csi
+        double omega
+        double omega_circ
+        double result
+
     q[0] = r
     p[0] = pr
-    p[1] =  pphi_sol
-    cdef double dynamics[6]
-    dynamics[:] = H.dynamics(q,p, chi_1, chi_2, m_1, m_2)
-    #cdef (double,double,double,double) dH_dx = dynamics[:4]
+    p[1] = pphi_sol
+
+    cdef double[6] dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
+    # cdef (double,double,double,double) dH_dx = dynamics[:4]
     dH_dr = dynamics[0]
     dH_dpr = dynamics[2]
     H_val = dynamics[4]
     csi = dynamics[5]
 
-    params.dynamics.p_circ[1] =  pphi_sol
-    omega_circ = H.omega(q,params.dynamics.p_circ,chi_1,chi_2,m_1,m_2)
+    params.dynamics.p_circ[1] = pphi_sol
+    omega_circ = H.omega(q, params.dynamics.p_circ, chi_1, chi_2, m_1, m_2)
 
     omega = dynamics[3]
 
-
-    cdef (double,double) flux = RR.RR(q, p, omega,omega_circ,H_val,params)
-
-
+    cdef (double, double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
 
     result = dpr_dr * dH_dpr + dH_dr - flux[0] / csi
 
     return result
 
-cpdef double pphi_eqn_wrapper(pphi_sol,args):
-    return pphi_eqn(pphi_sol,*args)
 
-@cython.profile(True)
-@cython.linetrace(True)
+cpdef double pphi_eqn_wrapper(pphi_sol, args):
+    return pphi_eqn(pphi_sol, *args)
+
+
 cpdef compute_pphi(
     double[:] r,
     double[:] pr,
@@ -376,30 +457,43 @@ cpdef compute_pphi(
     arXiv:2105.06983 at every radial grid point
     """
 
-    cdef double[:] dpr_dr = - fin_diff_derivative(r, pr)
-    cdef int i
+    cdef double[:] dpr_dr = -fin_diff_derivative(r, pr)
+    cdef int i, iter
     for i in range(r.shape[0]):
 
         x0 = 0.95*pphi[i]
         x1 = 1.05*pphi[i]
-        mysys = roots.gsl_function(pphi_eqn_wrapper, (
-                r[i], pr[i], dpr_dr[i], H, RR, chi_1, chi_2, m_1, m_2, params,q,p
-            ))
+        mysys = roots.gsl_function(
+            pphi_eqn_wrapper,
+            (
+                r[i],
+                pr[i],
+                dpr_dr[i],
+                H,
+                RR,
+                chi_1,
+                chi_2,
+                m_1,
+                m_2,
+                params,
+                q,
+                p
+            )
+        )
         solver = roots.brent(mysys)
-        solver.set(x0,x1)
+        solver.set(x0, x1)
         for iter in range(100):
             status = solver.iterate()
             x_lo = solver.x_lower()
             x_up = solver.x_upper()
-            status = roots.test_interval(x_lo, x_up, tol,tol)
+            status = roots.test_interval(x_lo, x_up, tol, tol)
             result = solver.root()
             if status == errno.GSL_SUCCESS:
                 break
         pphi[i] = result
     return pphi
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 cpdef compute_postadiabatic_solution(
     double[:] r,
     double[:] pphi,
@@ -422,8 +516,7 @@ cpdef compute_postadiabatic_solution(
     cdef int n
     cdef double tol_current
     for n in range(1, order+1):
-        tol_current =  1.0e-2/10.0**n
-        #print(tol_current)
+        tol_current = 1.0e-2/10.0**n
         parity = n % 2
         if n>=7:
             tol_current=tol
@@ -462,8 +555,7 @@ cpdef compute_postadiabatic_solution(
 
     return pr, pphi
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 cpdef compute_postadiabatic_dynamics(
     double omega0,
     Hamiltonian_C H,
@@ -505,9 +597,7 @@ cpdef compute_postadiabatic_dynamics(
     cdef double nu = m_1*m_2/(m_1+m_2)**2
     cdef double r_final_prefactor = 2.7+chi_eff*(1-4.*nu)
     r_ISCO, _ = Kerr_ISCO(chi_1, chi_2, m_1, m_2)
-    cdef double r_final = max(10.0,r_final_prefactor * r_ISCO)
-    cdef double r_switch_prefactor = 1.6
-    cdef double r_switch = r_switch_prefactor * r_ISCO
+    cdef double r_final = max(10.0, r_final_prefactor * r_ISCO)
 
     cdef double dr0 = 0.3
     cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
@@ -520,7 +610,7 @@ cpdef compute_postadiabatic_dynamics(
     r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
     cdef double[::1] q = np.zeros(2)
     cdef double[::1] p = np.zeros(2)
-    pphi = compute_adiabatic_solution(r, H, chi_1, chi_2, m_1, m_2,q,p, tol=tol,)
+    pphi = compute_adiabatic_solution(r, H, chi_1, chi_2, m_1, m_2, q, p, tol=tol,)
 
     pr, pphi = compute_postadiabatic_solution(
         r,
@@ -540,21 +630,20 @@ cpdef compute_postadiabatic_dynamics(
     dt_dr = np.zeros(r.shape[0])
     dphi_dr = np.zeros(r.shape[0])
     cdef int i
-    cdef double dH_dpr,dH_dpphi,csi
-    cdef double dyn[6]
+    cdef double dH_dpr, dH_dpphi, csi
+    cdef double[6] dyn
+
     for i in range(r.shape[0]):
         q = np.array([r[i], 0])
         p = np.array([pr[i], pphi[i]])
 
-        dyn[:] = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
+        dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
         dH_dpr = dyn[2]
         dH_dpphi = dyn[3]
-
 
         csi = dyn[5]
         dt_dr[i] = 1 / (dH_dpr * csi)
         dphi_dr[i] = dH_dpphi / (dH_dpr * csi)
-
 
     t = cumulative_integral(r, dt_dr)
 
@@ -562,15 +651,12 @@ cpdef compute_postadiabatic_dynamics(
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi]
 
-
     return postadiabatic_dynamics
 
 
 @cython.boundscheck(False)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_combined_dynamics(
     double omega0,
     Hamiltonian_C H,
@@ -613,8 +699,6 @@ cpdef compute_combined_dynamics(
         PA_success = False
         ode_y_init = None
 
-
-
     ode_dynamics_low, ode_dynamics_high = compute_dynamics(
         omega0,
         H,
@@ -635,7 +719,7 @@ cpdef compute_combined_dynamics(
     )
 
     if PA_success is True:
-        postadiabatic_dynamics = augment_dynamics(postadiabatic_dynamics,chi_1,chi_2,m_1,m_2,H)
+        postadiabatic_dynamics = augment_dynamics(postadiabatic_dynamics, chi_1, chi_2, m_1, m_2, H)
         ode_dynamics_low[:, 0] += postadiabatic_dynamics[-1, 0]
         ode_dynamics_high[:, 0] += postadiabatic_dynamics[-1, 0]
         combined_dynamics = np.vstack(
@@ -647,8 +731,6 @@ cpdef compute_combined_dynamics(
     return combined_dynamics, ode_dynamics_high
 
 
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef cumulative_integral(
     x: np.array,
     y: np.array,
@@ -707,8 +789,7 @@ cpdef cumulative_integral(
 
     return integral
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 def univariate_spline_integral(
     x: np.array,
     y: np.array,
@@ -719,8 +800,7 @@ def univariate_spline_integral(
 
     return integral
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 def compute_adiabatic_parameter(
     dynamics,
     H,

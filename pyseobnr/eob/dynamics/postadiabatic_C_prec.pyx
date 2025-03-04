@@ -1,39 +1,36 @@
 # cython: language_level=3
+# cython: profile=False, linetrace=False, binding=True, initializedcheck=False
 """
 Contains the functions needed for computing the precessing post-adiabatic dynamics
 """
 
 cimport cython
 
-from typing import Dict
-
 import numpy as np
 import quaternion
 
-from libc.math cimport abs, asinh, cos, exp, fabs, log, sin, sinh, sqrt, tanh, tgamma
+from libc.math cimport abs, fabs, sqrt
 
-from pygsl_lite import errno, roots
-from scipy import integrate, optimize
-from scipy.interpolate import CubicSpline, InterpolatedUnivariateSpline
+from scipy import optimize
+from scipy.interpolate import CubicSpline
 
 from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
-from ..hamiltonian.Hamiltonian_v5PHM_C cimport Hamiltonian_v5PHM_C
+from ..hamiltonian.Hamiltonian_v5PHM_C cimport (
+    Hamiltonian_v5PHM_C,
+)
 from ..utils.containers cimport EOBParams
-from ..utils.math_ops_opt import my_dot, my_norm
+from ..utils.math_ops_opt import my_norm
 from ..utils.nr_utils import (
     bbh_final_spin_non_precessing_HBR2016,
     bbh_final_spin_precessing_HBR2016,
 )
 from ..waveform.waveform cimport RadiationReactionForce
-from .initial_conditions_aligned_opt import computeIC_opt as computeIC
 from .initial_conditions_aligned_precessing import computeIC_augm
 from .integrate_ode_prec import compute_dynamics_prec_opt
 from .pn_evolution_opt import build_splines_PN, compute_quasiprecessing_PNdynamics_opt
 from .postadiabatic_C import Kerr_ISCO, Newtonian_j0, univariate_spline_integral
 
 
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef precessing_final_spin(
     double chi1_LN,
     double chi2_LN,
@@ -44,7 +41,9 @@ cpdef precessing_final_spin(
     double m2,
 ):
     """
-    Magnitude of the final spin computed from NR fits of precessing NR simulations. The sign of the final spin is computed
+    Magnitude of the final spin computed from NR fits of precessing NR simulations.
+
+    The sign of the final spin is computed
     from the non-precessing NR fits.
 
     Args:
@@ -73,7 +72,7 @@ cpdef precessing_final_spin(
         elif angle > 1:
             tilt1 = 0.0
         else:
-            tilt1 = np.arccos(np.clip(angle,-1,1))
+            tilt1 = np.arccos(np.clip(angle, -1, 1))
     else:
         tilt1 = 0.0
 
@@ -84,7 +83,7 @@ cpdef precessing_final_spin(
         elif angle > 1:
             tilt2 = 0.0
         else:
-            tilt2 = np.arccos(np.clip(angle,-1,1))
+            tilt2 = np.arccos(np.clip(angle, -1, 1))
     else:
         tilt2 = 0.0
 
@@ -97,7 +96,7 @@ cpdef precessing_final_spin(
 
     else:
         angle = np.dot(chi1_perp / a1, chi2_perp / a2)
-        phi12 = np.arccos(np.clip(angle,-1,1))
+        phi12 = np.arccos(np.clip(angle, -1, 1))
 
     # Call non-precessing HBR fit to get the *sign* of the final spin
     cdef double final_spin_nonprecessing = bbh_final_spin_non_precessing_HBR2016(
@@ -106,7 +105,7 @@ cpdef precessing_final_spin(
 
     cdef int sign_final_spin = +1
     if abs(final_spin_nonprecessing) != 0 and final_spin_nonprecessing < 0:
-      sign_final_spin = -1
+        sign_final_spin = -1
 
     # Compute the magnitude of the final spin using the precessing fit
     final_spin = bbh_final_spin_precessing_HBR2016(
@@ -119,8 +118,6 @@ cpdef precessing_final_spin(
     return final_spin, sign_final_spin
 
 
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double j0_eqn(
     double j0_sol,
     double r,
@@ -163,7 +160,7 @@ cpdef double j0_eqn(
     """
 
     q[0] = r
-    p[1]= j0_sol
+    p[1] = j0_sol
     cdef double X1 = params.p_params.X_1
     cdef double X2 = params.p_params.X_2
 
@@ -172,16 +169,22 @@ cpdef double j0_eqn(
 
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
 
-    H.calibration_coeffs['dSO'] = dSO_new
-    cdef (double,double,double,double) dH_dq = H.grad(
-        q, p,
-        chi1_v, chi2_v,
-        m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+    H.calibration_coeffs["dSO"] = dSO_new
+    cdef double[4] dH_dq = H.grad(
+        q,
+        p,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
     cdef double dH_dr = dH_dq[0]
     return dH_dr
+
 
 cpdef compute_adiabatic_solution(
     double[:] r,
@@ -205,8 +208,10 @@ cpdef compute_adiabatic_solution(
         splines (dict): Dictionary containing the interpolated spin-precessing evolution
         m_1 (double): Mass of the primary
         m_2 (double): Mass of the secondary
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in the root finding routine.
+        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+            the root finding routine.
+        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+            updated in the root finding routine.
         params (EOBParams): Container with useful EOB parameters
         tol (double): Tolerance for the find root
 
@@ -221,40 +226,52 @@ cpdef compute_adiabatic_solution(
 
     tmp = splines["everything"](omega)
 
-    cdef double[:] chi1_LN = tmp[:,0]
-    cdef double[:] chi2_LN = tmp[:,1]
+    cdef double[:] chi1_LN = tmp[:, 0]
+    cdef double[:] chi2_LN = tmp[:, 1]
 
-    cdef double[:] chi1_L = tmp[:,2]
-    cdef double[:] chi2_L = tmp[:,3]
+    cdef double[:] chi1_L = tmp[:, 2]
+    cdef double[:] chi2_L = tmp[:, 3]
 
-    chi1_v = tmp[:,4:7]
-    chi2_v = tmp[:,7:10]
-
+    chi1_v = tmp[:, 4:7]
+    chi2_v = tmp[:, 7:10]
 
     for i in range(r.shape[0]):
 
         if omega[i] < 0.9*omega_start:
-          print(f"problem PA dynamics is extrapolating: omega ={omega[i]}< 0.9*omega_start {omega_start}")
+            print(
+                "problem PA dynamics is extrapolating: omega "
+                f"={omega[i]}< 0.9*omega_start {omega_start}"
+            )
         j0_solution = optimize.root(
             j0_eqn,
             j0[i],
-            args=(r[i], H, chi1_v[i], chi2_v[i],
-            chi1_LN[i], chi2_LN[i],
-            chi1_L[i], chi2_L[i],
-            m_1, m_2,params,q,p),
+            args=(
+                r[i],
+                H,
+                chi1_v[i],
+                chi2_v[i],
+                chi1_LN[i],
+                chi2_LN[i],
+                chi1_L[i],
+                chi2_L[i],
+                m_1,
+                m_2,
+                params,
+                q,
+                p
+            ),
             tol=tol,
         )
         j0[i] = j0_solution.x
 
     return j0
 
+
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double pr_eqn(
     pr_sol,
     double r,
@@ -298,8 +315,10 @@ cpdef double pr_eqn(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in the root finding routine.
+        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+            the root finding routine.
+        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+            updated in the root finding routine.
 
     Returns:
         (double) Value of prstar
@@ -307,8 +326,7 @@ cpdef double pr_eqn(
     q[0] = r
     p[0] = pr_sol[0]
     p[1] = pphi
-    cdef double dH_dpr,H_val,csi,omega,omega_circ,result
-    cdef double dynamics[6]
+    cdef double dH_dpr, H_val, csi, omega, omega_circ, result
 
     cdef double X1 = params.p_params.X_1
     cdef double X2 = params.p_params.X_2
@@ -318,11 +336,19 @@ cpdef double pr_eqn(
 
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
 
-    H.calibration_coeffs['dSO'] = dSO_new
+    H.calibration_coeffs["dSO"] = dSO_new
 
-    dynamics[:] = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+    cdef double[6] dynamics = H.dynamics(
+        q,
+        p,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
 
     dH_dpr = dynamics[2]
@@ -331,15 +357,24 @@ cpdef double pr_eqn(
     csi = dynamics[5]
 
     params.dynamics.p_circ[1] = pphi
-    omega_circ = H.omega(q,params.dynamics.p_circ,chi1_v,chi2_v,m_1,m_2,chi1_LN, chi2_LN,
-        chi1_L, chi2_L
+    omega_circ = H.omega(
+        q,
+        params.dynamics.p_circ,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L
     )
 
     if omega < 0.9*omega_start:
-      print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
+        print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
 
     params.p_params.update_spins(chi1_LN, chi2_LN)
-    cdef (double,double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
+    cdef (double, double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
 
     params.p_params.omega_circ = omega_circ
     params.p_params.omega = omega
@@ -355,8 +390,6 @@ cpdef double pr_eqn(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double pr_eqn_analytic(
     pr_sol,
     double r,
@@ -402,8 +435,10 @@ cpdef double pr_eqn_analytic(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in the root finding routine.
+        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+            the root finding routine.
+        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+            updated in the root finding routine.
 
     Returns:
         (double) Value of prstar
@@ -422,58 +457,86 @@ cpdef double pr_eqn_analytic(
     cdef double am = chi1_LN * X1 - chi2_LN * X2
 
     cdef double dSO_new = dSO_poly_fit(nu, ap, am)
-    H.calibration_coeffs['dSO'] = dSO_new
+    H.calibration_coeffs["dSO"] = dSO_new
 
-    cdef double A,Bnp,Bnpa,Q,Heven,Hodd,H_val
+    cdef double A, Bnp, Heven, H_val
+    cdef double xi, omega, omega_circ
+    # cdef double dAdr, dBnpdr, dBnpadr, dxidr, dQdr, dQdprst, dHodddr, dBpdr
 
-    cdef double xi,omega,omega_circ
-
-    cdef double dAdr,dBnpdr,dBnpadr,dxidr,dQdr,dQdprst,dHodddr,dBpdr
-    cdef double aux_derivs[9]
-    aux_derivs[:] = H.auxderivs(
-        q, p,
-        chi1_v, chi2_v,
-        m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+    cdef double[9] aux_derivs = H.auxderivs(
+        q,
+        p,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
 
-    dAdr = aux_derivs[0]
-    dBnpdr = aux_derivs[1]
-    dBnpadr = aux_derivs[2]
-    dxidr = aux_derivs[3]
-    dQdr = aux_derivs[4]
-    dQdprst = aux_derivs[5]
-    dHodddr = aux_derivs[6]
-    dBpdr = aux_derivs[7]
-    dHevendr = aux_derivs[8]
+    # dAdr = aux_derivs[0]
+    # dBnpdr = aux_derivs[1]
+    # dBnpadr = aux_derivs[2]
+    # dxidr = aux_derivs[3]
+    # dQdr = aux_derivs[4]
+    cdef double dQdprst = aux_derivs[5]
+    # dHodddr = aux_derivs[6]
+    # dBpdr = aux_derivs[7]
+    # dHevendr = aux_derivs[8]
 
-    H_val, xi, A, Bnp, Bnpa, Q, Heven, Hodd, Bp = H(
-        q, p,
-        chi1_v, chi2_v,
-        m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+    cdef double[9] ret = H._call(
+        q,
+        p,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
+
+    H_val = ret[0]
+    xi = ret[1]
+    A = ret[2]
+    Bnp = ret[3]
+    # Bnpa = ret[4]
+    # Q = ret[5]
+    Heven = ret[6]
+    # Hodd = ret[7]
+    # Bp = ret[8]
 
     omega = H.omega(
-        q, p,
-        chi1_v, chi2_v,
-        m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+        q,
+        p,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
 
     if omega < 0.9*omega_start:
-      print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
+        print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
 
     params.dynamics.p_circ[1] = pphi
     omega_circ = H.omega(
-        q, params.dynamics.p_circ,
-        chi1_v, chi2_v,
-        m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+        q,
+        params.dynamics.p_circ,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
     params.p_params.update_spins(chi1_LN, chi2_LN)
 
@@ -481,7 +544,7 @@ cpdef double pr_eqn_analytic(
     params.p_params.omega = omega
     params.p_params.H_val = H_val
 
-    cdef (double,double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
+    cdef (double, double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
 
     cdef double result = (
         xi / (2 * (1 + Bnp)) * (
@@ -492,8 +555,6 @@ cpdef double pr_eqn_analytic(
     return result
 
 
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_pr(
     double[:] r,
     double[:] pr,
@@ -530,10 +591,14 @@ cpdef compute_pr(
         m_1 (double): Mass of the primary.
         m_2 (double): Mass of the secondary.
         omega_start (double): Initial orbital frequency.
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in the root finding routine.
-        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric" is used.
-        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall by a root finding method.
+        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the
+            root finding routine.
+        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated
+            in the root finding routine.
+        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
+            is used.
+        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall by
+            a root finding method.
         params (EOBParams): Container with useful EOB parameters.
 
     Returns:
@@ -542,18 +607,17 @@ cpdef compute_pr(
 
     cdef double[:] dpphi_dr = spline_derivative(r, pphi)
 
-
     cdef int i
 
     tmp = splines["everything"](omega)
-    chi1_v = tmp[:,4:7]
-    chi2_v = tmp[:,7:10]
+    chi1_v = tmp[:, 4:7]
+    chi2_v = tmp[:, 7:10]
 
-    cdef double[:] chi1_LN = tmp[:,0]
-    cdef double[:] chi2_LN = tmp[:,1]
+    cdef double[:] chi1_LN = tmp[:, 0]
+    cdef double[:] chi2_LN = tmp[:, 1]
 
-    cdef double[:] chi1_L = tmp[:,2]
-    cdef double[:] chi2_L = tmp[:,3]
+    cdef double[:] chi1_L = tmp[:, 2]
+    cdef double[:] chi2_L = tmp[:, 3]
 
     for i in range(r.shape[0]):
         if np.abs(pr[i])<1e-14:
@@ -565,28 +629,47 @@ cpdef compute_pr(
 
         if postadiabatic_type == "analytic":
             pr_val = pr_eqn_analytic(
-                pr[i], r[i], pphi[i], dpphi_dr[i],
-                H, RR,
-                chi1_v[i], chi2_v[i],
-                chi1_LN[i], chi2_LN[i],
-                chi1_L[i], chi2_L[i],
-                m_1, m_2,
+                pr[i],
+                r[i],
+                pphi[i],
+                dpphi_dr[i],
+                H,
+                RR,
+                chi1_v[i],
+                chi2_v[i],
+                chi1_LN[i],
+                chi2_LN[i],
+                chi1_L[i],
+                chi2_L[i],
+                m_1,
+                m_2,
                 omega_start,
                 params,
-                q, p
+                q,
+                p
             )
         else:
             pr_solution = optimize.root(
                 pr_eqn,
                 pr[i],
                 args=(
-                    r[i], pphi[i], dpphi_dr[i],
-                    H, RR, chi1_v[i], chi2_v[i],
-                    chi1_LN[i],chi2_LN[i],
-                    chi1_L[i],chi2_L[i],
-                    m_1, m_2,
+                    r[i],
+                    pphi[i],
+                    dpphi_dr[i],
+                    H,
+                    RR,
+                    chi1_v[i],
+                    chi2_v[i],
+                    chi1_LN[i],
+                    chi2_LN[i],
+                    chi1_L[i],
+                    chi2_L[i],
+                    m_1,
+                    m_2,
                     omega_start,
-                    params,q,p
+                    params,
+                    q,
+                    p
                 ),
                 tol=tol,
 
@@ -597,18 +680,19 @@ cpdef compute_pr(
         omega[i] = params.p_params.omega
 
         if omega[i] < 0.9*omega_start:
-          print(f"problem PA dynamics is extrapolating: omega ={omega[i]}< 0.9*omega_start {omega_start}")
-
+            print(
+                "problem PA dynamics is extrapolating: omega "
+                f"={omega[i]}< 0.9*omega_start {omega_start}"
+            )
 
     return pr, omega
+
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double pphi_eqn(
     pphi_sol,
     double r,
@@ -651,16 +735,25 @@ cpdef double pphi_eqn(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in the root finding routine.
+        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated
+            in the root finding routine.
+        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+            updated in the root finding routine.
 
     Returns:
         (double) Value of pphi
     """
-    cdef double dH_dr,dH_dpr,H_val,csi,omega,omega_circ,result
+    cdef:
+        double dH_dr
+        double dH_dpr
+        double H_val
+        double csi
+        double omega
+        double omega_circ
+        double result
     q[0] = r
     p[0] = pr
-    p[1] =  pphi_sol[0]
+    p[1] = pphi_sol[0]
 
     cdef double X1 = params.p_params.X_1
     cdef double X2 = params.p_params.X_2
@@ -670,10 +763,20 @@ cpdef double pphi_eqn(
 
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
 
-    H.calibration_coeffs['dSO'] = dSO_new
-    cdef double dynamics[6]
+    H.calibration_coeffs["dSO"] = dSO_new
 
-    dynamics[:] = H.dynamics(q,p, chi1_v, chi2_v, m_1, m_2,chi1_LN,chi2_LN,chi1_L,chi2_L)
+    cdef double[6] dynamics = H.dynamics(
+        q,
+        p,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L
+    )
     dH_dr = dynamics[0]
     dH_dpr = dynamics[2]
 
@@ -681,15 +784,29 @@ cpdef double pphi_eqn(
     H_val = dynamics[4]
     csi = dynamics[5]
 
-    params.dynamics.p_circ[1] =  pphi_sol[0]
-    omega_circ = H.omega(q,params.dynamics.p_circ,chi1_v,chi2_v,m_1,m_2,chi1_LN, chi2_LN, chi1_L, chi2_L)
+    params.dynamics.p_circ[1] = pphi_sol[0]
+    omega_circ = H.omega(
+        q,
+        params.dynamics.p_circ,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L
+    )
 
     if omega < 0.9*omega_start:
-      print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
+        print(
+            "problem PA dynamics is extrapolating: omega ="
+            f"{omega}< 0.9*omega_start {omega_start}"
+        )
 
     params.p_params.update_spins(chi1_LN, chi2_LN)
 
-    cdef (double,double) flux = RR.RR(q, p, omega,omega_circ,H_val,params)
+    cdef (double, double) flux = RR.RR(q, p, omega, omega_circ, H_val, params)
 
     params.p_params.omega_circ = omega_circ
     params.p_params.omega = omega
@@ -700,14 +817,11 @@ cpdef double pphi_eqn(
     return result
 
 
-
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef double pphi_eqn_analytic(
     double pphi_sol,
     double r,
@@ -753,15 +867,17 @@ cpdef double pphi_eqn_analytic(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in the root finding routine.
+        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+            the root finding routine.
+        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+            updated in the root finding routine.
 
     Returns:
         (double) Value of pphi
     """
     q[0] = r
     p[0] = pr
-    p[1] =  pphi_sol
+    p[1] = pphi_sol
     cdef double nu = params.p_params.nu
     params.dynamics.p_circ[1] = pphi_sol
 
@@ -772,20 +888,35 @@ cpdef double pphi_eqn_analytic(
     cdef double am = chi1_LN * X1 - chi2_LN * X2
 
     cdef double dSO_new = dSO_poly_fit(nu, ap, am)
-    H.calibration_coeffs['dSO'] = dSO_new
+    H.calibration_coeffs["dSO"] = dSO_new
 
-    cdef double dAdr,dBnpdr,dBnpadr,dxidr,dQdr,dQdprst,dHOdddr,dBpdr,xi,omega,omega_circ,result
-    cdef double A,Bp,Bnp,Bnpa,Q,Heven,Hodd,H_val
-    cdef double aux_derivs[9]
+    cdef:
+        double dAdr
+        double dBnpdr
+        double dBnpadr
+        double dxidr
+        double dQdr
+        double dQdprst
+        double dHodddr
+        double dBpdr
+        double xi
+        double omega
+        double omega_circ
+        double result
+    cdef double A, Bp, Bnp, Bnpa, Q, Heven, H_val
 
-    aux_derivs[:] = H.auxderivs(
-        q, p,
-        chi1_v, chi2_v,
-        m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+    cdef double[9] aux_derivs = H.auxderivs(
+        q,
+        p,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
-
 
     dAdr = aux_derivs[0]
     dBnpdr = aux_derivs[1]
@@ -795,26 +926,49 @@ cpdef double pphi_eqn_analytic(
     dQdprst = aux_derivs[5]
     dHodddr = aux_derivs[6]
     dBpdr = aux_derivs[7]
-    dHevendr = aux_derivs[8]
+    # dHevendr = aux_derivs[8]
 
-    H_val, xi, A, Bnp, Bnpa, Q, Heven, Hodd, Bp = H(
-        q, p,
-        chi1_v, chi2_v,
-        m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+    cdef double[9] ret = H._call(
+        q,
+        p,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
 
+    H_val = ret[0]
+    xi = ret[1]
+    A = ret[2]
+    Bnp = ret[3]
+    Bnpa = ret[4]
+    Q = ret[5]
+    Heven = ret[6]
+    # Hodd = ret[7]
+    Bp = ret[8]
+
     omega = H.omega(
-        q, p,
-        chi1_v, chi2_v,
-        m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+        q,
+        p,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
 
     if omega < 0.9*omega_start:
-      print(f"problem PA dynamics is extrapolating: omega ={omega}< 0.9*omega_start {omega_start}")
+        print(
+            "problem PA dynamics is extrapolating: omega "
+            f"={omega}< 0.9*omega_start {omega_start}"
+        )
 
     params.dynamics.p_circ[1] = pphi_sol
     omega_circ = H.omega(
@@ -825,7 +979,6 @@ cpdef double pphi_eqn_analytic(
         chi1_L, chi2_L,
     )
 
-
     params.p_params.omega_circ = omega_circ
     params.p_params.omega = omega
     params.p_params.H_val = H_val
@@ -834,9 +987,11 @@ cpdef double pphi_eqn_analytic(
 
     params.p_params.update_spins(chi1_LN, chi2_LN)
 
-    cdef (double,double) flux = RR.RR(
-        q, p,
-        omega, omega_circ,
+    cdef (double, double) flux = RR.RR(
+        q,
+        p,
+        omega,
+        omega_circ,
         H_val,
         params,
     )
@@ -849,7 +1004,6 @@ cpdef double pphi_eqn_analytic(
 
     cdef double lap = chi1_L * X1 + chi2_L * X2
     cdef double lap2 = lap*lap
-
 
     cdef double C_2 = dAdr*(Bp/r2+lap2/r2*Bnpa)+A*(-2*Bp/r3-2*lap2/r3*Bnpa+lap2/r2*dBnpadr+1/r2*dBpdr)
     cdef double C_1 = dHodddr/pphi_sol*2*Heven
@@ -870,8 +1024,6 @@ cpdef double pphi_eqn_analytic(
     return result
 
 
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_pphi(
     double[:] r,
     double[:] pr,
@@ -908,11 +1060,15 @@ cpdef compute_pphi(
         m_1 (double): Mass of the primary.
         m_2 (double): Mass of the secondary.
         omega_start (double): Initial orbital frequency.
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in the root finding routine.
-        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric" is used.
+        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root
+            finding routine.
+        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in
+            the root finding routine.
+        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
+            is used.
         params (EOBParams): Container with useful EOB parameters.
-        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall by a root finding method.
+        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall by a
+            root finding method.
 
     Returns:
         (np.array) Value of pphi at a given postadiabatic order for the whole radial grid.
@@ -922,42 +1078,59 @@ cpdef compute_pphi(
 
     cdef int i
     tmp = splines["everything"](omega)
-    chi1_v = tmp[:,4:7]
-    chi2_v = tmp[:,7:10]
+    chi1_v = tmp[:, 4:7]
+    chi2_v = tmp[:, 7:10]
 
-    cdef double[:] chi1_LN = tmp[:,0]
-    cdef double[:] chi2_LN = tmp[:,1]
+    cdef double[:] chi1_LN = tmp[:, 0]
+    cdef double[:] chi2_LN = tmp[:, 1]
 
-    cdef double[:] chi1_L = tmp[:,2]
-    cdef double[:] chi2_L = tmp[:,3]
+    cdef double[:] chi1_L = tmp[:, 2]
+    cdef double[:] chi2_L = tmp[:, 3]
 
     for i in range(r.shape[0]):
         if postadiabatic_type == "analytic":
             pphi_val = pphi_eqn_analytic(
-                pphi[i], r[i], pr[i], dpr_dr[i],
-                H, RR,
-                chi1_v[i], chi2_v[i],
-                chi1_LN[i], chi2_LN[i],
-                chi1_L[i], chi2_L[i],
-                m_1, m_2,
+                pphi[i],
+                r[i],
+                pr[i],
+                dpr_dr[i],
+                H,
+                RR,
+                chi1_v[i],
+                chi2_v[i],
+                chi1_LN[i],
+                chi2_LN[i],
+                chi1_L[i],
+                chi2_L[i],
+                m_1,
+                m_2,
                 omega_start,
                 params,
-                q, p,
+                q,
+                p,
             )
         else:
             pphi_solution = optimize.root(
                 pphi_eqn,
                 pphi[i],
                 args=(
-                    r[i], pr[i], dpr_dr[i],
-                    H, RR,
-                    chi1_v[i], chi2_v[i],
-                    chi1_LN[i], chi2_LN[i],
-                    chi1_L[i], chi2_L[i],
-                    m_1, m_2,
+                    r[i],
+                    pr[i],
+                    dpr_dr[i],
+                    H,
+                    RR,
+                    chi1_v[i],
+                    chi2_v[i],
+                    chi1_LN[i],
+                    chi2_LN[i],
+                    chi1_L[i],
+                    chi2_L[i],
+                    m_1,
+                    m_2,
                     omega_start,
                     params,
-                    q, p,
+                    q,
+                    p,
                 ),
                 tol=tol,
             )
@@ -968,8 +1141,7 @@ cpdef compute_pphi(
 
     return pphi, omega
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 cpdef compute_postadiabatic_solution(
     double[:] r,
     double[:] pphi,
@@ -1001,18 +1173,23 @@ cpdef compute_postadiabatic_solution(
         splines (dict): Dictionary containing the interpolated spin-precessing evolution.
         m_1 (double): Mass of the primary.
         m_2 (double): Mass of the secondary.
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in the root finding routine.
-        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric" is used.
-        order (int): Postadiabatic order up to which to obtain the solution for prstar and pphi.
-        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall by a root finding method.
+        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+            the root finding routine.
+        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+            updated in the root finding routine.
+        tol (double): Tolerance for the root finding routine in case
+            postadiabatic_type="numeric" is used.
+        order (int): Postadiabatic order up to which to obtain the solution for
+            prstar and pphi.
+        postadiabatic_type (str): If "analytic" find root analytically, otherwise
+            numerically by a root finding method.
         params (EOBParams): Container with useful EOB parameters.
 
     Returns:
         (prstar, pphi, omega) up to a given postadiabatic order for the whole radial grid.
     """
     pr = np.zeros(r.size)
-    cdef int i,n,parity
+    cdef int i, n, parity
     cdef double tol_current
     cdef double X1 = params.p_params.X_1
     cdef double X2 = params.p_params.X_2
@@ -1062,14 +1239,14 @@ cpdef compute_postadiabatic_solution(
             )
 
         tmp = splines["everything"](omega)
-        chi1_v = tmp[:,4:7]
-        chi2_v = tmp[:,7:10]
+        chi1_v = tmp[:, 4:7]
+        chi2_v = tmp[:, 7:10]
 
-        chi1_LN = tmp[:,0]
-        chi2_LN = tmp[:,1]
+        chi1_LN = tmp[:, 0]
+        chi2_LN = tmp[:, 1]
 
-        chi1_L = tmp[:,2]
-        chi2_L = tmp[:,3]
+        chi1_L = tmp[:, 2]
+        chi2_L = tmp[:, 3]
 
         ap = chi1_LN * X1 + chi2_LN * X2
         am = chi1_LN * X1 - chi2_LN * X2
@@ -1089,21 +1266,25 @@ cpdef compute_postadiabatic_solution(
             params.p_params.chi1_L = chi1_L[i]
             params.p_params.chi2_L = chi2_L[i]
 
-            H.calibration_coeffs['dSO'] = dSO_new[i]
+            H.calibration_coeffs["dSO"] = dSO_new[i]
 
             om = H.omega(
-                q, p,
-                chi1_v[i], chi2_v[i],
-                m_1, m_2,
-                chi1_LN[i], chi2_LN[i],
-                chi1_L[i], chi2_L[i],
+                q,
+                p,
+                chi1_v[i],
+                chi2_v[i],
+                m_1,
+                m_2,
+                chi1_LN[i],
+                chi2_LN[i],
+                chi1_L[i],
+                chi2_L[i],
             )
             omega[i] = om
 
     return pr, pphi, omega
 
-@cython.profile(True)
-@cython.linetrace(True)
+
 cpdef compute_postadiabatic_dynamics(
     double omega_ref,
     double omega_start,
@@ -1140,15 +1321,18 @@ cpdef compute_postadiabatic_dynamics(
         m_2 (double): Mass of the secondary
         splines (dict): Dictionary containing the interpolated spin-precessing evolution.
         params (EOBParams): Container with useful EOB parameters
-        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric" is used.
+        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
+            is used.
         order (int): Postadiabatic order up to which to obtain the solution for prstar and pphi.
-        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall by a root finding method.
+        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall
+            by a root finding method.
         window_length (int): Minimum number of points in the radial grid.
         only_first_n (int): Compute the postadiabatic only on a specified number of points.
 
     Returns:
-        (postadiabatic_dynamics, omega, lN_dyn, splines) where postadiabatic_dynamics includes also the
-        quantities needed to compute the waveform modes = [t,r,phi,pr,pphi,H,omega,omega_circ,chi1LN,chi2LN].
+        (postadiabatic_dynamics, omega, lN_dyn, splines) where postadiabatic_dynamics includes
+            also the quantities needed to compute the waveform modes =
+            [t,r,phi,pr,pphi,H,omega,omega_circ,chi1LN,chi2LN].
 
     """
 
@@ -1185,7 +1369,7 @@ cpdef compute_postadiabatic_dynamics(
     cdef double chi_perp_eff = np.linalg.norm(chi1_v*X1+chi2_v*X2-ap*LNhat)
 
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
-    H.calibration_coeffs['dSO'] = dSO_new
+    H.calibration_coeffs["dSO"] = dSO_new
 
     cdef double r0
     r0, _, _ =computeIC_augm(omega_start, H, RR, chi1_v, chi2_v, m_1, m_2, params=params)
@@ -1206,18 +1390,17 @@ cpdef compute_postadiabatic_dynamics(
     # Compute now the number of precessing cycles (only in the aligned-spin limit)
     cdef double chi_in_plane = chi1_v[0]**2.+chi1_v[1]**2. + chi2_v[0]**2.+chi2_v[1]**2.
     cdef int r_size_new = 0
-    cdef double precessiong_cycles = 0.0
+    # cdef double precessiong_cycles = 0.0
     cdef double dr0_new = 0.1
 
-    omega_pn = dynamics_pn[:,-1]
-    lN_pn = dynamics_pn[:,:3]
+    omega_pn = dynamics_pn[:, -1]
+    lN_pn = dynamics_pn[:, :3]
     if chi_in_plane > 0 :
-      precession_cycles = compute_prec_cycles(r_final,t_pn, omega_pn, lN_pn)
+        precession_cycles = compute_prec_cycles(r_final, t_pn, omega_pn, lN_pn)
 
-      # Multiply the number of precession cycles by 20, so that the have 20 points per precession cycle,
-      # however as we are making a uniform radial grid below this condition will not be exactly fulfilled
-      r_size_new = int(np.ceil(precession_cycles*20))
-
+        # Multiply the number of precession cycles by 20, so that the have 20 points per precession cycle,
+        # however as we are making a uniform radial grid below this condition will not be exactly fulfilled
+        r_size_new = int(np.ceil(precession_cycles*20))
 
     # Some checks to decide whether the radial grid is large enough to perform the postadiabatic evolution
     if r_size <= 10 or r0<=11.5 or r_final >= r0:
@@ -1227,26 +1410,26 @@ cpdef compute_postadiabatic_dynamics(
 
     # If the number of precessing cycles is zero, we use 0.1 as the default step size of the radial grid
     if r_size_new ==0:
-      dr0_new = 0.1
-      r_size_new = int(np.ceil(r_range/dr0_new))
+        dr0_new = 0.1
+        r_size_new = int(np.ceil(r_range/dr0_new))
     else:
-      dr0_new = r_range/r_size_new
+        dr0_new = r_range/r_size_new
 
     # Put some upper and lower bounds to the step size of the radial grid
     if dr0_new < 0.05:
-      dr0_new = 0.05
-      r_size_new = int(np.ceil(r_range/dr0_new))
+        dr0_new = 0.05
+        r_size_new = int(np.ceil(r_range/dr0_new))
 
     if dr0_new > 0.1:
-      dr0_new = 0.1
-      r_size_new = int(np.ceil(r_range/dr0_new))
+        dr0_new = 0.1
+        r_size_new = int(np.ceil(r_range/dr0_new))
 
     # Compute the final grid
     r, _ = np.linspace(r0, r_final, num=r_size_new, endpoint=True, retstep=True)
 
     # Option only used in the PA initial conditions for the non-PA model
     if only_first_n is not None:
-      r = r[:only_first_n]
+        r = r[:only_first_n]
 
     # First guess at circular omega, from Kepler's law
     omega = r**(-3./2)
@@ -1278,20 +1461,24 @@ cpdef compute_postadiabatic_dynamics(
         am = chi1_LN * X1 - chi2_LN * X2
         dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
 
-        H.calibration_coeffs['dSO'] = dSO_new
+        H.calibration_coeffs["dSO"] = dSO_new
 
         om = H.omega(
-            q, p,
-            chi1_v, chi2_v,
-            m_1, m_2,
-            chi1_LN, chi2_LN,
-            chi1_L, chi2_L,
+            q,
+            p,
+            chi1_v,
+            chi2_v,
+            m_1,
+            m_2,
+            chi1_LN,
+            chi2_LN,
+            chi1_L,
+            chi2_L,
         )
 
         omega[i] = om
         if omega[i]< 0.9*omega_start :
-          print(f"WARNING PA DYNAMICS IS EXTRAPOLATING!")
-
+            print("WARNING PA DYNAMICS IS EXTRAPOLATING!")
 
     # Compute the PA solution
     pr, pphi, omega = compute_postadiabatic_solution(
@@ -1313,8 +1500,8 @@ cpdef compute_postadiabatic_dynamics(
 
     dt_dr = np.zeros(r.shape[0])
     dphi_dr = np.zeros(r.shape[0])
-    cdef double dH_dpr,dH_dpphi,csi
-    cdef double dyn[6]
+    cdef double dH_dpr, dH_dpphi, csi
+    cdef double[6] dyn
     cdef double[::1] p_circ = np.zeros(2)
 
     dyn_augm = []
@@ -1338,9 +1525,9 @@ cpdef compute_postadiabatic_dynamics(
         am = chi1_LN * X1 - chi2_LN * X2
 
         dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
-        H.calibration_coeffs['dSO'] = dSO_new
+        H.calibration_coeffs["dSO"] = dSO_new
 
-        dyn[:] = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2,chi1_LN, chi2_LN, chi1_L, chi2_L)
+        dyn = H.dynamics(q, p, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
         dH_dpr = dyn[2]
         dH_dpphi = dyn[3]
         H_val = dyn[4]
@@ -1352,23 +1539,20 @@ cpdef compute_postadiabatic_dynamics(
 
         p_circ[1] = p[1]
         omega_circ = H.omega(q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
-        dyn_augm.append([H_val,omega[i],omega_circ,chi1_LN,chi2_LN])
+        dyn_augm.append([H_val, omega[i], omega_circ, chi1_LN, chi2_LN])
 
     # Compute integrals to obtain the time array and the orbital phase
-    t = univariate_spline_integral(r,dt_dr)
-    phi = univariate_spline_integral(r,dphi_dr)
+    t = univariate_spline_integral(r, dt_dr)
+    phi = univariate_spline_integral(r, dphi_dr)
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi, dyn_augm]
 
     return postadiabatic_dynamics, omega
 
 
-
 @cython.boundscheck(False)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_combined_dynamics_exp_v1(
     double omega_ref,
     double omega_start,
@@ -1401,15 +1585,18 @@ cpdef compute_combined_dynamics_exp_v1(
         m_2 (double): Mass of the secondary
         chi_1 : Primary dimensionless spin vector.
         chi_2 : Secondary dimensionless spin vector.
-        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric" is used.
+        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
+            is used.
         params (EOBParams): Container with useful EOB parameters
-        step_back (float, optional): Amount of time to step back for fine interpolation. Defaults to 250.
+        step_back (float, optional): Amount of time to step back for fine interpolation.
+            Defaults to 250.
         PA_order (int): Postadiabatic order up to which to obtain the solution for prstar and pphi.
-        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall by a root finding method.
+        postadiabatic_type (str): If "analytic" find root analytically, otherwise
+            numerically by a root finding method.
 
         Returns:
-            (tuple): Low and high sampling rate dynamics, unit Newtonian orbital angular momentum, assembled dynamics
-                     and the index splitting the low and high sampling rate dynamics.
+            (tuple): Low and high sampling rate dynamics, unit Newtonian orbital angular momentum,
+                assembled dynamics and the index splitting the low and high sampling rate dynamics.
 
     """
     # Save initial frequency to use it afterwards for the roll-off
@@ -1427,7 +1614,8 @@ cpdef compute_combined_dynamics_exp_v1(
     splines = build_splines_PN(
         combined_t,
         combined_y,
-        m_1, m_2,
+        m_1,
+        m_2,
         omega_start,
     )
 
@@ -1468,7 +1656,7 @@ cpdef compute_combined_dynamics_exp_v1(
         ode_dynamics_low,
         ode_dynamics_high,
         dynamics,
-        idx_restart
+        _
     ) = compute_dynamics_prec_opt(
         omega_ref,
         omega_start,
@@ -1486,7 +1674,6 @@ cpdef compute_combined_dynamics_exp_v1(
         step_back=step_back,
         y_init=ode_y_init,
     )
-
 
     if PA_success is True:
 
@@ -1508,14 +1695,15 @@ cpdef compute_combined_dynamics_exp_v1(
         dt_pa_first = t_pa[1] - t_pa[0]
         dt_ode_init = t_ode_low[1] - t_ode_low[0]
 
-        # Estimate initial delta_t from the starting orbital frequency (this should correspond to the maximum timestep in the PA dynamics)
+        # Estimate initial delta_t from the starting orbital frequency (this should
+        # correspond to the maximum timestep in the PA dynamics)
         dt0 = 2.*np.pi/omega_start_0
 
         while dt_pa_first>500:
             if  dt_pa_first > dt0:
-              dt_pa_first = dt0/5.
+                dt_pa_first = dt0/5.
             else:
-              dt_pa_first = dt0/10.
+                dt_pa_first = dt0/10.
             dt0 = dt_pa_first
 
         t_pa_first = t_pa[0]
@@ -1543,18 +1731,19 @@ cpdef compute_combined_dynamics_exp_v1(
         # Reverse the timeseries
         t_new = t_new[::-1]
 
-        # Interpolate window dynamics except the spins projections (otherwise bad things may happen due to the large timesteps of the PA dynamics)
-        window_dynamics_interp = CubicSpline(t_pa, np.c_[postadiabatic_dynamics[:,:-2], omega_pa])
+        # Interpolate window dynamics except the spins projections (otherwise bad things
+        # may happen due to the large timesteps of the PA dynamics)
+        window_dynamics_interp = CubicSpline(t_pa, np.c_[postadiabatic_dynamics[:, :-2], omega_pa])
         tmp_window = window_dynamics_interp(t_new)
 
-        window_dynamics = tmp_window[:,:-1]
-        omega_new = tmp_window[:,-1]
+        window_dynamics = tmp_window[:, :-1]
+        omega_new = tmp_window[:, -1]
 
         # Compute the spin projections onto LNhat from the new interpolated orbital frequency
         tmp = splines["everything"](omega_new)
-        chi1_LN_window = tmp[:,0]
-        chi2_LN_window = tmp[:,1]
-        postadiabatic_dynamics_v1 = np.c_[window_dynamics, chi1_LN_window,chi2_LN_window]
+        chi1_LN_window = tmp[:, 0]
+        chi2_LN_window = tmp[:, 1]
+        postadiabatic_dynamics_v1 = np.c_[window_dynamics, chi1_LN_window, chi2_LN_window]
 
         combined_dynamics = np.vstack((postadiabatic_dynamics_v1[:e_id], ode_dynamics_low))
 
@@ -1563,15 +1752,12 @@ cpdef compute_combined_dynamics_exp_v1(
 
     dynamics = np.vstack((combined_dynamics, ode_dynamics_high))
 
-    return combined_dynamics, ode_dynamics_high,combined_t,combined_y,splines,dynamics
-
+    return combined_dynamics, ode_dynamics_high, combined_t, combined_y, splines, dynamics
 
 
 @cython.boundscheck(True)
-@cython.profile(True)
-@cython.linetrace(True)
 @cython.cdivision(True)
-cpdef double compute_prec_cycles(r_final: float,t_pn: np.array, omega_pn: np.array, lN_pn:np.array):
+cpdef double compute_prec_cycles(r_final: float, t_pn: np.array, omega_pn: np.array, lN_pn: np.array):
     """
     Estimate the number of precession cycles from LNhat, computed as the phase of the precession
     frequency at the final point of the radial grid divided by 2 pi.
@@ -1589,49 +1775,43 @@ cpdef double compute_prec_cycles(r_final: float,t_pn: np.array, omega_pn: np.arr
     # Compute the LNhat quaternion
     lN_quat = quaternion.as_quat_array(np.c_[np.zeros(len(lN_pn)), lN_pn])
 
-
     # Compute the angular velocity
-    omega_prec_arr = quaternion.angular_velocity(lN_quat,t_pn)/2.0
+    omega_prec_arr = quaternion.angular_velocity(lN_quat, t_pn)/2.0
     om_prec_norm = np.sqrt(np.einsum("ij,ij->i", omega_prec_arr, omega_prec_arr))
 
     # Compute the value of the precession frequency at r_final
     r_pn = omega_pn**(-3./2.)
-    iut = CubicSpline(1./r_pn,t_pn)
-    iom_prec = CubicSpline(t_pn,om_prec_norm)
+    iut = CubicSpline(1./r_pn, t_pn)
+    iom_prec = CubicSpline(t_pn, om_prec_norm)
 
     # Compute the phase
     ph_om_prec = iom_prec.antiderivative()(t_pn)
-    iph_prec = CubicSpline(t_pn,ph_om_prec)
-
+    iph_prec = CubicSpline(t_pn, ph_om_prec)
 
     # Evaluate the phase at t_final
     t_final = iut(1./r_final)
     prec_cycles = iph_prec(t_final)/(2.*np.pi)
 
-
     return prec_cycles
-
 
 
 @cython.boundscheck(False)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 @cython.cdivision(True)
 def spline_derivative(x: np.array, y: np.array)->np.array:
-      """
-      Compute derivative of y(x) using cubic splines.
+    """
+    Compute derivative of y(x) using cubic splines.
 
-      Args:
-          x (np.array): Dependent variable.
-          y (np.array): Independent variable.
+    Args:
+        x (np.array): Dependent variable.
+        y (np.array): Independent variable.
 
-      Returns:
-          (np.array) derivaive dy/dx. Note that the order is reversed as x will be
-                     the orbital separation which is monotonically decreasing, while
-                     the interpolation requires x to be monotonically increasing.
-      """
-      intrp = CubicSpline(x[::-1], y[::-1])
-      deriv = intrp.derivative()(x[::-1])[::-1]
-      return deriv
+    Returns:
+        (np.array) derivaive dy/dx. Note that the order is reversed as x will be
+                    the orbital separation which is monotonically decreasing, while
+                    the interpolation requires x to be monotonically increasing.
+    """
+    intrp = CubicSpline(x[::-1], y[::-1])
+    deriv = intrp.derivative()(x[::-1])[::-1]
+    return deriv

@@ -58,10 +58,9 @@ cpdef get_rhs_ecc(
     cdef double[::1] Kep = z[4:]
 
     cdef double H_val, omega, xi
-    cdef double dynamics[6]
     cdef double deriv[6]
 
-    dynamics[:] = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
+    cdef double[6] dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
 
     omega = dynamics[3]
     H_val = dynamics[4]
