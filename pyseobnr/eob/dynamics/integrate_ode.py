@@ -7,15 +7,14 @@ import numpy as np
 import pygsl_lite.errno as errno
 import pygsl_lite.odeiv2 as odeiv2
 from numba import jit
+from pygsl_lite.odeiv2 import pygsl_lite_odeiv2_control as _control
+from pygsl_lite.odeiv2 import pygsl_lite_odeiv2_evolve as evolve
+from pygsl_lite.odeiv2 import pygsl_lite_odeiv2_step as step
 from scipy.interpolate import CubicSpline
 
 from ..utils.utils import interpolate_dynamics, iterative_refinement
 from .initial_conditions_aligned_opt import computeIC_opt
 from .rhs_aligned import augment_dynamics, compute_H_and_omega, get_rhs
-
-step = odeiv2.pygsl_lite_odeiv2_step
-_control = odeiv2.pygsl_lite_odeiv2_control
-evolve = odeiv2.pygsl_lite_odeiv2_evolve
 
 
 class control_y_new(_control):
@@ -152,11 +151,10 @@ def compute_dynamics_opt(
             drdt = deriv[0]
             omega = deriv[1]
             dprdt = deriv[2]
-            """
-            h_small = np.max((0.01,2*np.pi/(2.*omega) / (1 + np.exp(-(r - 4) / 0.13))))
-            if h > h_small:
-                h = h_small
-            """
+
+            # h_small = np.max((0.01,2*np.pi/(2.*omega) / (1 + np.exp(-(r - 4) / 0.13))))
+            # if h > h_small:
+            #     h = h_small
 
             if omega < omega_previous:
                 peak_omega = True
