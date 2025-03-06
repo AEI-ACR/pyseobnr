@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from copy import deepcopy
-from typing import Any, Callable, Dict, Final
+from typing import Any, Callable, Dict, Final, cast, get_args
 
 import lal
 import numpy as np
@@ -14,6 +14,12 @@ from scipy.interpolate import CubicSpline
 from scipy.optimize import root
 
 from pyseobnr.eob.dynamics.integrate_ode import compute_dynamics_opt
+from pyseobnr.eob.dynamics.integrate_ode_prec import (
+    InitialConditionPostadiabaticTypes as InitialConditionPostadiabaticTypesPrecessing,
+)
+from pyseobnr.eob.dynamics.integrate_ode_prec import (
+    InitialConditionTypes as InitialConditionTypesPrecessing,
+)
 from pyseobnr.eob.dynamics.integrate_ode_prec import compute_dynamics_quasiprecessing
 from pyseobnr.eob.dynamics.postadiabatic_C import Kerr_ISCO, compute_combined_dynamics
 from pyseobnr.eob.dynamics.postadiabatic_C_fast import (
@@ -731,6 +737,18 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         if self.settings["postadiabatic_type"] not in ["numeric", "analytic"]:
             raise ValueError("Incorrect value for postadiabatic_type")
 
+        if self.settings["initial_conditions"] not in get_args(
+            InitialConditionTypesPrecessing
+        ):
+            raise ValueError("Incorrect value for initial_conditions")
+
+        if self.settings["initial_conditions_postadiabatic_type"] not in get_args(
+            InitialConditionPostadiabaticTypesPrecessing
+        ):
+            raise ValueError(
+                "Incorrect value for initial_conditions_postadiabatic_type"
+            )
+
         # sign of the final spin
         self._sign_final_spin: int | None = None
 
@@ -872,10 +890,14 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     rtol=1e-8,  # 1e-11,
                     atol=1e-8,  # 1e-12,
                     step_back=self.step_back,
-                    initial_conditions=self.settings["initial_conditions"],
-                    initial_conditions_postadiabatic_type=self.settings[
-                        "initial_conditions_postadiabatic_type"
-                    ],
+                    initial_conditions=cast(
+                        InitialConditionTypesPrecessing,
+                        self.settings["initial_conditions"],
+                    ),
+                    initial_conditions_postadiabatic_type=cast(
+                        InitialConditionPostadiabaticTypesPrecessing,
+                        self.settings["initial_conditions_postadiabatic_type"],
+                    ),
                 )
             else:
                 (

@@ -2,20 +2,24 @@
 Contains functions associated with evolving the equations of motion.
 """
 
-from typing import Callable
+from __future__ import annotations
+
+import logging
+from typing import Callable, Final, Literal
 
 import numpy as np
 import pygsl_lite.errno as errno
 import pygsl_lite.odeiv2 as odeiv2
-from numba import *
+from pygsl_lite.odeiv2 import pygsl_lite_odeiv2_evolve as evolve
+from pygsl_lite.odeiv2 import pygsl_lite_odeiv2_step as step
 from scipy.interpolate import CubicSpline
 
 from ..fits.fits_Hamiltonian import dSO as dSO_poly_fit
 from ..hamiltonian import Hamiltonian
 from ..utils.containers import EOBParams
-from ..utils.math_ops_opt import *
 from ..utils.utils import interpolate_dynamics, iterative_refinement
 from .initial_conditions_aligned_precessing import computeIC_augm
+from .integrate_ode import control_y_new
 from .pn_evolution_opt import (
     build_splines_PN,
     compute_omega_orb,
@@ -23,19 +27,10 @@ from .pn_evolution_opt import (
     rhs_wrapper,
 )
 
-# Test cythonization of PN equations
+logger = logging.getLogger(__name__)
 
-
-step = odeiv2.pygsl_lite_odeiv2_step
-_control = odeiv2.pygsl_lite_odeiv2_control
-evolve = odeiv2.pygsl_lite_odeiv2_evolve
-
-
-class control_y_new(_control):
-    def __init__(self, eps_abs, eps_rel):
-        a_y = 1
-        a_dydt = 1
-        _control.__init__(self, eps_abs, eps_rel, a_y, a_dydt, None)
+InitialConditionTypes = Literal["adiabatic", "postadiabatic"]
+InitialConditionPostadiabaticTypes = Literal["analytic", "numeric"]
 
 
 # Function to terminate the EOB evolution
@@ -92,7 +87,10 @@ def check_terminal(
             return 7
 
         if r > r_previous:
-            # print(f"r> r_previous : r = {r}, omega = {omega}, omega_previous = {omega_previous}, r_previous = {r_previous}")
+            # print(
+            #     f"r> r_previous : r = {r}, omega = {omega}, omega_previous = {omega_previous}, "
+            #     f"r_previous = {r_previous}"
+            # )
             return 8
 
     if omega > omegaPN_f:
@@ -118,8 +116,8 @@ def compute_dynamics_prec_opt(
     atol: float = 1e-12,
     step_back: float = 250.0,
     y_init=None,
-    initial_conditions: str = "adiabatic",
-    initial_conditions_postadiabatic_type: str = "analytic",
+    initial_conditions: InitialConditionTypes = "adiabatic",
+    initial_conditions_postadiabatic_type: InitialConditionPostadiabaticTypes = "analytic",
 ):
     """
     Function to perform a non-precessing EOB evolution with the spins modified
@@ -134,21 +132,24 @@ def compute_dynamics_prec_opt(
         RR (Callable): RR force
         m_1 (float): Mass component of the primary
         m_2 (float): Mass component of the secondary
-        splines (dict): Dictionary containing the splines in orbital frequency of the vector components of the spins, LN and L as
-                        well as the spin projections onto LN and L
+        splines (dict): Dictionary containing the splines in orbital frequency of the vector components of the
+            spins, LN and L as well as the spin projections onto LN and L
         t_pn (np.array): Time array of the PN evolution of the spins and Newtonian angular momentum.
-        dynamics_pn (np.array): Array of the spin-precessing PN evolution. It contains the Newtonian angular momentum, the dimensionful spin vectors and the PN orbital frequency.
+        dynamics_pn (np.array): Array of the spin-precessing PN evolution. It contains the
+            Newtonian angular momentum, the dimensionful spin vectors and the PN orbital frequency.
         params (EOBParams): Container of additional inputs
         rtol (float, optional): Relative tolerance for EOB integration. Defaults to 1e-12
         atol (float, optional): Absolute tolerance for EOB integration. Defaults to 1e-12
         step_back (float, optional): Amount of time to step back for fine interpolation. Defaults to 250.
         y_init (np.ndarray, optional): Initial condition vector (r,phi,pr,pphi).
-        initial_conditions (str, optional): Type of initial conditions for the ODE evolution ('adiabatic' or 'postadiabatic').
-        initial_conditions_postadiabatic_type (str, optional): Type of postadiabatic initial conditions for the ODE evolution ('analytic' or 'numeric').
+        initial_conditions (str, optional): Type of initial conditions for the ODE evolution
+            ('adiabatic' or 'postadiabatic').
+        initial_conditions_postadiabatic_type (str, optional): Type of postadiabatic initial conditions
+            for the ODE evolution ('analytic' or 'numeric').
 
     Returns:
-        (tuple): Low and high sampling rate dynamics, unit Newtonian orbital angular momentum, assembled dynamics
-                 and the index splitting the low and high sampling rate dynamics
+        (tuple): Low and high sampling rate dynamics, unit Newtonian orbital angular momentum,
+            assembled dynamics and the index splitting the low and high sampling rate dynamics
     """
 
     # Step 3 : Evolve EOB dynamics
@@ -213,6 +214,11 @@ def compute_dynamics_prec_opt(
                 params=params,
                 postadiabatic_type=initial_conditions_postadiabatic_type,
             )
+        else:
+            raise ValueError(
+                f"Incorrect value for 'initial_conditions' ('{initial_conditions}')"
+            )
+
         y0 = np.array([r0, 0.0, pr0, pphi0])
 
     else:
@@ -227,25 +233,23 @@ def compute_dynamics_prec_opt(
     c = control_y_new(atol, rtol)
     e = evolve(4)
 
-    t = 0
-    t1 = 1.0e9
-
-    y = y0
-
-    if y_init is None:
-        h = 2 * np.pi / omega_start / 100.0
-    else:
-        h = 0.1
+    # if y_init is None:
+    #     h = 2 * np.pi / omega_start / 100.0
+    # else:
+    #     h = 0.1
 
     # Use an agnostic and small initial step for the integrator
     h = 0.1
-    res_gsl = []
-    ts = []
-    omegas = []
-    augm_dyn = []
+
+    # initial values
+    t = 0.0
+    y = y0
 
     # Convert to numpy array to get the correct value
-    augm_dyn.append(
+    ts = [t]
+    res_gsl = [y]
+    omegas = [params.p_params.omega]
+    augm_dyn = [
         [
             params.p_params.H_val,
             params.p_params.omega,
@@ -253,12 +257,9 @@ def compute_dynamics_prec_opt(
             params.p_params.chi_1,
             params.p_params.chi_2,
         ]
-    )
-    ts.append(0.0)
-    res_gsl.append(y)
-    omegas.append(params.p_params.omega)
+    ]
 
-    omega_previous = omega_start
+    # omega_previous = omega_start
     r_previous = r0
 
     X1 = params.p_params.X_1
@@ -267,11 +268,12 @@ def compute_dynamics_prec_opt(
     peak_omega = False
     peak_pr = False
 
+    t1: Final = 1.0e9
     while t < t1:
         # Take a step
         status, t, h, y = e.apply(c, s, sys, t, t1, h, y)
         if status != errno.GSL_SUCCESS:
-            print("break status", status)
+            logger.error("break status '%d'", status)
             break
         # Compute the error for the step controller
         e.get_yerr()
@@ -279,7 +281,7 @@ def compute_dynamics_prec_opt(
         r = y[0]
 
         if np.isnan(r):
-            # print(f"t = {t}, r = {r}, h = {h}")
+            logger.error("NaN encountered")
             break
         else:
             # Append the last step
@@ -323,7 +325,7 @@ def compute_dynamics_prec_opt(
                     peak_pr = True
                 break
 
-            omega_previous = omega
+            # omega_previous = omega
 
         else:
             omega = compute_omega_orb(t, y, H, RR, m_1, m_2, params)
@@ -331,7 +333,7 @@ def compute_dynamics_prec_opt(
 
         # Update spin parameters and calibration coeffs (only dSO)
         params.p_params.omega = omega
-        omega_circ = params.p_params.omega_circ
+        # omega_circ = params.p_params.omega_circ
 
         # Update spins according to the new value of orbital frequency
         tmp = splines["everything"](omega)
@@ -341,7 +343,7 @@ def compute_dynamics_prec_opt(
         chi2_L = tmp[3]
         chi1_v = tmp[4:7]
         chi2_v = tmp[7:10]
-        tmp_LN = tmp[10:13]
+        # tmp_LN = tmp[10:13]
 
         params.p_params.chi1_v[:] = chi1_v
         params.p_params.chi2_v[:] = chi2_v
@@ -420,18 +422,18 @@ def compute_dynamics_prec_opt(
         right = t_fine[-1]
         t_peak = iterative_refinement(intrp.derivative(), [left, right], pr=True)
 
-    t_roll, dyn_roll, omega_roll = ts, dyn, omega_eob
-    res = np.c_[t_roll, dyn_roll, omega_roll]
+    # t_roll, dyn_roll, omega_roll = ts, dyn, omega_eob
+    # res = np.c_[t_roll, dyn_roll, omega_roll]
 
     if peak_omega or peak_pr:
         t_start = max(t_peak - step_back, dyn_fine[0, 0])
-        idx_fine_start = np.argmin(np.abs(t_roll - t_start))
+        idx_fine_start = np.argmin(np.abs(ts - t_start))
 
         idx_close = idx_fine_start
 
-        t_fine = t_roll[idx_close:]
-        dyn_fine = np.c_[t_fine, dyn_roll[idx_close:]]
-        omega_fine = omega_roll[idx_close:]
+        # t_fine = t_roll[idx_close:]
+        # dyn_fine = np.c_[t_fine, dyn_roll[idx_close:]]
+        # omega_fine = omega_roll[idx_close:]
 
     t_roll, dyn_roll, omega_roll, idx_close = transition_dynamics_v2(
         ts, dyn, omega_eob, idx_close
@@ -439,10 +441,10 @@ def compute_dynamics_prec_opt(
 
     t_fine = t_roll[idx_close:]
     dyn_fine = np.c_[t_fine, dyn_roll[idx_close:]]
-    omega_fine = omega_roll[idx_close:]
+    # omega_fine = omega_roll[idx_close:]
 
     dynamics_low = np.c_[t_roll[:idx_close], dyn_roll[:idx_close]]
-    omega_low = omega_roll[:idx_close]
+    # omega_low = omega_roll[:idx_close]
 
     # Add LN to the array so that it is also interpolated onto the fine sampling rate dynamics
     dyn_fine = interpolate_dynamics(dyn_fine, peak_omega=t_peak, step_back=step_back)
@@ -479,10 +481,12 @@ def transition_dynamics_v2(
          ts (np.ndarray): Time array
          dyn (np.ndarray): Dynamics array  (r,phi,pr,pphi)
          omega_eob (np.ndarray): Orbital frequency array
-         idx_restart (int): Index which separates the low sampling rate dynamics and the high sampling rate dynamics.
+         idx_restart (int): Index which separates the low sampling rate dynamics and the
+            high sampling rate dynamics.
 
     Returns:
-         (tuple): Time array, dynamics, orbital frequency and index splitting the low and high sampling rate dynamics
+         (tuple): Time array, dynamics, orbital frequency and index splitting the low and high
+            sampling rate dynamics
     """
 
     # If the closest point within step back is actually the last point, step back more
@@ -497,7 +501,7 @@ def transition_dynamics_v2(
 
     if t_fine_init - t_low_last > 2:
         dt_low_last = t_low[-1] - t_low[-2]
-        dt_fine = t_fine[1] - t_fine[0]
+        # dt_fine = t_fine[1] - t_fine[0]
         dt_fine = 0.1
 
         t = t_fine[0] - dt_fine
@@ -606,8 +610,8 @@ def compute_dynamics_quasiprecessing(
     atol: float = 1e-12,
     step_back: float = 250,
     y_init=None,
-    initial_conditions=None,
-    initial_conditions_postadiabatic_type=None,
+    initial_conditions: InitialConditionTypes = "adiabatic",
+    initial_conditions_postadiabatic_type: InitialConditionPostadiabaticTypes = "analytic",
 ):
     """
     Compute the dynamics starting from omega_start, with spins
@@ -633,8 +637,10 @@ def compute_dynamics_quasiprecessing(
         atol (float, optional): Absolute tolerance for EOB integration. Defaults to 1e-12.
         step_back (float, optional): Amount of time to step back for fine interpolation. Defaults to 250.
         y_init (np.ndarray, optional): Initial condition vector (r,phi,pr,pphi).
-        initial_conditions (str, optional): Type of initial conditions for the ODE evolution ('adiabatic' or 'postadiabatic').
-        initial_conditions_postadiabatic_type (str, optional): Type of postadiabatic initial conditions for the ODE evolution ('analytic' or 'numeric').
+        initial_conditions (str, optional): Type of initial conditions for the ODE evolution
+            ('adiabatic' or 'postadiabatic').
+        initial_conditions_postadiabatic_type (str, optional): Type of postadiabatic initial conditions
+            for the ODE evolution ('analytic' or 'numeric').
 
     Returns:
         tuple: Aligned-spin EOB dynamics, PN time, PN dynamics, PN splines
