@@ -33,7 +33,7 @@ from ..waveform.waveform cimport RadiationReactionForce
 from .initial_conditions_aligned_precessing import computeIC_augm
 from .integrate_ode_prec import compute_dynamics_prec_opt
 from .pn_evolution_opt import build_splines_PN, compute_quasiprecessing_PNdynamics_opt
-from .postadiabatic_C import Kerr_ISCO, Newtonian_j0, univariate_spline_integral
+from .postadiabatic_C cimport Kerr_ISCO, Newtonian_j0, univariate_spline_integral
 
 
 cpdef precessing_final_spin(
@@ -213,9 +213,9 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] compute_adiabatic_solution(
         splines (dict): Dictionary containing the interpolated spin-precessing evolution
         m_1 (double): Mass of the primary
         m_2 (double): Mass of the secondary
-        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in
+        q (tuple[double, double]): Position ``q=[r,phi]= np.zeros(2)``. These values are updated in
             the root finding routine.
-        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum ``p=[pr,pphi]=np.zeros(2)``. These values are
             updated in the root finding routine.
         params (EOBParams): Container with useful EOB parameters
         tol (double): Tolerance for the find root
@@ -321,9 +321,9 @@ cpdef double pr_eqn(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in
+        q (tuple[double, double]): Position ``q=[r,phi]= np.zeros(2)``. These values are updated in
             the root finding routine.
-        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum ``p=[pr,pphi]=np.zeros(2)``. These values are
             updated in the root finding routine.
 
     Returns:
@@ -441,9 +441,9 @@ cpdef double pr_eqn_analytic(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in
+        q (tuple[double, double]): Position ``q=[r,phi]= np.zeros(2)``. These values are updated in
             the root finding routine.
-        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum ``p=[pr,pphi]=np.zeros(2)``. These values are
             updated in the root finding routine.
 
     Returns:
@@ -569,9 +569,9 @@ cpdef compute_pr(
     Compute prstar at a given postadiabatic order by solving the equation
     dpphi_dr * dH_dpr * csi - flux[1] = 0, where flux[1] is the azimuthal component
     of the radiation reaction force and csi is the tortoise coordinate transformation
-    factor, for prstar. This can be done either by root finding (postadiabatic_type="numeric")
+    factor, for prstar. This can be done either by root finding (``postadiabatic_type="numeric"``)
     or by finding an analytic expression for the root using the potentials of the Hamiltonian
-    (postadiabatic_type="analytic").
+    (``postadiabatic_type="analytic"``).
 
     Args:
         r (double[:]): Radial grid on which to compute prstar.
@@ -585,13 +585,13 @@ cpdef compute_pr(
         m_1 (double): Mass of the primary.
         m_2 (double): Mass of the secondary.
         omega_start (double): Initial orbital frequency.
-        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in the
+        q (tuple[double, double]): Position ``q=[r,phi]= np.zeros(2)``. These values are updated in the
             root finding routine.
-        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated
+        p (tuple[double, double]): Canonical momentum ``p=[pr,pphi]=np.zeros(2)``. These values are updated
             in the root finding routine.
-        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
+        tol (double): Tolerance for the root finding routine in case ``postadiabatic_type="numeric"``
             is used.
-        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall by
+        postadiabatic_type (str): If ``"analytic"`` find root analytically, otherwise numerically by
             a root finding method.
         params (EOBParams): Container with useful EOB parameters.
 
@@ -731,9 +731,9 @@ cpdef double pphi_eqn(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated
+        q (tuple[double, double]): Position ``q=[r,phi]= np.zeros(2)``. These values are updated
             in the root finding routine.
-        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum ``p=[pr,pphi]=np.zeros(2)``. These values are
             updated in the root finding routine.
 
     Returns:
@@ -1064,11 +1064,11 @@ cpdef compute_pphi(
         m_1 (double): Mass of the primary.
         m_2 (double): Mass of the secondary.
         omega_start (double): Initial orbital frequency.
-        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in the root
+        q (tuple[double, double]): Position ``q=[r,phi]= np.zeros(2)``. These values are updated in the root
             finding routine.
-        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in
+        p (tuple[double, double]): Canonical momentum ``p=[pr,pphi]=np.zeros(2)``. These values are updated in
             the root finding routine.
-        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
+        tol (double): Tolerance for the root finding routine in case ``postadiabatic_type="numeric"``
             is used.
         params (EOBParams): Container with useful EOB parameters.
         postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall by a
@@ -1181,15 +1181,15 @@ cpdef compute_postadiabatic_solution(
         splines (dict): Dictionary containing the interpolated spin-precessing evolution.
         m_1 (double): Mass of the primary.
         m_2 (double): Mass of the secondary.
-        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in
+        q (tuple[double, double]): Position ``q=[r,phi]= np.zeros(2)``. These values are updated in
             the root finding routine.
-        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum ``p=[pr,pphi]=np.zeros(2)``. These values are
             updated in the root finding routine.
         tol (double): Tolerance for the root finding routine in case
-            postadiabatic_type="numeric" is used.
+            ``postadiabatic_type="numeric"`` is used.
         order (int): Postadiabatic order up to which to obtain the solution for
             prstar and pphi.
-        postadiabatic_type (str): If "analytic" find root analytically, otherwise
+        postadiabatic_type (str): If ``"analytic"`` find root analytically, otherwise
             numerically by a root finding method.
         params (EOBParams): Container with useful EOB parameters.
 
@@ -1297,8 +1297,9 @@ cpdef compute_postadiabatic_solution(
     return pr, pphi, omega
 
 
-@cython.wraparound(False)
+@cython.cpow(True)
 @cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef compute_postadiabatic_dynamics(
     double omega_ref,
     double omega_start,
@@ -1338,8 +1339,8 @@ cpdef compute_postadiabatic_dynamics(
         tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
             is used.
         order (int): Postadiabatic order up to which to obtain the solution for prstar and pphi.
-        postadiabatic_type (str): If "analytic" find root analytically, otherwise numericall
-            by a root finding method.
+        postadiabatic_type (str): If ``"analytic"`` find root analytically, otherwise numerically by a root
+            finding method.
         window_length (int): Minimum number of points in the radial grid.
         only_first_n (int): Compute the postadiabatic only on a specified number of points.
 
@@ -1353,7 +1354,7 @@ cpdef compute_postadiabatic_dynamics(
     cdef double Mtot = m_1 + m_2
     cdef double nu = m_1*m_2/Mtot/Mtot
 
-    tmp = splines["everything"](omega_start)
+    cdef cnp.ndarray[double, ndim=1] tmp = splines["everything"](omega_start)
 
     cdef double chi1_LN = tmp[0]
     cdef double chi2_LN = tmp[1]
@@ -1361,9 +1362,9 @@ cpdef compute_postadiabatic_dynamics(
     cdef double chi1_L = tmp[2]
     cdef double chi2_L = tmp[3]
 
-    chi1_v = tmp[4:7]
-    chi2_v = tmp[7:10]
-    LNhat = tmp[10:13]
+    cdef cnp.ndarray[double, ndim=1] chi1_v = tmp[4:7]
+    cdef cnp.ndarray[double, ndim=1] chi2_v = tmp[7:10]
+    cdef cnp.ndarray[double, ndim=1] LNhat = tmp[10:13]
 
     params.p_params.omega = omega_start
 
@@ -1385,11 +1386,11 @@ cpdef compute_postadiabatic_dynamics(
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
     H.calibration_coeffs.dSO = dSO_new
 
-    cdef double r0, r_ISCO
+    cdef double r0
     r0, _, _ = computeIC_augm(omega_start, H, RR, chi1_v, chi2_v, m_1, m_2, params=params)
     cdef double chi_eff = ap
 
-    r_ISCO, _ = Kerr_ISCO(chi1_LN, chi2_LN, X1, X2)
+    cdef double r_ISCO = Kerr_ISCO(chi1_LN, chi2_LN, X1, X2)[0]
 
     # Phenomenological prefactor to r_ISCO to adjust r_final in the precessing case
     cdef double r_final_prefactor = 2.7 + (chi_eff - 0.5*chi_perp_eff)*(1-4.*nu)
@@ -1466,6 +1467,7 @@ cpdef compute_postadiabatic_dynamics(
     pphi = compute_adiabatic_solution(r, omega, H, splines, m_1, m_2, q, p, params, tol=tol,)
 
     # Update the circular omega with the adiabatic solution
+    cdef int i
     for i in range(r.shape[0]):
         q[0] = r[i]
         p[1] = pphi[i]
@@ -1501,7 +1503,7 @@ cpdef compute_postadiabatic_dynamics(
         )
 
         omega[i] = om
-        if omega[i] < 0.9*omega_start :
+        if om < 0.9*omega_start:
             print("WARNING PA DYNAMICS IS EXTRAPOLATING!")
 
     # Compute the PA solution
@@ -1536,6 +1538,7 @@ cpdef compute_postadiabatic_dynamics(
         p[0] = pr[i]
         p[1] = pphi[i]
 
+        # optimize this out on all omega
         tmp = splines["everything"](omega[i])
 
         chi1_LN = tmp[0]
@@ -1615,13 +1618,13 @@ cpdef compute_combined_dynamics_exp_v1(
         m_2 (double): Mass of the secondary
         chi_1 : Primary dimensionless spin vector.
         chi_2 : Secondary dimensionless spin vector.
-        tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
+        tol (double): Tolerance for the root finding routine in case ``postadiabatic_type="numeric"``
             is used.
         params (EOBParams): Container with useful EOB parameters
         step_back (float, optional): Amount of time to step back for fine interpolation.
             Defaults to 250.
         PA_order (int): Postadiabatic order up to which to obtain the solution for prstar and pphi.
-        postadiabatic_type (str): If "analytic" find root analytically, otherwise
+        postadiabatic_type (str): If ``"analytic"`` find root analytically, otherwise
             numerically by a root finding method.
 
         Returns:
@@ -1729,8 +1732,8 @@ cpdef compute_combined_dynamics_exp_v1(
         # correspond to the maximum timestep in the PA dynamics)
         dt0 = 2.*np.pi/omega_start_0
 
-        while dt_pa_first>500:
-            if  dt_pa_first > dt0:
+        while dt_pa_first > 500:
+            if dt_pa_first > dt0:
                 dt_pa_first = dt0/5.
             else:
                 dt_pa_first = dt0/10.
@@ -1773,21 +1776,40 @@ cpdef compute_combined_dynamics_exp_v1(
         tmp = splines["everything"](omega_new)
         chi1_LN_window = tmp[:, 0]
         chi2_LN_window = tmp[:, 1]
-        postadiabatic_dynamics_v1 = np.c_[window_dynamics, chi1_LN_window, chi2_LN_window]
+        postadiabatic_dynamics_v1 = np.c_[
+            window_dynamics,
+            chi1_LN_window,
+            chi2_LN_window
+        ]
 
-        combined_dynamics = np.vstack((postadiabatic_dynamics_v1[:e_id], ode_dynamics_low))
+        combined_dynamics = np.vstack((
+            postadiabatic_dynamics_v1[:e_id],
+            ode_dynamics_low
+        ))
 
     else:
         combined_dynamics = ode_dynamics_low
 
     dynamics = np.vstack((combined_dynamics, ode_dynamics_high))
 
-    return combined_dynamics, ode_dynamics_high, combined_t, combined_y, splines, dynamics
+    return (
+        combined_dynamics,
+        ode_dynamics_high,
+        combined_t,
+        combined_y,
+        splines,
+        dynamics
+    )
 
 
 @cython.boundscheck(True)
 @cython.cdivision(True)
-cpdef double compute_prec_cycles(r_final: float, t_pn: np.array, omega_pn: np.array, lN_pn: np.array):
+cpdef double compute_prec_cycles(
+    r_final: float,
+    t_pn: np.array,
+    omega_pn: np.array,
+    lN_pn: np.array
+):
     """
     Estimate the number of precession cycles from LNhat, computed as the phase of the precession
     frequency at the final point of the radial grid divided by 2 pi.
@@ -1829,7 +1851,7 @@ cpdef double compute_prec_cycles(r_final: float, t_pn: np.array, omega_pn: np.ar
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
 @cython.cdivision(True)
-def spline_derivative(x: np.array, y: np.array)->np.array:
+def spline_derivative(x: np.array, y: np.array) -> np.array:
     """
     Compute derivative of y(x) using cubic splines.
 
@@ -1838,7 +1860,7 @@ def spline_derivative(x: np.array, y: np.array)->np.array:
         y (np.array): Independent variable.
 
     Returns:
-        (np.array) derivaive dy/dx. Note that the order is reversed as x will be
+        (np.array) derivative dy/dx. Note that the order is reversed as x will be
                     the orbital separation which is monotonically decreasing, while
                     the interpolation requires x to be monotonically increasing.
     """
