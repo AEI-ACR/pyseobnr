@@ -10,7 +10,7 @@ cimport cython
 import numpy as np
 cimport numpy as cnp
 
-from libc.math cimport fabs, ceil
+from libc.math cimport fabs, ceil, sqrt
 
 from pygsl_lite import errno, roots
 from scipy import optimize
@@ -26,108 +26,205 @@ from ..waveform.waveform cimport RadiationReactionForce
 from ..utils.nr_utils import bbh_final_spin_non_precessing_HBR2016
 
 from .initial_conditions_aligned_opt import computeIC_opt as computeIC
-from .integrate_ode import augment_dynamics
-from .integrate_ode import compute_dynamics_opt as compute_dynamics
+from .integrate_ode import augment_dynamics, compute_dynamics_opt as compute_dynamics
 
 
-fin_diff_coeffs_order_9 = np.array([
-    [-761./280., 8., -14., 56./3., -35./2., 56./5., -14./3., 8./7., -1./8.],
-    [-1./8., -223./140., 7./2., -7./2., 35./12., -7./4., 7./10., -1./6., 1./56.],
-    [1./56., -2./7., -19./20., 2., -5./4., 2./3., -1./4., 2./35., -1./168.],
-    [-1./168., 1./14., -1./2., -9./20., 5./4., -1./2., 1./6., -1./28., 1./280.],
-    [1./280., -4./105., 1./5., -4./5., 0, 4./5., -1./5., 4./105., -1./280.],
-    [-1./280., 1./28., -1./6., 1./2., -5./4., 9./20., 1./2., -1./14., 1./168.],
-    [1./168., -2./35., 1./4., -2./3., 5./4., -2., 19./20., 2./7., -1./56.],
-    [-1./56., 1./6., -7./10., 7./4., -35./12., 7./2., -7./2., 223./140., 1./8.],
-    [1./8., -8./7., 14./3., -56./5., 35./2., -56./3., 14., -8., 761./280.],
-])
+fin_diff_coeffs_order_9 = np.ascontiguousarray(
+    [
+        [
+            -761.0 / 280.0,
+            8.0,
+            -14.0,
+            56.0 / 3.0,
+            -35.0 / 2.0,
+            56.0 / 5.0,
+            -14.0 / 3.0,
+            8.0 / 7.0,
+            -1.0 / 8.0,
+        ],
+        [
+            -1.0 / 8.0,
+            -223.0 / 140.0,
+            7.0 / 2.0,
+            -7.0 / 2.0,
+            35.0 / 12.0,
+            -7.0 / 4.0,
+            7.0 / 10.0,
+            -1.0 / 6.0,
+            1.0 / 56.0,
+        ],
+        [
+            1.0 / 56.0,
+            -2.0 / 7.0,
+            -19.0 / 20.0,
+            2.0,
+            -5.0 / 4.0,
+            2.0 / 3.0,
+            -1.0 / 4.0,
+            2.0 / 35.0,
+            -1.0 / 168.0,
+        ],
+        [
+            -1.0 / 168.0,
+            1.0 / 14.0,
+            -1.0 / 2.0,
+            -9.0 / 20.0,
+            5.0 / 4.0,
+            -1.0 / 2.0,
+            1.0 / 6.0,
+            -1.0 / 28.0,
+            1.0 / 280.0,
+        ],
+        [
+            1.0 / 280.0,
+            -4.0 / 105.0,
+            1.0 / 5.0,
+            -4.0 / 5.0,
+            0,
+            4.0 / 5.0,
+            -1.0 / 5.0,
+            4.0 / 105.0,
+            -1.0 / 280.0,
+        ],
+        [
+            -1.0 / 280.0,
+            1.0 / 28.0,
+            -1.0 / 6.0,
+            1.0 / 2.0,
+            -5.0 / 4.0,
+            9.0 / 20.0,
+            1.0 / 2.0,
+            -1.0 / 14.0,
+            1.0 / 168.0,
+        ],
+        [
+            1.0 / 168.0,
+            -2.0 / 35.0,
+            1.0 / 4.0,
+            -2.0 / 3.0,
+            5.0 / 4.0,
+            -2.0,
+            19.0 / 20.0,
+            2.0 / 7.0,
+            -1.0 / 56.0,
+        ],
+        [
+            -1.0 / 56.0,
+            1.0 / 6.0,
+            -7.0 / 10.0,
+            7.0 / 4.0,
+            -35.0 / 12.0,
+            7.0 / 2.0,
+            -7.0 / 2.0,
+            223.0 / 140.0,
+            1.0 / 8.0,
+        ],
+        [
+            1.0 / 8.0,
+            -8.0 / 7.0,
+            14.0 / 3.0,
+            -56.0 / 5.0,
+            35.0 / 2.0,
+            -56.0 / 3.0,
+            14.0,
+            -8.0,
+            761.0 / 280.0,
+        ],
+    ]
+)
 
-interpolated_integral_order_3 = [
+# for convolutions
+fin_diff_coeffs_order_9_reverse = np.ascontiguousarray(fin_diff_coeffs_order_9[:, ::-1])
+
+
+interpolated_integral_order_3 = np.ascontiguousarray([
     [3./8., 19./24., -5./24., 1./24.],
     [-1./24., 13./24., 13./24., -1./24.],
     [1./24., -5./24., 19./24., 3./8.],
-]
+])
 
-interpolated_integral_order_5 = [
+interpolated_integral_order_5 = np.ascontiguousarray([
     [95./288., 1427./1440., -133./240., 241./720., -173./1440., 3./160.],
     [-3./160., 637./1440., 511./720., -43./240., 77./1440., -11./1440.],
     [11./1440., -31./480., 401./720., 401./720., -31./480., 11./1440.],
     [-11./1440., 77./1440., -43./240., 511./720., 637./1440., -3./160.],
     [3./160., -173./1440., 241./720., -133./240., 1427./1440., 95./288.],
-]
+])
 
-interpolated_integral_order_7 = [
+interpolated_integral_order_7 = np.ascontiguousarray(
     [
-        5257.0 / 17280,
-        139849.0 / 120960,
-        -(4511.0 / 4480),
-        123133.0 / 120960,
-        -(88547.0 / 120960),
-        1537.0 / 4480,
-        -(11351.0 / 120960),
-        275.0 / 24192,
-    ],
-    [
-        -(275.0 / 24192),
-        5311.0 / 13440,
-        11261.0 / 13440,
-        -(44797.0 / 120960),
-        2987.0 / 13440,
-        -(1283.0 / 13440),
-        2999.0 / 120960,
-        -(13.0 / 4480),
-    ],
-    [
-        13.0 / 4480,
-        -(4183.0 / 120960),
-        6403.0 / 13440,
-        9077.0 / 13440,
-        -(20227.0 / 120960),
-        803.0 / 13440,
-        -(191.0 / 13440),
-        191.0 / 120960,
-    ],
-    [
-        -(191.0 / 120960),
-        1879.0 / 120960,
-        -(353.0 / 4480),
-        68323.0 / 120960,
-        68323.0 / 120960,
-        -(353.0 / 4480),
-        1879.0 / 120960,
-        -(191.0 / 120960),
-    ],
-    [
-        191.0 / 120960,
-        -(191.0 / 13440),
-        803.0 / 13440,
-        -(20227.0 / 120960),
-        9077.0 / 13440,
-        6403.0 / 13440,
-        -(4183.0 / 120960),
-        13.0 / 4480,
-    ],
-    [
-        -(13.0 / 4480),
-        2999.0 / 120960,
-        -(1283.0 / 13440),
-        2987.0 / 13440,
-        -(44797.0 / 120960),
-        11261.0 / 13440,
-        5311.0 / 13440,
-        -(275.0 / 24192),
-    ],
-    [
-        275.0 / 24192,
-        -(11351.0 / 120960),
-        1537.0 / 4480,
-        -(88547.0 / 120960),
-        123133.0 / 120960,
-        -(4511.0 / 4480),
-        139849.0 / 120960,
-        5257.0 / 17280,
-    ],
-]
+        [
+            5257.0 / 17280,
+            139849.0 / 120960,
+            -(4511.0 / 4480),
+            123133.0 / 120960,
+            -(88547.0 / 120960),
+            1537.0 / 4480,
+            -(11351.0 / 120960),
+            275.0 / 24192,
+        ],
+        [
+            -(275.0 / 24192),
+            5311.0 / 13440,
+            11261.0 / 13440,
+            -(44797.0 / 120960),
+            2987.0 / 13440,
+            -(1283.0 / 13440),
+            2999.0 / 120960,
+            -(13.0 / 4480),
+        ],
+        [
+            13.0 / 4480,
+            -(4183.0 / 120960),
+            6403.0 / 13440,
+            9077.0 / 13440,
+            -(20227.0 / 120960),
+            803.0 / 13440,
+            -(191.0 / 13440),
+            191.0 / 120960,
+        ],
+        [
+            -(191.0 / 120960),
+            1879.0 / 120960,
+            -(353.0 / 4480),
+            68323.0 / 120960,
+            68323.0 / 120960,
+            -(353.0 / 4480),
+            1879.0 / 120960,
+            -(191.0 / 120960),
+        ],
+        [
+            191.0 / 120960,
+            -(191.0 / 13440),
+            803.0 / 13440,
+            -(20227.0 / 120960),
+            9077.0 / 13440,
+            6403.0 / 13440,
+            -(4183.0 / 120960),
+            13.0 / 4480,
+        ],
+        [
+            -(13.0 / 4480),
+            2999.0 / 120960,
+            -(1283.0 / 13440),
+            2987.0 / 13440,
+            -(44797.0 / 120960),
+            11261.0 / 13440,
+            5311.0 / 13440,
+            -(275.0 / 24192),
+        ],
+        [
+            275.0 / 24192,
+            -(11351.0 / 120960),
+            1537.0 / 4480,
+            -(88547.0 / 120960),
+            123133.0 / 120960,
+            -(4511.0 / 4480),
+            139849.0 / 120960,
+            5257.0 / 17280,
+        ],
+    ]
+)
 
 
 @cython.cdivision(True)
@@ -180,7 +277,7 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] fin_diff_derivative(
     return dy_dx
 
 
-cpdef Kerr_ISCO(
+cpdef (double, double) Kerr_ISCO(
     double chi1,
     double chi2,
     double m1,
@@ -194,16 +291,16 @@ cpdef Kerr_ISCO(
             m1, m2, chi1, chi2, version="M3J4"
     )
     # Compute the ISCO radius for this spin
-    Z_1 = 1+(1-a**2)**(1./3)*((1+a)**(1./3)+(1-a)**(1./3))
-    Z_2 = np.sqrt(3*a**2+Z_1**2)
-    r_ISCO = 3+Z_2-np.sign(a)*np.sqrt((3-Z_1)*(3+Z_1+2*Z_2))
+    cdef double Z_1 = 1 + (1 - a**2) ** (1.0 / 3) * ((1 + a) ** (1.0 / 3) + (1 - a) ** (1.0 / 3))
+    cdef double Z_2 = sqrt(3 * a**2 + Z_1**2)
+    cdef double r_ISCO = 3 + Z_2 - np.sign(a) * sqrt((3 - Z_1) * (3 + Z_1 + 2 * Z_2))
 
     # Compute the ISCO L for this spin
-    L_ISCO = 2/(3*np.sqrt(3))*(1+2*np.sqrt(3*r_ISCO)-2)
-    return np.array([r_ISCO, L_ISCO])
+    cdef double L_ISCO = 2 / (3 * sqrt(3)) * (1 + 2 * sqrt(3 * r_ISCO) - 2)
+    return r_ISCO, L_ISCO
 
 
-def Newtonian_j0(r):
+cpdef Newtonian_j0(cnp.ndarray[double, ndim=1] r):
     """
     Newtonian expression for orbital angular momentum using
     consistent normalization.
@@ -348,7 +445,7 @@ cpdef compute_pr(
 
     cdef int i, iter
     for i in range(r.shape[0]):
-        if np.abs(pr[i])<1e-14:
+        if np.abs(pr[i]) < 1e-14:
             x0 = 0.0
             x1 = -3e-2
         else:
@@ -527,8 +624,10 @@ cpdef compute_postadiabatic_solution(
     for n in range(1, order+1):
         tol_current = 1.0e-2/10.0**n
         parity = n % 2
-        if n>=7:
-            tol_current = tol
+
+        if n >= 7:
+            tol_current=tol
+
         if parity:
             pr = compute_pr(
                 r,
@@ -591,7 +690,7 @@ cpdef compute_postadiabatic_dynamics(
     Returns:
         np.array: The dynamics results, as (t,q,p)
     """
-    cdef double r0, r_ISCO
+    cdef double r0
     r0, _, _ = computeIC(
         omega0,
         H,
@@ -605,13 +704,13 @@ cpdef compute_postadiabatic_dynamics(
     cdef double chi_eff = m_1*chi_1+m_2*chi_2
     cdef double nu = m_1*m_2/(m_1+m_2)**2
     cdef double r_final_prefactor = 2.7+chi_eff*(1-4.*nu)
-    r_ISCO, _ = Kerr_ISCO(chi_1, chi_2, m_1, m_2)
+    cdef double r_ISCO = Kerr_ISCO(chi_1, chi_2, m_1, m_2)[0]
     cdef double r_final = max(10.0, r_final_prefactor * r_ISCO)
 
     cdef double dr0 = 0.3
     cdef int r_size = int(ceil((r0 - r_final) / dr0))
 
-    if r_size <= 4 or r0<=11.5:
+    if r_size <= 4 or r0 <= 11.5:
         raise ValueError
     elif r_size < 10:
         r_size = 10
@@ -657,8 +756,8 @@ cpdef compute_postadiabatic_dynamics(
         params=params,
     )
 
-    dt_dr = np.zeros(r.shape[0])
-    dphi_dr = np.zeros(r.shape[0])
+    dt_dr = np.empty(r.shape[0])
+    dphi_dr = np.empty(r.shape[0])
 
     cdef:
         int i
@@ -830,10 +929,10 @@ cpdef cumulative_integral(
     return integral
 
 
-def univariate_spline_integral(
+cpdef univariate_spline_integral(
     x: np.array,
     y: np.array,
-) -> np.array:
+):
     y_x_interp = InterpolatedUnivariateSpline(x[::-1], y[::-1])
     y_x_integral = y_x_interp.antiderivative()(x[::-1])[::-1]
     integral = y_x_integral - y_x_integral[0]
