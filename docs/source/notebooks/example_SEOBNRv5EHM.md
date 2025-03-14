@@ -5,7 +5,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.5
+    jupytext_version: 1.16.6
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -200,7 +200,8 @@ Note that the warning message can be deactivated to avoid filling log files with
 
 ```{code-cell} ipython3
 settings = dict(
-    # warning_secular_bwd_int=False,  # Setting this to False will avoid the warning message
+    # Setting this to False will avoid the warning message
+    # warning_secular_bwd_int=False,
 )
 
 t, modes = generate_modes_opt(
@@ -306,18 +307,17 @@ plt.grid(True)
 
 One also has access to the dynamics, stored as $(t, r, \phi, p_r, p_{\phi}, e, \zeta, x, H,\Omega)$, where
 
-$t$: time \
-$r$: relative separation \
-$\phi$: azimuthal orbital angle \
-$p_r$: tortoise radial momentum \
-$p_\phi$: angular momentum \
-$e$: eccentricity \
-$\zeta$: relativistic anomaly \
-$x$: orbit-averaged frequency to the 2/3 power, i.e. x=< \omega >^{2/3};
-   this variable presents oscillations since we compute it with a PN formula;
-   the true orbit-averaged frequency does not have any oscillation \
-$H$: EOB Hamiltonian \
-$\Omega$: instantaneous angular frequency, i.e. omega=\dot\phi
+* $t$: time
+* $r$: relative separation
+* $\phi$: azimuthal orbital angle
+* $p_r$: tortoise radial momentum
+* $p_\phi$: angular momentum
+* $e$: eccentricity
+* $\zeta$: relativistic anomaly
+* $x$: orbit-averaged frequency to the 2/3 power, i.e. $x=< \omega >^{2/3}$ <br>
+  This variable presents oscillations since we compute it with a PN formula, the true orbit-averaged frequency does not have any oscillation
+* $H$: EOB Hamiltonian
+* $\Omega$: instantaneous angular frequency, i.e. $\Omega=\dot\phi$
 
 ```{code-cell} ipython3
 t, r, phi, pr, pphi, e, z, x, H, Omega = model.dynamics.T
@@ -458,11 +458,11 @@ plt.grid(True)
 plt.show()
 ```
 
-### Backwards evolution
+### Backwards evolution from `GenerateWaveform`
 
 +++
 
-We also show here the backwards evolution with the GenerateWaveform class
+We also show here the backwards evolution with the `GenerateWaveform` class
 
 ```{code-cell} ipython3
 m1 = 50.0
@@ -657,8 +657,8 @@ if wf_gen is not None:
     hlm = GenerateTDModes(gwsignal_dict, wf_gen)
 
     l, m = 2, -1
-    plt.plot(time, hlm[(l, m)], label=f"({l,m})")
-    plt.plot(time, hlm[(l, -m)], ls="--", label=f"({l,-m})")
+    plt.plot(time, np.real(hlm[(l, m)]), label=f"({l,m})")
+    plt.plot(time, np.real(hlm[(l, -m)]), ls="--", label=f"({l,-m})")
     plt.xlabel("Time (seconds)")
     plt.ylabel(r"$\Re[h_{22}]$")
     plt.legend()
@@ -718,12 +718,21 @@ except ValueError as e:
 if wf_gen is not None:
     hpc = GenerateFDWaveform(gwsignal_dict, wf_gen)
     freqs = np.arange(len(hpc.hp)) * gwsignal_dict["deltaF"]
-    plt.plot(freqs, hpc.hp, label=r"$h_p$")
-    plt.plot(freqs, hpc.hc, label=r"$h_x$")
+    plt.plot(freqs, np.abs(hpc.hp), label=r"$h_p$")
+    plt.plot(freqs, np.abs(hpc.hc), label=r"$h_x$")
 
     plt.xlabel("Frequency (Hz)")
     plt.ylabel(r"$h_{p,x}$")
+    plt.legend()
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.grid(True)
+
     plt.show()
 else:
     print("Plot skipped")
+```
+
+```{code-cell} ipython3
+
 ```
