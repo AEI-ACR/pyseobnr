@@ -3,7 +3,6 @@ from .EOB_fits import (  # noqa
     EOBCalculateRDAmplitudeConstraintedCoefficient1,
     EOBCalculateRDAmplitudeConstraintedCoefficient2,
     EOBCalculateRDPhaseConstraintedCoefficient1,
-    EOBNonQCCorrection,
     compute_QNM,
 )
 from .fits_Hamiltonian import NR_deltaT, NR_deltaT_NS, a6_NS, dSO  # noqa
