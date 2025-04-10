@@ -280,7 +280,7 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
         super()._initialize_params(
             phys_pars=None,
             eob_pars=EOBParams(
-                phys_pars, {}, mode_array=self.computed_modes, ecc_model=True
+                phys_pars, {}, mode_array=list(self.computed_modes), ecc_model=True
             ),
         )
 
@@ -767,11 +767,11 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
             # Step 8: Compute NQCs coeffs for the high sampling modes
 
             if not self.nqc_method == "no_nqc":
-                polar_dynamics_fine = [
+                polar_dynamics_fine = (
                     r_av_fine,
                     pr_av_fine,
                     omega_av_fine,
-                ]
+                )
                 # Compute the NQCs with the background QC dynamics
                 nqc_coeffs = NQC_correction(
                     hlms_fine,

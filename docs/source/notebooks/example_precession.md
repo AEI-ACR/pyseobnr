@@ -5,7 +5,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.1
+    jupytext_version: 1.16.6
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -39,7 +39,7 @@ colors = [
     "#dede00",
 ]
 golden = 1.6180339887498948482045868
-sns.set(style="white", font_scale=0.9)
+sns.set_theme(style="white", font_scale=0.9)
 ```
 
 ```{code-cell} ipython3
@@ -177,6 +177,63 @@ plt.plot(model.t, np.unwrap(model.anglesJ2P[2]))
 plt.xlabel("Time (M)")
 plt.ylabel(r"$\gamma$")
 plt.grid(True, which="both")
+```
+
+# Activation of the anti-symmetric modes
+
+The model `SEOBNRv5PHM` supports the handling of the anti-symmetric modes that should be activated explicitly using the setting `enable_antisymmetric_modes`. The selection of the anti-symmetric modes can be done through `antisymmetric_modes`.
+
+```{code-cell} ipython3
+q = 2.0
+m1 = q / (1.0 + q)
+m2 = 1 - m1
+chi_1 = np.array([0.9, 0.0, 0.1])
+chi_2 = np.array([-0.5, 0.0, 0.1])
+omega0 = 0.01
+```
+
+```{code-cell} ipython3
+_, _, model = generate_modes_opt(
+    q,
+    chi_1,
+    chi_2,
+    omega0,
+    debug=True,
+    approximant="SEOBNRv5PHM",
+    settings={"return_coprec": True},
+)
+
+_, _, model_antisym = generate_modes_opt(
+    q,
+    chi_1,
+    chi_2,
+    omega0,
+    debug=True,
+    approximant="SEOBNRv5PHM",
+    settings=dict(
+        return_coprec=True,
+        enable_antisymmetric_modes=True,
+        antisymmetric_modes=[(2, 2), (3, 3), (4, 4)],
+    ),
+)
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(8, 6))
+
+plt.plot(model.t, model.waveform_modes["2,2"].real, label="Inertial")
+plt.plot(model.t, model_antisym.waveform_modes["2,2"].real, label="Inertial - antisym")
+plt.plot(
+    model.t,
+    (model.waveform_modes["2,2"].real - model_antisym.waveform_modes["2,2"].real) / 2,
+    label="Inertial - only antisym",
+)
+
+plt.xlabel("Time (M)")
+plt.ylabel(r"$\Re[h_{21}]$")
+plt.grid(True, which="both")
+plt.legend(loc=2)
+plt.xlim(-200, 50)
 ```
 
 ```{code-cell} ipython3

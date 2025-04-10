@@ -4,6 +4,8 @@ Contains functions that are used in evaluating different waveform fits.
 Also includes computation of NQCs
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict
 
 import numpy as np
@@ -274,19 +276,27 @@ def EOBCalculateNQCCoefficients_freeattach(
     return coeffs
 
 
-def EOBNonQCCorrection(r, phi, pr, pphi, omega, coeffs):
+def EOBNonQCCorrection(
+    r: np.ndarray,
+    phi: np.ndarray | None,
+    pr: np.ndarray,
+    pphi: np.ndarray,
+    omega: np.ndarray,
+    coeffs: dict,
+) -> np.ndarray:
     """
     Evaluate the NQC correction, given the coefficients.
 
     Args:
-        r (numpy.ndarray): r along the dynamics
-        phi (numpy.ndarray): phase along the dynamics
-        pr (numpy.ndarray): pr along the dynamics
-        omega (numpy.ndarray): omega along the dynamics
-        coeffs (dict): dictionary containing the NQC coefficients
+        r: r along the dynamics
+        phi: phase along the dynamics
+        pr: pr along the dynamics
+        pphi: pphi along the dynamics
+        omega: omega along the dynamics
+        coeffs: dictionary containing the NQC coefficients
 
     Returns:
-        numpy.ndarray: the NQC corrections along the dynamics
+        the NQC corrections along the dynamics
 
     """
     sqrtR = np.sqrt(r)

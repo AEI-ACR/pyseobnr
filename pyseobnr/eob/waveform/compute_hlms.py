@@ -30,7 +30,7 @@ from ..utils.nr_utils import (
     bbh_final_mass_non_precessing_UIB2016,
     bbh_final_spin_non_precessing_HBR2016,
 )
-from .compute_MR import compute_MR_mode_free
+from .compute_MR import MRAnzatze, compute_MR_mode_free
 from .waveform import compute_factors, unrotate_leading_pn
 
 _default_deviation_dict: Final[dict[str, float]] = {
@@ -124,12 +124,13 @@ def compute_IMR_modes(
     f_nyquist: float,
     lmax_nyquist: int,
     mixed_modes: list[tuple[int, int]] | None = None,
-    final_state: list | tuple[float, float] = None,
+    final_state: list | tuple[float, float] | None = None,
     qnm_rotation: float = 0.0,
     align: bool = True,
     dw_dict: dict[str, float] | None = None,
     domega_dict: dict[str, float] | None = None,
     dtau_dict: dict[str, float] | None = None,
+    ivs_mrd: MRAnzatze | None = None,
 ) -> tuple[np.ndarray, dict[tuple[int, int], np.ndarray]]:
     """Computes the IMR modes given the inspiral modes and the
     attachment time.
@@ -156,6 +157,7 @@ def compute_IMR_modes(
             peak amplitude
         domega_dict: Dictionary of fractional deviations of QNM frequency for each mode
         dtau_dict: Dictionary of fractional deviation of QNM damping time for each mode
+        ivs_mrd: fits for the MR ansatze
 
     Returns:
         time array and dictionary containing the waveform modes
@@ -240,10 +242,13 @@ def compute_IMR_modes(
     )
 
     # Get the fits for the MR ansatze
-    MR_fits = MergerRingdownFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
-    fits_dict = dict(
-        c1f=MR_fits.c1f(), c2f=MR_fits.c2f(), d1f=MR_fits.d1f(), d2f=MR_fits.d2f()
-    )
+    if ivs_mrd is not None:
+        fits_dict = deepcopy(ivs_mrd)
+    else:
+        MR_fits = MergerRingdownFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
+        fits_dict = MRAnzatze(
+            c1f=MR_fits.c1f(), c2f=MR_fits.c2f(), d1f=MR_fits.d1f(), d2f=MR_fits.d2f()
+        )
 
     # Placeholder for the IMR modes. Note that by construction
     # this is longer than is needed for the (5,5) mode, since idx_55<idx
@@ -590,7 +595,7 @@ def compute_mixed_mode(
 def NQC_correction(
     inspiral_modes: Dict,
     t_modes: np.ndarray,
-    polar_dynamics: tuple[np.ndarray, np.ndarray, np.ndarray],
+    polar_dynamics: list[np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray],
     t_peak: float,
     nrDeltaT: float,
     m_1: float,

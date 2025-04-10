@@ -46,6 +46,15 @@ from pyseobnr.eob.utils.utils_precession_opt import (
     seobnrv4P_quaternionJ2P_postmerger_extension,
 )
 from pyseobnr.eob.utils.waveform_ops import frame_inv_amp
+from pyseobnr.eob.waveform.compute_antisymmetric import (
+    apply_antisym_factorized_correction,
+    apply_nqc_phase_antisymmetric,
+    compute_asymmetric_PN,
+    compute_time_for_asym,
+    fits_iv_mrd_antisymmetric,
+    get_all_dynamics,
+    get_params_for_fit,
+)
 from pyseobnr.eob.waveform.compute_hlms import (
     NQC_correction,
     apply_nqc_corrections,
@@ -487,11 +496,11 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             hlms_fine = compute_hlms_new(dynamics_fine[:, 1:], self.eob_pars)
             omega_orb_fine = dynamics_fine[:, -2]
             # Polar dynamics, r,pr,omega_orb
-            polar_dynamics_fine = [
+            polar_dynamics_fine = (
                 dynamics_fine[:, 1],
                 dynamics_fine[:, 3],
                 omega_orb_fine,
-            ]
+            )
 
             # Step 5: compute NQCs coeffs
             nqc_coeffs = NQC_correction(
@@ -633,6 +642,12 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         self.m_2 = 1.0 / (1.0 + q)
 
         self.nu = self.m_1 * self.m_2 / (self.m_1 + self.m_2) ** 2
+        assert (
+            self.nu - 0.25
+        ) < 1e-12, (
+            f"nu is above 0.25 by {(self.nu - 0.25)}, please check your configuration!"
+        )
+        self.nu = min(self.nu, 0.25)
 
         self.omega_start = omega_start
 
@@ -726,6 +741,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         self.computed_modes = deepcopy(self.return_modes)
         # Make sure the array contains what we need
         self._ensure_consistency()
+        self._validate_antisymmetric_parameters()
         self._initialize_params(phys_pars=self.phys_pars)
 
         # Initialize the Hamiltonian
@@ -773,6 +789,53 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             rd_smoothing=False,
         )
         return settings
+
+    def _validate_antisymmetric_parameters(self) -> None:
+        # parameters for anti-symmetries computations
+        valid_antisymmetric_modes: Final[set] = {(2, 2), (3, 3), (4, 4)}
+
+        enable_antisymmetric_modes = self.settings.get(
+            "enable_antisymmetric_modes", False
+        )
+        if enable_antisymmetric_modes:
+            antisymmetric_modes = self.settings.get("antisymmetric_modes", [])
+            if not antisymmetric_modes:
+                antisymmetric_modes = [(2, 2)]
+            else:
+                if len(set(antisymmetric_modes)) != len(antisymmetric_modes):
+                    raise RuntimeError(
+                        "Redundant modes in 'antisymmetric_modes' settings"
+                    )
+                elif not set(antisymmetric_modes) <= valid_antisymmetric_modes:
+                    raise RuntimeError(
+                        "Incorrect modes in 'antisymmetric_modes' settings: "
+                        f"{sorted(set(antisymmetric_modes) - valid_antisymmetric_modes)}"
+                        " is not "
+                        f"in the set of valid modes {sorted(valid_antisymmetric_modes)}"
+                    )
+            self.settings["antisymmetric_modes"] = antisymmetric_modes
+        elif not enable_antisymmetric_modes:
+            # if enable_antisymmetric_modes is False, then no other anti symmetric
+            # related parameter should be passed
+            for current_antisym_param in [
+                "antisymmetric_modes",
+                "ivs_mrd",
+                "antisymmetric_modes_hm",
+            ]:
+                if current_antisym_param in self.settings:
+                    raise ValueError(
+                        f"Setting '{current_antisym_param}' provided while anti-symmetric modes "
+                        "calculations not enabled"
+                    )
+
+        # check fits parameters override
+        if "ivs_mrd" in self.settings and self.settings["ivs_mrd"] is not None:
+            if not isinstance(self.settings["ivs_mrd"], dict) or set(
+                self.settings["ivs_mrd"].keys()
+            ) != {"ivs_asym", "mrd_ivs"}:
+                raise ValueError("Incorrect 'ivs_mrd' parameter provided")
+
+        return
 
     def _initialize_params(
         self, *, phys_pars: dict | None, eob_pars: EOBParams | None = None
@@ -830,7 +893,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             result[f"{key[0]},{key[1]}"] = 1 * w.data[:, w.index(key[0], key[1])]
         return result
 
-    def _add_negative_m_modes(self, waveform_modes):
+    def _add_negative_m_modes(self, waveform_modes, fac=1):
         """Add the negative m modes using the usual
 
         Note:
@@ -845,7 +908,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         result = deepcopy(waveform_modes)
         for key in waveform_modes.keys():
             ell, m = key
-            result[(ell, -m)] = (-1) ** ell * np.conjugate(waveform_modes[key])
+            result[(ell, -m)] = fac * (-1) ** ell * np.conjugate(waveform_modes[key])
         return result
 
     def _package_modes(self, waveform_modes, ell_min=2, ell_max=5):
@@ -1282,14 +1345,6 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             # Package modes for scri
             # i) Add negative m modes
 
-            amp_inv = frame_inv_amp(imr_full, ell_max=self.max_ell_returned)
-
-            # Store the time array and shift it with an interpolated
-            # guess of the max of the frame invariant amplitude
-            self.t = t_full - estimate_time_max_amplitude(
-                time=t_full, amplitude=amp_inv, delta_t=self.delta_T, precision=0.001
-            )
-
             # ii) Set to zero all missing modes in co-precessing frame
 
             self.imr_full = imr_full
@@ -1338,8 +1393,198 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
             qt[idx[-1] + 1 :] = quat_postMerger
 
-            if self.settings["polarizations_from_coprec"] is False:
+            # Routine to compute and include  spin-precessing anti-symmetric modes
+            if self.settings.get("enable_antisymmetric_modes", False):
+                # First compute needed quantities to evaluate the PN modes
+
+                # Rotation from co-precessing to inertial frame
+                q_copr = quatI2J * quatJ2P_dyn
+
+                # Individual spins and Newtonian orbital angular momentum (normalized)
+                dyn_PN_EOB = self.splines["everything"](self.dynamics[:, 6])
+                chi1_EOB = dyn_PN_EOB[:, 4:7]
+                chi2_EOB = dyn_PN_EOB[:, 7:10]
+                L_N_EOB = dyn_PN_EOB[:, 10:13]
+                L_N_EOB /= np.linalg.norm(L_N_EOB, axis=-1)[:, None]
+
+                orbital_phase = self.dynamics[:, 2]
+
+                dyn_EOB = {
+                    "chiA": chi1_EOB,
+                    "chiB": chi2_EOB,
+                    "L_N": L_N_EOB,
+                }
+
+                # We need to resolve the orbital time-scale to evaluate the anti-symmetric modes
+                t_for_asym, orb_phase_asym = compute_time_for_asym(
+                    self.dynamics[:, 0], orbital_phase
+                )
+
+                # we first interpolate on an array where all columns have been
+                # concatenated, then we unpack each column on the target mode
+                # note: order is preserved in the dictionary dyn_EOB
+                interpolated_dynamics = CubicSpline(
+                    self.dynamics[:, 0], np.column_stack(tuple(dyn_EOB.values()))
+                )(t_for_asym)
+                idx = 0
+                for key, current_array in dyn_EOB.items():
+                    dyn_EOB[key] = interpolated_dynamics[
+                        :, idx : idx + current_array.shape[1]
+                    ]
+                    idx += current_array.shape[1]
+
+                dyn_EOB["q_copr"] = interpolate_quats(
+                    q_copr, self.dynamics[:, 0], t_for_asym
+                )
+                dyn_EOB["orbphase"] = orb_phase_asym
+                dyn_EOB["exp_orbphase"] = np.exp(-1j * orb_phase_asym)
+
+                # Get intermediate dynamical quantities and spins for evaluating anti-symmetric modes
+                dyn_EOB = get_all_dynamics(
+                    dyn=dyn_EOB, t=t_for_asym, mA=self.m_1, mB=self.m_2
+                )
+                self.dyn_full_EOB = dyn_EOB
+
+                # Parameters for evaluating IV and MRD fits
+                interpolation_step_back: Final = 10
+                params_for_fit_asym = get_params_for_fit(
+                    dyn_all=dyn_EOB,
+                    t=t_for_asym,
+                    mA=self.m_1,
+                    mB=self.m_2,
+                    q=self.q,
+                    t_attach=t_attach,
+                    interpolation_step_back=interpolation_step_back,
+                )
+
+                self.params_for_fit_asym = params_for_fit_asym
+
+                # Compute PN asymmetries
+                anti_symmetric_modes = compute_asymmetric_PN(
+                    dyn=dyn_EOB,
+                    mA=self.m_1,
+                    mB=self.m_2,
+                    modes_to_compute=self.settings["antisymmetric_modes"],
+                    nlo22=True,
+                )
+                self.pn_anti_symmetric_modes = deepcopy(anti_symmetric_modes)
+
+                # Evaluate IVs and MRD fits
+                if self.settings.get("ivs_mrd", None) is not None:
+                    ivs_asym = self.settings["ivs_mrd"]["ivs_asym"]
+                    mrd_ivs = self.settings["ivs_mrd"]["mrd_ivs"]
+                else:
+                    ivs_asym, mrd_ivs = fits_iv_mrd_antisymmetric(
+                        params_for_fits=params_for_fit_asym,
+                        nu=self.nu,
+                        modes_to_compute=self.settings["antisymmetric_modes"],
+                    )
+
+                self.ivs_asym = ivs_asym
+                self.mrd_ivs = mrd_ivs
+
+                # Apply amplitude correction factor
+                corr_power = self.settings.get("fac_corr_power", 6)
+                nqc_flags = apply_antisym_factorized_correction(
+                    antisym_modes=anti_symmetric_modes,
+                    v_orb=dyn_EOB["v"],
+                    ivs_asym=ivs_asym,
+                    idx_attach=params_for_fit_asym.idx_attach,
+                    t=dyn_EOB["t"],
+                    t_attach=t_attach,
+                    nu=self.nu,
+                    corr_power=corr_power,
+                    interpolation_step_back=interpolation_step_back,
+                )
+
+                # Apply NQC corrections - only for phase
+
+                # todo: put the names of the columns
+                polar_dynamics_full = CubicSpline(
+                    self.dynamics[:, 0], self.dynamics[:, (1, 3, 6)]
+                )(t_for_asym).T
+
+                apply_nqc_phase_antisymmetric(
+                    anti_symmetric_modes,
+                    t_for_asym,
+                    polar_dynamics_full,
+                    t_attach,
+                    ivs_asym,
+                    nqc_flags,
+                )
+
+                self.anti_symmetric_modes = anti_symmetric_modes
+                self.t_asym = t_for_asym
+
+                # Compute anti-symmetric MRD
+                # we do one interpolation with all the relevant columns, values and keys
+                # are in the same order.
+                interpolated_packed = CubicSpline(
+                    t_for_asym,
+                    np.column_stack(tuple(anti_symmetric_modes.values())),
+                )(t_new)
+
+                hlms_interp_asym = {}
+                for key, column in zip(anti_symmetric_modes, interpolated_packed.T):
+                    hlms_interp_asym[key] = column
+
+                t_full_asym, imr_asym = compute_IMR_modes(
+                    t_new,
+                    hlms_interp_asym,
+                    self.t_asym,
+                    anti_symmetric_modes,
+                    self.m_1,
+                    self.m_2,
+                    chi1LN_attach,
+                    chi2LN_attach,
+                    t_attach,
+                    self.f_nyquist,
+                    self.lmax_nyquist,
+                    mixed_modes=[],
+                    final_state=[final_mass, final_spin],
+                    qnm_rotation=qnm_rotation,
+                    ivs_mrd=mrd_ivs,
+                )
+
+                # Construct full co-precessing modes (symm + asymm)
                 imr_full = self._add_negative_m_modes(imr_full)
+                imr_asym = self._add_negative_m_modes(imr_asym, fac=-1)
+
+                self.symmetric_modes_full = deepcopy(imr_full)
+                self.antisymmetric_modes_full = deepcopy(imr_asym)
+
+                for key in imr_asym.keys():
+                    ell, m = key
+                    imr_full[(ell, m)] += imr_asym[(ell, m)]
+
+                # Compute frame-invariant amplitude to set t=0
+                # With asymmetries, we want to employ positive and negative-m modes
+                amp_inv = frame_inv_amp(
+                    imr_full, ell_max=self.max_ell_returned, use_symm=False
+                )
+
+            else:  # if enable_antisymmetric_modes
+
+                # Compute frame-invariant amplitude to set t=0
+                # Without asymmetries, we want to employ only positive-m modes
+                amp_inv = frame_inv_amp(
+                    imr_full, ell_max=self.max_ell_returned, use_symm=True
+                )
+
+                # Add negative-m modes to mode dict
+                imr_full = self._add_negative_m_modes(imr_full)
+
+            # end "if enable_antisymmetric_modes"
+
+            # Compute t=0 from peak of frame-invariant amplitude
+            # Store the time array and shift it with an interpolated
+            # guess of the max of the frame invariant amplitude
+            self.t = t_full - estimate_time_max_amplitude(
+                time=t_full, amplitude=amp_inv, delta_t=self.delta_T, precision=0.001
+            )
+
+            if self.settings["polarizations_from_coprec"] is False:
+
                 # We only need to package modes here
                 imr_full = self._package_modes(imr_full, ell_max=self.max_ell_returned)
                 # iii) Create a co-precessing frame scri waveform
@@ -1402,17 +1647,12 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 hpc = np.zeros(imr_full[(2, 2)].size, dtype=complex)
                 for ell, emm in imr_full.keys():
                     # sYlm = SWSH(qTot,-2,[ell,emm])
-                    hpc += (
-                        sYlm[ell, emm] * imr_full[(ell, emm)]
-                        + sYlm[ell, -emm] * pow(-1, ell) * imr_full[(ell, emm)].conj()
-                    )
+                    hpc += sYlm[ell, emm] * imr_full[(ell, emm)]
 
                 hpc *= np.exp(2j * gammaTot)
-
                 self.hpc = hpc
-                # self.coprec = imr_full_2
-                # self.anglesTot = [alphaTot, betaTot, gammaTot]
                 self.success = True
+
         except Exception as e:
             logger.error(
                 f"Waveform generation failed for q={self.q},chi_1={self.chi1_v},chi_2={self.chi2_v},"
