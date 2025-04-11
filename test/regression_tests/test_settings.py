@@ -69,14 +69,19 @@ def test_generate_waveform_mode_arrays_settings(basic_settings):
     ):
         _ = GenerateWaveform(basic_settings | {"mode_array": [], "ModeArray": []})
 
-    with pytest.raises(
-        ValueError,
-        match=value_error,
-    ):
-        _ = GenerateWaveform(
-            basic_settings
-            | {"approximant": "SEOBNRv5PHM", "mode_array": [], "ModeArray": []}
-        )
+    for enable_anti_symmetric in (None, False, True):
+        with pytest.raises(
+            ValueError,
+            match=value_error,
+        ):
+            additional = {"approximant": "SEOBNRv5PHM"} | (
+                {}
+                if enable_anti_symmetric is None
+                else {"enable_antisymmetric_modes": enable_anti_symmetric}
+            )
+            _ = GenerateWaveform(
+                basic_settings | additional | {"mode_array": [], "ModeArray": []}
+            )
 
     calls_to_check = (
         "generate_td_modes",
@@ -85,30 +90,47 @@ def test_generate_waveform_mode_arrays_settings(basic_settings):
     )
 
     # works with list and tuples
-    for approximant in "SEOBNRv5HM", "SEOBNRv5PHM":
-        wfm_gen = GenerateWaveform(
-            basic_settings
-            | {"approximant": approximant, "mode_array": [(2, 2), (3, 3)]}
-        )
+    for enable_anti_symmetric in (None, False, True):
 
-        for func in calls_to_check:
-            _ = getattr(wfm_gen, func)()
+        for approximant in get_args(SupportedApproximants):
 
-        wfm_gen = GenerateWaveform(
-            basic_settings
-            | {"approximant": approximant, "mode_array": ((2, 2), (3, 3))}
-        )
+            additional = (
+                {}
+                if enable_anti_symmetric is None
+                else {
+                    # only available for "SEOBNRv5PHM"
+                    "enable_antisymmetric_modes": enable_anti_symmetric
+                    and approximant == "SEOBNRv5PHM"
+                }
+            )
 
-        for func in calls_to_check:
-            _ = getattr(wfm_gen, func)()
+            wfm_gen = GenerateWaveform(
+                basic_settings
+                | additional
+                | {"approximant": approximant, "mode_array": [(2, 2), (3, 3)]}
+            )
 
-        # incorrect mode array yields an error
-        wfm_gen = GenerateWaveform(
-            basic_settings | {"approximant": approximant, "mode_array": [2, 2, 3, 3]}
-        )
-        for func in calls_to_check:
-            with pytest.raises(TypeError):
+            for func in calls_to_check:
                 _ = getattr(wfm_gen, func)()
+
+            wfm_gen = GenerateWaveform(
+                basic_settings
+                | additional
+                | {"approximant": approximant, "mode_array": ((2, 2), (3, 3))}
+            )
+
+            for func in calls_to_check:
+                _ = getattr(wfm_gen, func)()
+
+            # incorrect mode array yields an error
+            wfm_gen = GenerateWaveform(
+                basic_settings
+                | additional
+                | {"approximant": approximant, "mode_array": [2, 2, 3, 3]}
+            )
+            for func in calls_to_check:
+                with pytest.raises(TypeError):
+                    _ = getattr(wfm_gen, func)()
 
 
 def test_default_settings_HM():

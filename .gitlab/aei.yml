@@ -147,7 +147,7 @@ tox-build-test:
     - DEBIAN_FRONTEND=noninteractive apt-get install -y $packages python3-pip python3-venv
     - *build_package_default_cmds
     - export CI_TEST_DYNAMIC_REGRESSIONS=1
-    - tox -e $tox_target
+    - tox -vvv -e $tox_target
 
 # running the linting only
 tox-lint:

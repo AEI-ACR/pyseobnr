@@ -6,10 +6,10 @@
    :members:
    :show-inheritance:
    :inherited-members:
+   :special-members: __call__
 
    {% block methods %}
    .. automethod:: __init__
-   .. automethod:: __call__
 
    {% if methods %}
    .. rubric:: {{ _('Methods') }}

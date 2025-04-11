@@ -230,6 +230,13 @@ def generate_modes_opt(
         chi1, chi2, approximant=approximant
     )
 
+    # checks the anti-symmetric parameters
+    if settings and settings.get("enable_antisymmetric_modes", False):
+        if approximant != "SEOBNRv5PHM":
+            raise ValueError(
+                f"Antisymmetric modes not available for approximant {approximant}."
+            )
+
     if approximant == "SEOBNRv5HM":
         RR_f = SEOBNRv5RRForce()
         model = SEOBNRv5HM.SEOBNRv5HM_opt(
@@ -395,6 +402,15 @@ class GenerateWaveform:
             If specified, will add all the modes compatible with the approximant up
             to :math:`\\ell =` ``lmax``. If provided together with ``mode_array``, the
             two parameters should be set consistently. See the notes for details.
+        bool enable_antisymmetric_modes:
+            when ``True`` will enable the handling of the anti-symmetric modes. Available
+            only for the precessing approximant ``SEOBNRv5PHM``.
+        list[tuple[int, int]] antisymmetric_modes:
+            Select the modes for which the anti-symmetric processing is active.
+        bool antisymmetric_modes_hm:
+            if set to ``True``, will enable the higher modes ``(3,3)`` and ``(4,4)`` for the
+            anti-symmetric modes corrections. Overrides ``antisymmetric_modes``.
+
         str approximant:
             * ``SEOBNRv5HM`` (default)
             * ``SEOBNRv5PHM``
@@ -405,9 +421,13 @@ class GenerateWaveform:
         float atol_ode:
             Absolute tolerance of the ODE integrators. Defaults to 1e-12.
 
-        Notes
-        -----
+        bool gwsignal_environment:
+            if set and evaluates to ``True``, indicates that the code is being run
+            through ``GWSignal`` or environment requiring compliance with
+            LVK reviews. Defaults to ``False``.
 
+        Note
+        ----
         The default modes are ``(2, 2)``, ``(2, 1)``, ``(3, 3)``, ``(3, 2)``,
         ``(4, 4)`` and ``(4, 3)``. In particular ``(5, 5)`` is not included
         and should be explicitly set through ``ModeArray``.
@@ -535,6 +555,12 @@ class GenerateWaveform:
             "atol_ode": 1e-12,
             "deltaT_sampling": False,
             "omega_prec_deviation": True,
+            "enable_antisymmetric_modes": False,
+            "antisymmetric_modes": [(2, 2)],
+            "antisymmetric_modes_hm": False,
+            "ivs_mrd": None,
+            "antisymmetric_fits_version": 240417,
+            "gwsignal_environment": False,
         }
 
         if "approximant" in parameters and parameters["approximant"] == "SEOBNRv5EHM":
@@ -669,6 +695,38 @@ class GenerateWaveform:
             aux_mass1 = parameters["mass1"]
             parameters["mass1"] = parameters["mass2"]
             parameters["mass2"] = aux_mass1
+
+        if parameters["initial_conditions"] not in ["adiabatic", "postadiabatic"]:
+            raise ValueError("Unrecognised setting for initial conditions.")
+
+        if parameters["initial_conditions_postadiabatic_type"] not in [
+            "numeric",
+            "analytic",
+        ]:
+            raise ValueError(
+                "Unrecognised setting for initial conditions postadiabatic type."
+            )
+
+        if parameters["postadiabatic_type"] not in ["numeric", "analytic"]:
+            raise ValueError("Unrecognised setting for dynamics postadiabatic type.")
+
+        if parameters["ModeArray"] is not None and parameters["mode_array"] is not None:
+            raise ValueError(
+                "Only one setting can be specified between ModeArray and mode_array."
+            )
+
+        if parameters.get("enable_antisymmetric_modes", False):
+            if parameters["approximant"] != "SEOBNRv5PHM":
+                raise ValueError(
+                    "Antisymmetric modes not available for approximant "
+                    f"{parameters['approximant']}."
+                )
+
+            # left for posterity
+            # if parameters.get("gwsignal_environment", False):
+            #     warnings.warn(
+            #         "This code is currently UNREVIEWED, use with caution!!", UserWarning
+            #     )
 
         return parameters
 
@@ -859,6 +917,32 @@ class GenerateWaveform:
         if "lmax" in self.parameters:
             settings.update(lmax=self.parameters["lmax"])
 
+        enable_antisymmetric_modes = False
+        if "enable_antisymmetric_modes" in self.parameters:
+            settings.update(
+                enable_antisymmetric_modes=self.parameters["enable_antisymmetric_modes"]
+            )
+            enable_antisymmetric_modes = self.parameters["enable_antisymmetric_modes"]
+
+        if enable_antisymmetric_modes:
+            if "antisymmetric_modes" in self.parameters:
+                settings.update(
+                    antisymmetric_modes=self.parameters["antisymmetric_modes"]
+                )
+
+            if "ivs_mrd" in self.parameters:
+                settings.update(ivs_mrd=self.parameters["ivs_mrd"])
+
+            if self.parameters.get("antisymmetric_modes_hm", False):
+                settings.update(antisymmetric_modes=[(2, 2), (3, 3), (4, 4)])
+
+            if "antisymmetric_fits_version" in self.parameters:
+                settings.update(
+                    antisymmetric_fits_version=self.parameters[
+                        "antisymmetric_fits_version"
+                    ]
+                )
+
         settings.update(f_ref=self.parameters["f_ref"])
         times, h, self._model = generate_modes_opt(
             q,
@@ -1009,6 +1093,36 @@ class GenerateWaveform:
             if "lmax" in self.parameters:
                 settings.update(lmax=self.parameters["lmax"])
 
+            enable_antisymmetric_modes = False
+            if "enable_antisymmetric_modes" in self.parameters:
+                settings.update(
+                    enable_antisymmetric_modes=self.parameters[
+                        "enable_antisymmetric_modes"
+                    ]
+                )
+                enable_antisymmetric_modes = self.parameters[
+                    "enable_antisymmetric_modes"
+                ]
+
+            if enable_antisymmetric_modes:
+                if "antisymmetric_modes" in self.parameters:
+                    settings.update(
+                        antisymmetric_modes=self.parameters["antisymmetric_modes"]
+                    )
+
+                if "ivs_mrd" in self.parameters:
+                    settings.update(ivs_mrd=self.parameters["ivs_mrd"])
+
+                if self.parameters.get("antisymmetric_modes_hm", False):
+                    settings.update(antisymmetric_modes=[(2, 2), (3, 3), (4, 4)])
+
+                if "antisymmetric_fits_version" in self.parameters:
+                    settings.update(
+                        antisymmetric_fits_version=self.parameters[
+                            "antisymmetric_fits_version"
+                        ]
+                    )
+
             settings.update(f_ref=self.parameters["f_ref"])
             Mpc_to_meters = lal.PC_SI * 1e6
             fac = (
@@ -1125,6 +1239,7 @@ class GenerateWaveform:
         )
 
         self.parameters["f22_start"] = fstart
+
         hp_lal, hc_lal = self.generate_td_polarizations()
         self.parameters["f22_start"] = original_f_min
 
