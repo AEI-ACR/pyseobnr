@@ -37,7 +37,10 @@ from pyseobnr.eob.hamiltonian import Hamiltonian
 from pyseobnr.eob.utils.containers import EOBParams
 from pyseobnr.eob.utils.math_ops_opt import my_norm
 from pyseobnr.eob.utils.nr_utils import bbh_final_mass_non_precessing_UIB2016
-from pyseobnr.eob.utils.utils import estimate_time_max_amplitude
+from pyseobnr.eob.utils.utils import (
+    estimate_time_max_amplitude,
+    rotate_modes_to_waveform_based_convention,
+)
 from pyseobnr.eob.utils.utils_precession_opt import (
     SEOBRotatehIlmFromhJlm_opt_v1,
     custom_swsh,
@@ -217,6 +220,9 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         # Make sure the array contains what we need
         self._ensure_consistency()
 
+        # Check convention parameters
+        self._validate_convention_parameters()
+
         self._initialize_params(phys_pars=self.phys_pars)
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
@@ -372,6 +378,7 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             dynamics = np.vstack((dynamics_low, dynamics_fine))
 
             self.dynamics = dynamics
+            self.t_ref = None
             if np.abs(self.f_ref - self.f0) > 1e-10:
                 # Reference frequency is not the same as starting frequency
                 # To account for the LAL conventions, shift things so that
@@ -394,7 +401,6 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 guess = t_d[np.argmin(np.abs(f_22 - self.f_ref))]
                 res = root(lambda x: np.abs(intrp(x) - self.f_ref), guess)
 
-                t_correct = res.x
                 if not res.success:
                     logger.error(
                         "Failed to find the time corresponding to requested f_ref."
@@ -402,9 +408,11 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     raise ValueError(
                         "Failed to find the time corresponding to requested f_ref."
                     )
+
+                self.t_ref = float(res.x)
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
-                phase_shift = intrp_phase(t_correct)
+                phase_shift = intrp_phase(self.t_ref)
                 # Shift the phase for all dynamics arrays
                 self.dynamics[:, 2] -= phase_shift
                 dynamics_low[:, 2] -= phase_shift
@@ -568,11 +576,47 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 dtau_dict=self.dtau_dict,
             )
 
+            # Check if convention has to be changed
+            if self.settings.get(
+                "convention_coprecessing_phase22_set_to_0_at_reference_frequency", False
+            ):
+                # Read (2,2) phase at reference time
+                if self.t_ref is None:
+                    ph22_ref = np.angle(hlms_interp[2, 2][0]) - np.pi
+                else:
+                    idx_ref = np.searchsorted(t_new, self.t_ref)
+                    idx_ref_min_interpolation = max(0, idx_ref - 5)
+                    ph22_ref = CubicSpline(
+                        t_new[idx_ref_min_interpolation : idx_ref + 5],
+                        np.unwrap(
+                            np.angle(
+                                hlms_interp[2, 2][
+                                    idx_ref_min_interpolation : idx_ref + 5
+                                ]
+                            )
+                        ),
+                    )(self.t_ref)
+                    ph22_ref -= np.pi
+
+                rotate_modes_to_waveform_based_convention(hlms_full, ph22_ref)
+
             amp_inv = frame_inv_amp(hlms_full, ell_max=self.max_ell_returned)
-            # Shift the time so that the peak of the frame-invariant amplitude is at t=0
-            self.t = t_full - estimate_time_max_amplitude(
-                time=t_full, amplitude=amp_inv, delta_t=self.delta_T, precision=0.001
-            )
+
+            # Set t=0
+            if self.settings.get(
+                "convention_t0_set_to_0_at_coprecessing_amplitude22_peak", False
+            ):
+                self.t = t_full - t_full[0] - t_attach
+            else:
+                # Store the time array and shift it with an interpolated
+                # guess of the max of the frame invariant amplitude
+                self.t = t_full - estimate_time_max_amplitude(
+                    time=t_full,
+                    amplitude=amp_inv,
+                    delta_t=self.delta_T,
+                    precision=0.001,
+                )
+
             self.waveform_modes = {}
 
             # Step 10: fill the final dictionary of modes
@@ -748,6 +792,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         # Make sure the array contains what we need
         self._ensure_consistency()
         self._validate_antisymmetric_parameters()
+        self._validate_convention_parameters()
         self._initialize_params(phys_pars=self.phys_pars)
 
         # Initialize the Hamiltonian
@@ -773,6 +818,10 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
         # sign of the final spin
         self._sign_final_spin: int | None = None
+
+        # Shift for setting phase of (2,2)-coprecessing mode to 0 at t_ref
+        # applied to the polarizations
+        self.alpha_diff = 0.0  # Initialize to 0 - default it has no effect
 
     def _default_settings(self) -> dict[str, Any]:
         M_default: Final = 50
@@ -1027,7 +1076,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             # omega_EOB_low = dynamics_low[:, 6]
 
             self.dynamics = dynamics
-            t_correct = None
+            self.t_ref = None
             if np.abs(self.f_ref - self.f_start) > 1e-10:
                 # Reference frequency is not the same as starting frequency
                 # To account for the LAL conventions, shift things so that
@@ -1050,8 +1099,6 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 guess = t_d[np.argmin(np.abs(f_22 - self.f_ref))]
                 res = root(lambda x: np.abs(intrp(x) - self.f_ref), guess)
 
-                t_correct = res.x
-                self.t_ref = t_correct
                 if not res.success:
                     logger.error(
                         "Failed to find the time corresponding to requested f_ref."
@@ -1059,9 +1106,11 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     raise ValueError(
                         "Failed to find the time corresponding to requested f_ref."
                     )
+                self.t_ref = float(res.x)
+
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
-                phase_shift = intrp_phase(t_correct)
+                phase_shift = intrp_phase(self.t_ref)
                 # Shift the phase for all dynamics arrays
                 self.dynamics[:, 2] -= phase_shift
                 dynamics_low[:, 2] -= phase_shift
@@ -1323,7 +1372,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 Lvec_hat_attach,
                 Jfhat_attach,
                 splines,
-                t_ref=t_correct,
+                t_ref=self.t_ref,
             )
 
             # Evaluate the term necessary to rotate the QNM consistently
@@ -1370,6 +1419,39 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 domega_dict=self.domega_dict,
                 dtau_dict=self.dtau_dict,
             )
+
+            # Check if convention has to be changed
+            if self.settings.get(
+                "convention_coprecessing_phase22_set_to_0_at_reference_frequency", False
+            ):
+                # Read (2,2) phase at reference time
+                if not hasattr(self, "t_ref") or self.t_ref is None:
+                    ph22_ref = np.angle(hlms_interp[2, 2][0]) - np.pi
+                else:
+                    idx_ref = np.searchsorted(t_new, self.t_ref)
+                    idx_ref_min_interpolation = max(0, idx_ref - 5)
+
+                    ph22_ref = CubicSpline(
+                        t_new[idx_ref_min_interpolation : idx_ref + 5],
+                        np.unwrap(
+                            np.angle(
+                                hlms_interp[2, 2][
+                                    idx_ref_min_interpolation : idx_ref + 5
+                                ]
+                            )
+                        ),
+                    )(self.t_ref)
+                    ph22_ref -= np.pi
+
+                if not self.settings.get("polarizations_from_coprec", False):
+                    rotate_modes_to_waveform_based_convention(imr_full, ph22_ref)
+
+                else:
+                    # We will rotate only the polarizations
+                    # This methods can only work with polarizations_from_coprec=True (default)
+                    assert self.settings["polarizations_from_coprec"]
+
+                    self.alpha_diff = -ph22_ref / 2
 
             t_full -= t_full[0]
 
@@ -1610,9 +1692,20 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             # Compute t=0 from peak of frame-invariant amplitude
             # Store the time array and shift it with an interpolated
             # guess of the max of the frame invariant amplitude
-            self.t = t_full - estimate_time_max_amplitude(
-                time=t_full, amplitude=amp_inv, delta_t=self.delta_T, precision=0.001
-            )
+
+            if self.settings.get(
+                "convention_t0_set_to_0_at_coprecessing_amplitude22_peak", False
+            ):
+                self.t = t_full - t_attach
+            else:
+                # Store the time array and shift it with an interpolated
+                # guess of the max of the frame invariant amplitude
+                self.t = t_full - estimate_time_max_amplitude(
+                    time=t_full,
+                    amplitude=amp_inv,
+                    delta_t=self.delta_T,
+                    precision=0.001,
+                )
 
             if self.settings["polarizations_from_coprec"] is False:
 
@@ -1666,7 +1759,10 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 # Construct full rotation
                 alphaTot, betaTot, gammaTot = self._compute_full_rotation(qt, quatI2J)
 
-                sYlm = custom_swsh(betaTot, alphaTot, self.max_ell_returned)
+                # alpha_diff set for the conventions
+                sYlm = custom_swsh(
+                    betaTot, alphaTot + self.alpha_diff, self.max_ell_returned
+                )
                 # Construct polarizations
                 hpc = np.zeros(imr_full[(2, 2)].size, dtype=complex)
                 for ell, emm in imr_full.keys():

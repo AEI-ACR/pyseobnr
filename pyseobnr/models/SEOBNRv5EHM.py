@@ -226,6 +226,9 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
         # Initialize the Hamiltonian
         self.H = H(self.eob_pars)
 
+        # validate some of the parameters as the settings have been set
+        self._validate_convention_parameters()
+
     @property
     def RR(self) -> RadiationReactionForceEcc:
         if not self._radiation_reaction_is_initialized:
@@ -293,6 +296,23 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
         # with the background QC dynamics, so the default choice of
         # step_back = 250 is kept
         self.step_back = self.settings.get("step_back", 250.0)
+
+    def _validate_convention_parameters(self) -> None:
+        if self.settings.get(
+            "convention_coprecessing_phase22_set_to_0_at_reference_frequency", False
+        ):
+            raise ValueError(
+                "Convention 'convention_coprecessing_phase22_set_to_0_at_reference_frequency' "
+                "not supported by the model SEOBNRv5EHM"
+            )
+
+        if self.settings.get(
+            "convention_t0_set_to_0_at_coprecessing_amplitude22_peak", False
+        ):
+            raise ValueError(
+                "Convention 'convention_t0_set_to_0_at_coprecessing_amplitude22_peak' "
+                "not supported by the model SEOBNRv5EHM"
+            )
 
     def _compute_starting_values(self):
         """

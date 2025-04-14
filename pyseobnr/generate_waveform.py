@@ -426,6 +426,15 @@ class GenerateWaveform:
             through ``GWSignal`` or environment requiring compliance with
             LVK reviews. Defaults to ``False``.
 
+        bool convention_coprecessing_phase22_set_to_0_at_reference_frequency:
+            if set and evaluates to ``True``, indicates that we are using the convention
+            where the phase of the 2,2 mode at reference frequency is set to 0.
+
+        bool convention_t0_set_to_0_at_coprecessing_amplitude22_peak:
+            if set and evaluates to ``True``, indicates that we are using the convention
+            where the 0 of the time array is set to when the amplitude of the 2,2 mode
+            is at its peak.
+
         Note
         ----
         The default modes are ``(2, 2)``, ``(2, 1)``, ``(3, 3)``, ``(3, 2)``,
@@ -443,6 +452,9 @@ class GenerateWaveform:
         ``mode_array``, otherwise a ``ValueError`` exception is raised. For instance,
         ``lmax=3`` and ``mode_array=[(2, 2), (3, 2)]`` will create inconsistencies for the
         selection of the modes ``(2, 1)`` and ``(3, 3)``.
+
+        Setting conventions different from the default ones is not necessarily supported
+        by all approximants.
         """
 
         self.swap_masses: bool = False
@@ -562,6 +574,8 @@ class GenerateWaveform:
             "ivs_mrd": None,
             "antisymmetric_fits_version": 240417,
             "gwsignal_environment": False,
+            "convention_coprecessing_phase22_set_to_0_at_reference_frequency": False,
+            "convention_t0_set_to_0_at_coprecessing_amplitude22_peak": False,
         }
 
         if "approximant" in parameters and parameters["approximant"] == "SEOBNRv5EHM":
@@ -788,6 +802,26 @@ class GenerateWaveform:
                     "for a reference frequency. Please, set 'f_ref' = 'f22_start'."
                 )
 
+            # LISA specific conventions: not supported at the moment.
+
+            if parameters[
+                "convention_coprecessing_phase22_set_to_0_at_reference_frequency"
+            ]:
+                raise ValueError(
+                    "The approximant 'SEOBNRv5EHM' does not support the choice "
+                    "for a convention setting the phase of the 2,2 mode."
+                )
+
+            # this normally is doable easily, but we are not supporting it at the moment.
+            # this is because convention_coprecessing_phase22_set_to_0_at_reference_frequency
+            # requires more thinking and discussions. If we do not support both at the same
+            # time, we should not support any of the settings.
+            if parameters["convention_t0_set_to_0_at_coprecessing_amplitude22_peak"]:
+                raise ValueError(
+                    "The approximant 'SEOBNRv5EHM' does not support the choice "
+                    "for a convention setting the time at the peak of the 2,2 mode."
+                )
+
         else:
             if parameters["eccentricity"] != 0.0 or parameters["rel_anomaly"] != 0.0:
                 raise ValueError(
@@ -918,6 +952,23 @@ class GenerateWaveform:
         if "lmax" in self.parameters:
             settings.update(lmax=self.parameters["lmax"])
 
+        if (
+            "convention_coprecessing_phase22_set_to_0_at_reference_frequency"
+            in self.parameters
+        ):
+            settings.update(
+                convention_coprecessing_phase22_set_to_0_at_reference_frequency=self.parameters[
+                    "convention_coprecessing_phase22_set_to_0_at_reference_frequency"
+                ]
+            )
+
+        if "convention_t0_set_to_0_at_coprecessing_amplitude22_peak" in self.parameters:
+            settings.update(
+                convention_t0_set_to_0_at_coprecessing_amplitude22_peak=self.parameters[
+                    "convention_t0_set_to_0_at_coprecessing_amplitude22_peak"
+                ]
+            )
+
         enable_antisymmetric_modes = False
         if "enable_antisymmetric_modes" in self.parameters:
             settings.update(
@@ -983,7 +1034,7 @@ class GenerateWaveform:
 
         # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a
         # pi rotation on the orbital plane, which translates into a minus sign for the odd modes.
-        if self.swap_masses is True:
+        if self.swap_masses:
             for ell, emm in hlm_dict.keys():
                 if np.abs(emm) % 2 != 0:
                     hlm_dict[(ell, emm)] *= -1.0
@@ -1093,6 +1144,26 @@ class GenerateWaveform:
 
             if "lmax" in self.parameters:
                 settings.update(lmax=self.parameters["lmax"])
+
+            if (
+                "convention_coprecessing_phase22_set_to_0_at_reference_frequency"
+                in self.parameters
+            ):
+                settings.update(
+                    convention_coprecessing_phase22_set_to_0_at_reference_frequency=self.parameters[
+                        "convention_coprecessing_phase22_set_to_0_at_reference_frequency"
+                    ]
+                )
+
+            if (
+                "convention_t0_set_to_0_at_coprecessing_amplitude22_peak"
+                in self.parameters
+            ):
+                settings.update(
+                    convention_t0_set_to_0_at_coprecessing_amplitude22_peak=self.parameters[
+                        "convention_t0_set_to_0_at_coprecessing_amplitude22_peak"
+                    ]
+                )
 
             enable_antisymmetric_modes = False
             if "enable_antisymmetric_modes" in self.parameters:

@@ -313,7 +313,7 @@ class EOBNonQCCorrectionImpl:
 
         :param coeffs: coefficients for a specific mode
 
-        .. see::
+        .. tip::
 
             The function :py:func:`~pyseobnr.eob.waveform.compute_hlms.apply_nqc_corrections`
             demonstrates the use of this function.
