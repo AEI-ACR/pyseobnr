@@ -766,8 +766,11 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                 self.RR.instance_hlm,
                 self.eob_pars,
             )
+
             if self.inspiral_modes:
-                self.hlms_fine_before_nqc = hlms_fine.copy()
+                self.hlms_fine_before_nqc = {
+                    k: np.copy(v) for k, v in hlms_fine.items()
+                }
                 self.t_before_nqc = t_fine
 
             # Step 8: Compute NQCs coeffs for the high sampling modes
@@ -803,12 +806,7 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
             )
 
             if self.inspiral_modes:
-                hlms_low_no_nqc = compute_hlms_ecc(
-                    dynamics_low[:, 1:],
-                    self.RR.instance_hlm,
-                    self.eob_pars,
-                )
-                self.hlms_low_no_nqc = hlms_low_no_nqc
+                self.hlms_low_no_nqc = {k: np.copy(v) for k, v in hlms_low.items()}
                 self.t_low_no_nqc = dynamics_low[:, 0]
 
             if not self.nqc_method == "no_nqc":
@@ -888,6 +886,7 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                         find_peaks(_, height=np.max(_ * 0.1))[0][-1]
                     ),
                 )
+
             except Exception:
                 error_message = (
                     "Internal function call failed: Input domain error. "
@@ -904,6 +903,7 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                 amp_inv = frame_inv_amp(
                     self.hlms_inspiral_interp, ell_max=self.max_ell_returned
                 )
+
                 self.t = self.t_inspiral - estimate_time_max_amplitude(
                     time=self.t_inspiral,
                     amplitude=amp_inv,
