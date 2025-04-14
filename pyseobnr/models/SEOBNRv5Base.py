@@ -102,6 +102,25 @@ class SEOBNRv5ModelBase:
             if (m, m) not in self.computed_modes:
                 self.computed_modes.append((m, m))
 
+    def _validate_convention_parameters(self) -> None:
+        """Check that reference phase convention is consistent.
+
+        Raises:
+            ValueError
+        """
+        set_coprec_phase22_0_only_polarizations = self.settings.get(
+            "set_coprec_phase22_0_only_polarizations", False
+        )
+        polarizations_from_coprec = self.settings.get(
+            "polarizations_from_coprec", False
+        )
+        if set_coprec_phase22_0_only_polarizations and not polarizations_from_coprec:
+            raise ValueError(
+                "set_coprec_phase22_0_only_polarizations=True can only be used with polarizations_from_coprec=True. Use instead set_coprec_phase22_0_only=True."
+            )
+
+        return
+
     def _initialize_params(
         self, *, phys_pars: dict | None, eob_pars: EOBParams | None = None
     ):
