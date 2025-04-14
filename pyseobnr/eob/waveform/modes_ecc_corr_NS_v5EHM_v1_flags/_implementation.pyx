@@ -2359,7 +2359,11 @@ cdef class hlm_ecc_corr_NS_v5EHM_v1_flags(BaseModesCalculation):
         self._initialized = True
         return ret
 
-    def compute(self, *, e, x, z):
+    cpdef void compute(self
+        , double e
+        , double x
+        , double z
+    ):
         if not self._initialized:
             raise RuntimeError("Instance has not been initialized yet")
-        return self._compute(e, x, z)
+        self._compute(e, x, z)

@@ -412,7 +412,11 @@ cdef class edot_zdot_xavg_flags(BaseCoupledExpressionsCalculation):
         self._initialized = True
         return ret
 
-    def compute(self, *, e, omega, z):
+    cpdef void compute(self
+        , double e
+        , double omega
+        , double z
+    ):
         if not self._initialized:
             raise RuntimeError("Instance has not been initialized yet")
-        return self._compute(e, omega, z)
+        self._compute(e, omega, z)
