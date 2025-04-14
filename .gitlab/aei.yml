@@ -70,6 +70,8 @@ conda-test:
     reports:
       junit: .temp-tests/**/junit.xml
 
+    expire_in: 1 month
+
 conda-docs:
   <<: *conda_build_default
   stage: docs
@@ -118,6 +120,8 @@ conda-docs:
       - .tox/**/junit-*.xml
     reports:
       junit: .tox/**/junit-*.xml
+
+    expire_in: 1 month
 
 .build_package_default_cmds: &build_package_default_cmds
   - |
@@ -183,3 +187,5 @@ tox-docs:
   artifacts:
     paths:
       - ./html/
+
+    expire_in: 1 month
