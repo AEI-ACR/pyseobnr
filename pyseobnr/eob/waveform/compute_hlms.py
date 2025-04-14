@@ -205,7 +205,7 @@ def compute_IMR_modes(
 
     # The time spacing. This assumes that we have already
     # interpolated the modes to equal spacing
-    dt = np.diff(t)[0]
+    dt = t[1] - t[0]
     # N = int(10 / dt) + 1
 
     # Figure out the duration of the ringdown. Taken to be 30
@@ -252,7 +252,7 @@ def compute_IMR_modes(
 
     # Placeholder for the IMR modes. Note that by construction
     # this is longer than is needed for the (5,5) mode, since idx_55<idx
-    h = np.zeros(idx + 1 + int(ringdown_time // dt) + 10, dtype=np.complex128)
+    n_samples = idx + 1 + int(ringdown_time // dt) + 10
     N_interp = 5
     for ell_m, mode in hlms_for_compute.items():
         if ell_m == (5, 5):
@@ -323,9 +323,13 @@ def compute_IMR_modes(
         )
 
         # Construct the full IMR waveform
-        hIMR[(ell, m)] = 1 * h
-        hIMR[(ell, m)][: idx_end + 1] = hlms[(ell, m)][: idx_end + 1]
-        hIMR[(ell, m)][idx_end + 1 : idx_end + 1 + len(hring)] = hring[:]
+        hIMR[(ell, m)] = np.concatenate(
+            (
+                hlms[(ell, m)][: idx_end + 1],
+                hring,
+                np.zeros(n_samples - (idx_end + len(hring)), dtype=np.complex128),
+            )
+        )
 
     idx_end = idx
 
@@ -354,9 +358,13 @@ def compute_IMR_modes(
             dtau_dict=dtau_dict,
         )
         # Construct the full IMR waveform
-        hIMR[(ell, m)] = 1 * h
-        hIMR[(ell, m)][: idx_end + 1] = hlms[(ell, m)][: idx_end + 1]
-        hIMR[(ell, m)][idx_end + 1 : idx_end + 1 + len(hring)] = hring[:]
+        hIMR[(ell, m)] = np.concatenate(
+            (
+                hlms[(ell, m)][: idx_end + 1],
+                hring,
+                np.zeros(n_samples - (idx_end + len(hring)), dtype=np.complex128),
+            )
+        )
 
     t_IMR = np.arange(len(hIMR[(2, 2)])) * dt
 
