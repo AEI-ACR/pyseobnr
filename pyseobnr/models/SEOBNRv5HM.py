@@ -893,7 +893,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             result[f"{key[0]},{key[1]}"] = 1 * w.data[:, w.index(key[0], key[1])]
         return result
 
-    def _add_negative_m_modes(self, waveform_modes, fac=1):
+    def _add_negative_m_modes(self, waveform_modes: dict[tuple[int, int], Any], fac=1):
         """Add the negative m modes using the usual
 
         Note:
@@ -923,6 +923,18 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     result[:, i] = waveform_modes[(ell, m)]
                 i += 1
         return result
+
+    def _compute_full_rotation(
+        self, qt: np.ndarray, quat_i2j: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        q_tot = (
+            qt.conj()  # qJ2P
+            * np.conjugate(quat_i2j)
+            * quaternion.from_euler_angles(  # qI02I
+                self.settings["phiref"], self.settings["inclination"], 0.0
+            )
+        )
+        return quaternion.as_euler_angles(q_tot).T
 
     def _evaluate_model(self):
         try:
@@ -1633,14 +1645,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 self.success = True
             else:
                 # Construct full rotation
-                qJ2P = qt.conj()
-                qI02I = quaternion.from_euler_angles(
-                    self.settings["phiref"], self.settings["inclination"], 0.0
-                )
-
-                qTot = qJ2P * np.conjugate(quatI2J) * qI02I
-
-                alphaTot, betaTot, gammaTot = quaternion.as_euler_angles(qTot).T
+                alphaTot, betaTot, gammaTot = self._compute_full_rotation(qt, quatI2J)
 
                 sYlm = custom_swsh(betaTot, alphaTot, self.max_ell_returned)
                 # Construct polarizations
