@@ -356,8 +356,8 @@ def test_hamiltonian_calls_precessing(eob_params):
                 "m_2",
                 "chi_1",
                 "chi_2",
-                "chiL1",
-                "chiL2",
+                "chi_L1",
+                "chi_L2",
             ),
             call_args,
         )
@@ -374,11 +374,11 @@ def test_hamiltonian_calls_precessing(eob_params):
             "q",
             "p",
             "chi_1",
-            "chiL2",
+            "chi_L2",
             "chi2_v",
             "m_1",
             "chi_2",
-            "chiL1",
+            "chi_L1",
             "m_2",
         )
     }
@@ -511,7 +511,7 @@ def test_hamiltonian_precessing_csi_gt(hamiltonian_precessing):
         -0.16629132,
     )
 
-    csi = 0.0
+    csi = 0.44541165678127637
     assert abs(hamiltonian_precessing.csi(*call_args) - csi) < 1e-10, (
         hamiltonian_precessing.csi(*call_args),
         csi,

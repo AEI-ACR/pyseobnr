@@ -8,7 +8,8 @@ cimport cython
 import numpy as np
 from libc.math cimport sqrt, fabs
 
-from ..utils.containers cimport EOBParams
+
+from ..utils.containers cimport EOBParams, qp_param_t
 from ..hamiltonian.Hamiltonian_C cimport (
     Hamiltonian_C,
     Hamiltonian_C_auxderivs_return_t,
@@ -40,8 +41,8 @@ cpdef double pr_eqn(
     double m_1,
     double m_2,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
 ):
     """
     Compute the value of pr at odd PA orders.
@@ -59,7 +60,6 @@ cpdef double pr_eqn(
     cdef Hamiltonian_C_auxderivs_return_t aux_derivs = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
     cdef double dQdprst = aux_derivs[5]
 
-    # H_val,xi,A,Bnp,Bnpa,Q,Heven,Hodd = H._call(q,p,chi_1,chi_2,m_1,m_2)
     cdef Hamiltonian_C_call_return_t ret = H._call(q, p, chi_1, chi_2, m_1, m_2)
     omega = H.omega(q, p, chi_1, chi_2, m_1, m_2)
 
@@ -88,8 +88,8 @@ cpdef compute_pr(
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     EOBParams params=None,
 ):
     """
@@ -137,8 +137,8 @@ cpdef double pphi_eqn(
     double m_1,
     double m_2,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
 ):
     """
     Compute value of pphi at a given radial grid point.
@@ -169,7 +169,6 @@ cpdef double pphi_eqn(
         double Bnpa
         double Q
         double Heven
-        # double Hodd
         double H_val
 
     cdef Hamiltonian_C_auxderivs_return_t aux_derivs = H.auxderivs(q, p, chi_1, chi_2, m_1, m_2)
@@ -182,7 +181,6 @@ cpdef double pphi_eqn(
     dQdprst = aux_derivs[5]
     dHodddr = aux_derivs[6]
 
-    # H_val,xi,A,Bnp,Bnpa,Q,Heven,Hodd = H._call(q, p, chi_1, chi_2, m_1, m_2)
     cdef Hamiltonian_C_call_return_t ret = H._call(q, p, chi_1, chi_2, m_1, m_2)
     omega = H.omega(q, p, chi_1, chi_2, m_1, m_2)
 
@@ -193,7 +191,6 @@ cpdef double pphi_eqn(
     Bnpa = ret[4]
     Q = ret[5]
     Heven = ret[6]
-    # Hodd = ret[7]
 
     params.dynamics.p_circ[1] = pphi_sol
     omega_circ = H.omega(q, params.dynamics.p_circ, chi_1, chi_2, m_1, m_2)
@@ -240,8 +237,8 @@ cpdef compute_pphi(
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     EOBParams params=None
 ):
     """
@@ -281,8 +278,8 @@ cpdef compute_postadiabatic_solution(
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     int order=8,
     EOBParams params=None,
@@ -292,7 +289,7 @@ cpdef compute_postadiabatic_solution(
     of pr and pphi iteratively up to the given PA order.
     """
     pr = np.zeros(r.size)
-    cdef int n
+    cdef int n, parity
 
     for n in range(1, order+1):
         parity = n % 2
@@ -385,8 +382,11 @@ cpdef compute_postadiabatic_dynamics(
         r_size = 10
 
     r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
-    cdef double[::1] q = np.zeros(2)
-    cdef double[::1] p = np.zeros(2)
+
+    cdef:
+        qp_param_t q = (0, 0)
+        qp_param_t p = (0, 0)
+
     pphi = compute_adiabatic_solution(r, H, chi_1, chi_2, m_1, m_2, q, p, tol=tol)
 
     pr, pphi = compute_postadiabatic_solution(

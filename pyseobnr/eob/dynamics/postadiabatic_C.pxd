@@ -1,6 +1,7 @@
 # cython: language_level=3
 
-from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
+from ..utils.containers cimport qp_param_t
+from ..hamiltonian.Hamiltonian_C cimport Hamiltonian_C
 
 cpdef fin_diff_derivative(
     x: np.array,
@@ -28,7 +29,7 @@ cpdef compute_adiabatic_solution(
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=?,
 )

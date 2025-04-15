@@ -1,8 +1,5 @@
 # cython: language_level=3
 
-from pyseobnr.eob.utils.containers cimport EOBParams
-
-
 cdef class Hamiltonian_C:
     def __cinit__(self, EOBParams eob_params not None):
         self.EOBpars = eob_params
@@ -25,8 +22,8 @@ cdef class Hamiltonian_C:
 
     cpdef Hamiltonian_C_call_return_t _call(
         self,
-        double[:] q,
-        double[:] p,
+        qp_param_t q,
+        qp_param_t p,
         double chi_1,
         double chi_2,
         double m_1,
@@ -36,8 +33,8 @@ cdef class Hamiltonian_C:
 
     cpdef Hamiltonian_C_grad_return_t grad(
         self,
-        double[:] q,
-        double[:] p,
+        qp_param_t q,
+        qp_param_t p,
         double chi_1,
         double chi_2,
         double m_1,
@@ -47,8 +44,8 @@ cdef class Hamiltonian_C:
 
     cpdef hessian(
         self,
-        double[:] q,
-        double[:] p,
+        qp_param_t q,
+        qp_param_t p,
         double chi_1,
         double chi_2,
         double m_1,
@@ -58,8 +55,8 @@ cdef class Hamiltonian_C:
 
     cpdef double csi(
         self,
-        double[:] q,
-        double[:] p,
+        qp_param_t q,
+        qp_param_t p,
         double chi_1,
         double chi_2,
         double m_1,
@@ -69,8 +66,8 @@ cdef class Hamiltonian_C:
 
     cpdef Hamiltonian_C_dynamics_return_t dynamics(
         self,
-        double[:] q,
-        double[:] p,
+        qp_param_t q,
+        qp_param_t p,
         double chi_1,
         double chi_2,
         double m_1,
@@ -80,8 +77,8 @@ cdef class Hamiltonian_C:
 
     cpdef double omega(
         self,
-        double[:] q,
-        double[:] p,
+        qp_param_t q,
+        qp_param_t p,
         double chi_1,
         double chi_2,
         double m_1,
@@ -91,8 +88,8 @@ cdef class Hamiltonian_C:
 
     cpdef Hamiltonian_C_auxderivs_return_t auxderivs(
         self,
-        double[:] q,
-        double[:] p,
+        qp_param_t q,
+        qp_param_t p,
         double chi_1,
         double chi_2,
         double m_1,

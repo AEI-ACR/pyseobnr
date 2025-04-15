@@ -1,6 +1,6 @@
 # cython: language_level=3
 
-from pyseobnr.eob.utils.containers cimport EOBParams, CalibCoeffs
+from ..utils.containers cimport EOBParams, CalibCoeffs, qp_param_t, chiv_param_t
 
 # note: we need those types to be declared and named, so that we can use them in children classes
 # and return variables. Using just the tuple definition does not seem to work well. See
@@ -35,10 +35,10 @@ cdef class Hamiltonian_v5PHM_C:
 
     cpdef Hamiltonian_v5PHM_C_call_result_t _call(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
@@ -48,10 +48,10 @@ cdef class Hamiltonian_v5PHM_C:
 
     cpdef Hamiltonian_v5PHM_C_grad_result_t grad(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
@@ -61,10 +61,10 @@ cdef class Hamiltonian_v5PHM_C:
 
     cpdef hessian(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
@@ -74,10 +74,10 @@ cdef class Hamiltonian_v5PHM_C:
 
     cpdef double csi(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
@@ -87,10 +87,10 @@ cdef class Hamiltonian_v5PHM_C:
 
     cpdef Hamiltonian_v5PHM_C_dynamics_result_t dynamics(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
@@ -100,10 +100,10 @@ cdef class Hamiltonian_v5PHM_C:
 
     cpdef double omega(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
@@ -113,10 +113,10 @@ cdef class Hamiltonian_v5PHM_C:
 
     cpdef Hamiltonian_v5PHM_C_auxderivs_result_t auxderivs(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,

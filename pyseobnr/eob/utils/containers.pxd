@@ -3,6 +3,11 @@ cdef extern from "eob_parameters.h":
     int PN_limit
     int ell_max
 
+# Generic type for either q or p
+ctypedef (double, double) qp_param_t
+
+# Generic type for a 3 dimensional vector
+ctypedef (double, double, double) chiv_param_t
 
 cdef class PhysicalParams:
     cdef public:
@@ -26,8 +31,8 @@ cdef class PhysicalParams:
         double a2
         double H_val
 
-        double[:] chi1_v
-        double[:] chi2_v
+        chiv_param_t chi1_v
+        chiv_param_t chi2_v
         double[:] lN
 
         double omega
@@ -38,6 +43,8 @@ cdef class PhysicalParams:
 
 
 cdef class CalibCoeffs:
+
+    # Parameters involved in the calibration
     cdef public:
         double a6
         double dSO
@@ -45,7 +52,7 @@ cdef class CalibCoeffs:
 
 
 cdef class Dynamics:
-    cdef public double[:] p_circ
+    cdef public qp_param_t p_circ
 
 cdef class FluxParams:
     # Coefficients entering the amplitude residual

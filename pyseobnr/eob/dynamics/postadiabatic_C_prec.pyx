@@ -7,6 +7,7 @@ Contains the functions needed for computing the precessing post-adiabatic dynami
 cimport cython
 
 import numpy as np
+cimport numpy as cnp
 import quaternion
 
 from libc.math cimport abs, fabs, sqrt
@@ -22,7 +23,7 @@ from ..hamiltonian.Hamiltonian_v5PHM_C cimport (
     Hamiltonian_v5PHM_C_auxderivs_result_t,
     Hamiltonian_v5PHM_C_call_result_t
 )
-from ..utils.containers cimport EOBParams
+from ..utils.containers cimport EOBParams, qp_param_t, chiv_param_t
 from ..utils.math_ops_opt import my_norm
 from ..utils.nr_utils import (
     bbh_final_spin_non_precessing_HBR2016,
@@ -126,8 +127,8 @@ cpdef double j0_eqn(
     double j0_sol,
     double r,
     Hamiltonian_v5PHM_C H,
-    double[:] chi1_v,
-    double[:] chi2_v,
+    chiv_param_t chi1_v,
+    chiv_param_t chi2_v,
     double m_1,
     double m_2,
     double chi1_LN,
@@ -135,8 +136,8 @@ cpdef double j0_eqn(
     double chi1_L,
     double chi2_L,
     EOBParams params,
-    double[:] q,
-    double[:] p,
+    qp_param_t q,
+    qp_param_t p,
 ):
     """
     Equation dH_dr =0 evaluated at prstar=0 used to obtain the adiabatic solution
@@ -156,8 +157,8 @@ cpdef double j0_eqn(
         chi1_L (double): Projection of the primary dimensionless spin onto Lhat
         chi2_L (double): Projection of the secondary dimensionless spin onto Lhat
         params (EOBParams): Container with useful EOB parameters
-        q (double[:]): Position q=[r,phi]
-        p (double[:]): Canonical momentum p=[pr,pphi]
+        q (tuple[double, double]): Position q=[r,phi]
+        p (tuple[double, double]): Canonical momentum p=[pr,pphi]
 
     Returns:
         (double) Value of the orbital angular momemtum (pphi)
@@ -197,8 +198,8 @@ cpdef compute_adiabatic_solution(
     dict splines,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     EOBParams params,
     double tol=1e-12,
 ):
@@ -212,9 +213,9 @@ cpdef compute_adiabatic_solution(
         splines (dict): Dictionary containing the interpolated spin-precessing evolution
         m_1 (double): Mass of the primary
         m_2 (double): Mass of the secondary
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in
             the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
             updated in the root finding routine.
         params (EOBParams): Container with useful EOB parameters
         tol (double): Tolerance for the find root
@@ -246,14 +247,15 @@ cpdef compute_adiabatic_solution(
                 "problem PA dynamics is extrapolating: omega "
                 f"={omega[i]}< 0.9*omega_start {omega_start}"
             )
+
         j0_solution = optimize.root(
             j0_eqn,
             j0[i],
             args=(
                 r[i],
                 H,
-                chi1_v[i],
-                chi2_v[i],
+                (chi1_v[i, 0], chi1_v[i, 1], chi1_v[i, 2]),
+                (chi2_v[i, 0], chi2_v[i, 1], chi2_v[i, 2]),
                 chi1_LN[i],
                 chi2_LN[i],
                 chi1_L[i],
@@ -283,8 +285,8 @@ cpdef double pr_eqn(
     double dpphi_dr,
     Hamiltonian_v5PHM_C H,
     RadiationReactionForce RR,
-    chi1_v,
-    chi2_v,
+    chiv_param_t chi1_v,
+    chiv_param_t chi2_v,
     double chi1_LN,
     double chi2_LN,
     double chi1_L,
@@ -293,8 +295,8 @@ cpdef double pr_eqn(
     double m_2,
     double omega_start,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
 ):
     """
     Equation dpphi_dr * dH_dpr * csi - flux[1] = 0, where flux[1] is the azimuthal
@@ -309,8 +311,8 @@ cpdef double pr_eqn(
         dpphi_dr (double): Radial derivative of the orbital angular momentum
         H (Hamiltonian_v5PHM_C): Hamiltonian
         RR (RadiationReactionForce): Radiation Reaction Force
-        chi1_v : Primary dimensionless spin vector
-        chi2_v : Secondary dimensionless spin vector
+        chi1_v (tuple[double, double, double]): Primary dimensionless spin vector
+        chi2_v (tuple[double, double, double]): Secondary dimensionless spin vector
         chi1_LN (double): Projection of the primary dimensionless spin onto LNhat
         chi2_LN (double): Projection of the secondary dimensionless spin onto LNhat
         chi1_L (double): Projection of the primary dimensionless spin onto Lhat
@@ -319,9 +321,9 @@ cpdef double pr_eqn(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in
             the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
             updated in the root finding routine.
 
     Returns:
@@ -401,8 +403,8 @@ cpdef double pr_eqn_analytic(
     double dpphi_dr,
     Hamiltonian_v5PHM_C H,
     RadiationReactionForce RR,
-    chi1_v,
-    chi2_v,
+    chiv_param_t chi1_v,
+    chiv_param_t chi2_v,
     double chi1_LN,
     double chi2_LN,
     double chi1_L,
@@ -411,8 +413,8 @@ cpdef double pr_eqn_analytic(
     double m_2,
     double omega_start,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
 ):
     """
     Equation dpphi_dr * dH_dpr * csi - flux[1] = 0, where flux[1] is the azimuthal
@@ -429,8 +431,8 @@ cpdef double pr_eqn_analytic(
         dpphi_dr (double): Radial derivative of the orbital angular momentum
         H (Hamiltonian_v5PHM_C): Hamiltonian
         RR (RadiationReactionForce): Radiation Reaction Force
-        chi1_v : Primary dimensionless spin vector
-        chi2_v : Secondary dimensionless spin vector
+        chi1_v (tuple[double, double, double]): Primary dimensionless spin vector
+        chi2_v (tuple[double, double, double]): Secondary dimensionless spin vector
         chi1_LN (double): Projection of the primary dimensionless spin onto LNhat
         chi2_LN (double): Projection of the secondary dimensionless spin onto LNhat
         chi1_L (double): Projection of the primary dimensionless spin onto Lhat
@@ -439,9 +441,9 @@ cpdef double pr_eqn_analytic(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in
             the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
             updated in the root finding routine.
 
     Returns:
@@ -465,7 +467,6 @@ cpdef double pr_eqn_analytic(
 
     cdef double A, Bnp, Heven, H_val
     cdef double xi, omega, omega_circ
-    # cdef double dAdr, dBnpdr, dBnpadr, dxidr, dQdr, dQdprst, dHodddr, dBpdr
 
     cdef Hamiltonian_v5PHM_C_auxderivs_result_t aux_derivs = H.auxderivs(
         q,
@@ -480,15 +481,7 @@ cpdef double pr_eqn_analytic(
         chi2_L,
     )
 
-    # dAdr = aux_derivs[0]
-    # dBnpdr = aux_derivs[1]
-    # dBnpadr = aux_derivs[2]
-    # dxidr = aux_derivs[3]
-    # dQdr = aux_derivs[4]
     cdef double dQdprst = aux_derivs[5]
-    # dHodddr = aux_derivs[6]
-    # dBpdr = aux_derivs[7]
-    # dHevendr = aux_derivs[8]
 
     cdef Hamiltonian_v5PHM_C_call_result_t ret = H._call(
         q,
@@ -507,11 +500,7 @@ cpdef double pr_eqn_analytic(
     xi = ret[1]
     A = ret[2]
     Bnp = ret[3]
-    # Bnpa = ret[4]
-    # Q = ret[5]
     Heven = ret[6]
-    # Hodd = ret[7]
-    # Bp = ret[8]
 
     omega = H.omega(
         q,
@@ -570,8 +559,8 @@ cpdef compute_pr(
     double m_1,
     double m_2,
     double omega_start,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     str postadiabatic_type="analytic",
     EOBParams params=None,
@@ -586,18 +575,19 @@ cpdef compute_pr(
 
     Args:
         r (double[:]): Radial grid on which to compute prstar.
-        pr (double[:]): Prstar values of the previous postadiabatic order.
-        pphi (double[:]): Pphi values of the previous postadiabatic order.
-        omega (double[:]): Orbital frequency values of the previous postadiabatic order.
+        pr (np.ndarray): Prstar values of the previous postadiabatic order (array of dimension 1).
+        pphi (np.ndarray): Pphi values of the previous postadiabatic order (array of dimension 1).
+        omega (np.ndarray): Orbital frequency values of the previous postadiabatic order (array of
+            dimension 1).
         H (Hamiltonian_v5PHM_C): Hamiltonian.
         RR (RadiationReactionForce): Radiation Reaction Force.
         splines (dict): Dictionary containing the interpolated spin-precessing evolution.
         m_1 (double): Mass of the primary.
         m_2 (double): Mass of the secondary.
         omega_start (double): Initial orbital frequency.
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the
+        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in the
             root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated
+        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated
             in the root finding routine.
         tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
             is used.
@@ -639,8 +629,8 @@ cpdef compute_pr(
                 dpphi_dr[i],
                 H,
                 RR,
-                chi1_v[i],
-                chi2_v[i],
+                (chi1_v[i, 0], chi1_v[i, 1], chi1_v[i, 2]),
+                (chi2_v[i, 0], chi2_v[i, 1], chi2_v[i, 2]),
                 chi1_LN[i],
                 chi2_LN[i],
                 chi1_L[i],
@@ -662,8 +652,8 @@ cpdef compute_pr(
                     dpphi_dr[i],
                     H,
                     RR,
-                    chi1_v[i],
-                    chi2_v[i],
+                    (chi1_v[i, 0], chi1_v[i, 1], chi1_v[i, 2]),
+                    (chi2_v[i, 0], chi2_v[i, 1], chi2_v[i, 2]),
                     chi1_LN[i],
                     chi2_LN[i],
                     chi1_L[i],
@@ -704,8 +694,8 @@ cpdef double pphi_eqn(
     double dpr_dr,
     Hamiltonian_v5PHM_C H,
     RadiationReactionForce RR,
-    chi1_v,
-    chi2_v,
+    chiv_param_t chi1_v,
+    chiv_param_t chi2_v,
     double chi1_LN,
     double chi2_LN,
     double chi1_L,
@@ -714,8 +704,8 @@ cpdef double pphi_eqn(
     double m_2,
     double omega_start,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
 ):
     """
     Equation dpr_dr * dH_dpr + dH_dr - flux[0] / csi, where flux[0] is the radial
@@ -729,8 +719,8 @@ cpdef double pphi_eqn(
         dpr_dr (double): Radial derivative of prstar
         H (Hamiltonian_v5PHM_C): Hamiltonian
         RR (RadiationReactionForce): Radiation Reaction Force
-        chi1_v : Primary dimensionless spin vector
-        chi2_v : Secondary dimensionless spin vector
+        chi1_v (tuple[double, double, double]): Primary dimensionless spin vector
+        chi2_v (tuple[double, double, double]): Secondary dimensionless spin vector
         chi1_LN (double): Projection of the primary dimensionless spin onto LNhat
         chi2_LN (double): Projection of the secondary dimensionless spin onto LNhat
         chi1_L (double): Projection of the primary dimensionless spin onto Lhat
@@ -739,9 +729,9 @@ cpdef double pphi_eqn(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated
+        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated
             in the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
             updated in the root finding routine.
 
     Returns:
@@ -833,8 +823,8 @@ cpdef double pphi_eqn_analytic(
     double dpr_dr,
     Hamiltonian_v5PHM_C H,
     RadiationReactionForce RR,
-    chi1_v,
-    chi2_v,
+    chiv_param_t chi1_v,
+    chiv_param_t chi2_v,
     double chi1_LN,
     double chi2_LN,
     double chi1_L,
@@ -843,8 +833,8 @@ cpdef double pphi_eqn_analytic(
     double m_2,
     double omega_start,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
   ):
     """
     Equation dpr_dr * dH_dpr + dH_dr - flux[0] / csi, where flux[0] is the radial
@@ -861,8 +851,8 @@ cpdef double pphi_eqn_analytic(
         dpr_dr (double): Radial derivative of prstar
         H (Hamiltonian_v5PHM_C): Hamiltonian
         RR (RadiationReactionForce): Radiation Reaction Force
-        chi1_v : Primary dimensionless spin vector
-        chi2_v : Secondary dimensionless spin vector
+        chi1_v (tuple[double, double, double]): Primary dimensionless spin vector
+        chi2_v (tuple[double, double, double]): Secondary dimensionless spin vector
         chi1_LN (double): Projection of the primary dimensionless spin onto LNhat
         chi2_LN (double): Projection of the secondary dimensionless spin onto LNhat
         chi1_L (double): Projection of the primary dimensionless spin onto Lhat
@@ -871,9 +861,9 @@ cpdef double pphi_eqn_analytic(
         m_2 (double): Mass of the secondary
         omega_start (double): Initial orbital frequency
         params (EOBParams): Container with useful EOB parameters
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in
             the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
             updated in the root finding routine.
 
     Returns:
@@ -930,7 +920,6 @@ cpdef double pphi_eqn_analytic(
     dQdprst = aux_derivs[5]
     dHodddr = aux_derivs[6]
     dBpdr = aux_derivs[7]
-    # dHevendr = aux_derivs[8]
 
     cdef Hamiltonian_v5PHM_C_call_result_t ret = H._call(
         q,
@@ -952,7 +941,6 @@ cpdef double pphi_eqn_analytic(
     Bnpa = ret[4]
     Q = ret[5]
     Heven = ret[6]
-    # Hodd = ret[7]
     Bp = ret[8]
 
     omega = H.omega(
@@ -976,11 +964,16 @@ cpdef double pphi_eqn_analytic(
 
     params.dynamics.p_circ[1] = pphi_sol
     omega_circ = H.omega(
-        q, params.dynamics.p_circ,
-        chi1_v, chi2_v,
-        m_1, m_2,
-        chi1_LN, chi2_LN,
-        chi1_L, chi2_L,
+        q,
+        params.dynamics.p_circ,
+        chi1_v,
+        chi2_v,
+        m_1,
+        m_2,
+        chi1_LN,
+        chi2_LN,
+        chi1_L,
+        chi2_L,
     )
 
     params.p_params.omega_circ = omega_circ
@@ -1039,8 +1032,8 @@ cpdef compute_pphi(
     double m_1,
     double m_2,
     double omega_start,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     EOBParams params=None,
     str postadiabatic_type="analytic",
@@ -1055,18 +1048,19 @@ cpdef compute_pphi(
 
     Args:
         r (double[:]): Radial grid on which to compute prstar.
-        pr (double[:]): Prstar values of the previous postadiabatic order.
-        pphi (double[:]): Pphi values of the previous postadiabatic order.
-        omega (double[:]): Orbital frequency values of the previous postadiabatic order.
+        pr (np.ndarray): Prstar values of the previous postadiabatic order (array of dimension 1).
+        pphi (np.ndarray): Pphi values of the previous postadiabatic order (array of dimension 1).
+        omega (np.ndarray): Orbital frequency values of the previous postadiabatic order (array
+            of dimension 1).
         H (Hamiltonian_v5PHM_C): Hamiltonian.
         RR (RadiationReactionForce): Radiation Reaction Force.
         splines (dict): Dictionary containing the interpolated spin-precessing evolution.
         m_1 (double): Mass of the primary.
         m_2 (double): Mass of the secondary.
         omega_start (double): Initial orbital frequency.
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in the root
+        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in the root
             finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in
+        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are updated in
             the root finding routine.
         tol (double): Tolerance for the root finding routine in case postadiabatic_type="numeric"
             is used.
@@ -1100,8 +1094,8 @@ cpdef compute_pphi(
                 dpr_dr[i],
                 H,
                 RR,
-                chi1_v[i],
-                chi2_v[i],
+                (chi1_v[i, 0], chi1_v[i, 1], chi1_v[i, 2]),
+                (chi2_v[i, 0], chi2_v[i, 1], chi2_v[i, 2]),
                 chi1_LN[i],
                 chi2_LN[i],
                 chi1_L[i],
@@ -1123,8 +1117,8 @@ cpdef compute_pphi(
                     dpr_dr[i],
                     H,
                     RR,
-                    chi1_v[i],
-                    chi2_v[i],
+                    (chi1_v[i, 0], chi1_v[i, 1], chi1_v[i, 2]),
+                    (chi2_v[i, 0], chi2_v[i, 1], chi2_v[i, 2]),
                     chi1_LN[i],
                     chi2_LN[i],
                     chi1_L[i],
@@ -1155,8 +1149,8 @@ cpdef compute_postadiabatic_solution(
     splines,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     int order=8,
     str postadiabatic_type="analytic",
@@ -1170,16 +1164,16 @@ cpdef compute_postadiabatic_solution(
 
     Args:
         r (double[:]): Radial grid on which to compute postadiabatic solution.
-        pphi (double[:]): Pphi values computed from the adiabatic solution.
-        omega (double[:]): Orbital frequency values of the adiabatic solution.
+        pphi (np.ndarray): Pphi values computed from the adiabatic solution (array of dimension 1).
+        omega (np.ndarray): Orbital frequency values of the adiabatic solution (array of dimension 1).
         H (Hamiltonian_v5PHM_C): Hamiltonian.
         RR (RadiationReactionForce): Radiation Reaction Force.
         splines (dict): Dictionary containing the interpolated spin-precessing evolution.
         m_1 (double): Mass of the primary.
         m_2 (double): Mass of the secondary.
-        q (double[::1]): Position q=[r,phi]= np.zeros(2). These values are updated in
+        q (tuple[double, double]): Position q=[r,phi]= np.zeros(2). These values are updated in
             the root finding routine.
-        p (double[::1]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
+        p (tuple[double, double]): Canonical momentum p=[pr,pphi]=np.zeros(2). These values are
             updated in the root finding routine.
         tol (double): Tolerance for the root finding routine in case
             postadiabatic_type="numeric" is used.
@@ -1248,7 +1242,6 @@ cpdef compute_postadiabatic_solution(
 
         chi1_LN = tmp[:, 0]
         chi2_LN = tmp[:, 1]
-
         chi1_L = tmp[:, 2]
         chi2_L = tmp[:, 3]
 
@@ -1275,8 +1268,8 @@ cpdef compute_postadiabatic_solution(
             om = H.omega(
                 q,
                 p,
-                chi1_v[i],
-                chi2_v[i],
+                (chi1_v[i, 0], chi1_v[i, 1], chi1_v[i, 2]),
+                (chi2_v[i, 0], chi2_v[i, 1], chi2_v[i, 2]),
                 m_1,
                 m_2,
                 chi1_LN[i],
@@ -1289,6 +1282,8 @@ cpdef compute_postadiabatic_solution(
     return pr, pphi, omega
 
 
+@cython.wraparound(False)
+@cython.boundscheck(False)
 cpdef compute_postadiabatic_dynamics(
     double omega_ref,
     double omega_start,
@@ -1370,13 +1365,13 @@ cpdef compute_postadiabatic_dynamics(
 
     cdef double ap = chi1_LN * X1 + chi2_LN * X2
     cdef double am = chi1_LN * X1 - chi2_LN * X2
-    cdef double chi_perp_eff = np.linalg.norm(chi1_v*X1+chi2_v*X2-ap*LNhat)
+    cdef double chi_perp_eff = np.linalg.norm(np.array(chi1_v)*X1 + np.array(chi2_v)*X2 - ap*LNhat)
 
     cdef double dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
     H.calibration_coeffs.dSO = dSO_new
 
     cdef double r0
-    r0, _, _ =computeIC_augm(omega_start, H, RR, chi1_v, chi2_v, m_1, m_2, params=params)
+    r0, _, _ = computeIC_augm(omega_start, H, RR, chi1_v, chi2_v, m_1, m_2, params=params)
     cdef double chi_eff = ap
 
     r_ISCO, _ = Kerr_ISCO(chi1_LN, chi2_LN, X1, X2)
@@ -1392,7 +1387,7 @@ cpdef compute_postadiabatic_dynamics(
     cdef double r_range = r0 - r_final
 
     # Compute now the number of precessing cycles (only in the aligned-spin limit)
-    cdef double chi_in_plane = chi1_v[0]**2.+chi1_v[1]**2. + chi2_v[0]**2.+chi2_v[1]**2.
+    cdef double chi_in_plane = chi1_v[0]**2. + chi1_v[1]**2. + chi2_v[0]**2. + chi2_v[1]**2.
     cdef int r_size_new = 0
     # cdef double precessiong_cycles = 0.0
     cdef double dr0_new = 0.1
@@ -1439,8 +1434,9 @@ cpdef compute_postadiabatic_dynamics(
     omega = r**(-3./2)
 
     # Arrays for the position and canonical momentum
-    cdef double[::1] q = np.zeros(2)
-    cdef double[::1] p = np.zeros(2)
+    cdef:
+        qp_param_t q = (0, 0)
+        qp_param_t p = (0, 0)
 
     # Compute the adiabatic solution
     pphi = compute_adiabatic_solution(r, omega, H, splines, m_1, m_2, q, p, params, tol=tol,)
@@ -1481,7 +1477,7 @@ cpdef compute_postadiabatic_dynamics(
         )
 
         omega[i] = om
-        if omega[i]< 0.9*omega_start :
+        if omega[i] < 0.9*omega_start :
             print("WARNING PA DYNAMICS IS EXTRAPOLATING!")
 
     # Compute the PA solution
@@ -1502,17 +1498,19 @@ cpdef compute_postadiabatic_dynamics(
         params=params,
     )
 
-    dt_dr = np.zeros(r.shape[0])
-    dphi_dr = np.zeros(r.shape[0])
+    dt_dr = np.empty(r.shape[0])
+    dphi_dr = np.empty(r.shape[0])
     cdef double dH_dpr, dH_dpphi, csi
     cdef Hamiltonian_v5PHM_C_dynamics_result_t dyn
-    cdef double[::1] p_circ = np.zeros(2)
+    cdef qp_param_t p_circ = (0, 0)
 
-    dyn_augm = []
+    cdef cnp.ndarray[double, ndim=2, mode="c"] dyn_augm = np.empty((r.shape[0], 5))
 
     for i in range(r.shape[0]):
-        q = np.array([r[i], 0])
-        p = np.array([pr[i], pphi[i]])
+        q[0] = r[i]
+        q[1] = 0
+        p[0] = pr[i]
+        p[1] = pphi[i]
 
         tmp = splines["everything"](omega[i])
 
@@ -1543,7 +1541,11 @@ cpdef compute_postadiabatic_dynamics(
 
         p_circ[1] = p[1]
         omega_circ = H.omega(q, p_circ, chi1_v, chi2_v, m_1, m_2, chi1_LN, chi2_LN, chi1_L, chi2_L)
-        dyn_augm.append([H_val, omega[i], omega_circ, chi1_LN, chi2_LN])
+        dyn_augm[i, 0] = H_val
+        dyn_augm[i, 1] = dH_dpphi
+        dyn_augm[i, 2] = omega_circ
+        dyn_augm[i, 3] = chi1_LN
+        dyn_augm[i, 4] = chi2_LN
 
     # Compute integrals to obtain the time array and the orbital phase
     t = univariate_spline_integral(r, dt_dr)

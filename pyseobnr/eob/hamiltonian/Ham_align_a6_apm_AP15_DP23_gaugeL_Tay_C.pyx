@@ -7,20 +7,22 @@ import cython
 import numpy as np
 cimport numpy as np
 
-from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport (
+from libc.math cimport log, sqrt
+
+from ..utils.containers cimport qp_param_t
+from .Hamiltonian_C cimport (
   Hamiltonian_C,
   Hamiltonian_C_call_return_t,
   Hamiltonian_C_grad_return_t,
   Hamiltonian_C_dynamics_return_t,
   Hamiltonian_C_auxderivs_return_t
 )
-from libc.math cimport log, sqrt
 
 
 @cython.cpow(True)
 cpdef (double, double) evaluate_H(
-    double[:]q,
-    double[:]p,
+    qp_param_t q,
+    qp_param_t p,
     double chi_1,
     double chi_2,
     double m_1,
@@ -36,8 +38,8 @@ cpdef (double, double) evaluate_H(
     Evaluate the Hamiltonian and xi
 
     Args:
-      q (double[:]): Canonical positions (r,phi).
-      p (double[:]): Canonical momenta  (prstar,pphi).
+      q (tuple[double, double]): Canonical positions (r,phi).
+      p (tuple[double, double]): Canonical momenta (prstar,pphi).
       chi1 (double): Dimensionless z-spin of the primary.
       chi2 (double): Dimensionless z-spin of the secondary.
       m_1 (double): Primary mass component.
@@ -46,7 +48,7 @@ cpdef (double, double) evaluate_H(
       nu (double): Reduced mass ratio.
       X_1 (double): m_1/M
       X_2 (double): m_2/M
-      a6 (doubble): nonspinning calibration parameter
+      a6 (double): nonspinning calibration parameter
       dSO (double): spin-orbit calibration parameter
 
     Returns:
@@ -167,8 +169,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
     def __call__(
       self,
-      double[:] q,
-      double[:] p,
+      qp_param_t q,
+      qp_param_t p,
       double chi_1,
       double chi_2,
       double m_1,
@@ -193,8 +195,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
     cpdef Hamiltonian_C_call_return_t _call(
         self,
-        double[:] q,
-        double[:] p,
+        qp_param_t q,
+        qp_param_t p,
         double chi_1,
         double chi_2,
         double m_1,
@@ -202,12 +204,11 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         """
         Evaluate the aligned-spin SEOBNRv5HM Hamiltonian as well as several potentials.
-        See Sec. 1B and 1C of
-        https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5_theory.pdf
+        See Sec. 1B and 1C of [SEOBNRv5HM-notes]_.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
           chi1 (double): Dimensionless z-spin of the primary.
           chi2 (double): Dimensionless z-spin of the secondary.
           m_1 (double): Primary mass component.
@@ -322,14 +323,14 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double H = M * sqrt(1+2*nu*(Heff-1)) / nu
         return H,xi,A,Bnp,Bnpa,Qq,Heven,Hodd
 
-    cpdef Hamiltonian_C_grad_return_t grad(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+    cpdef Hamiltonian_C_grad_return_t grad(self, qp_param_t q,qp_param_t p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
         Compute the gradient of the Hamiltonian in polar coordinates.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
           chi1 (double): Dimensionless z-spin of the primary.
           chi2 (double): Dimensionless z-spin of the secondary.
           m_1 (double): Primary mass component.
@@ -572,14 +573,14 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         return dHdr, dHdphi, dHdpr, dHdpphi
 
-    cpdef hessian(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+    cpdef hessian(self, qp_param_t q,qp_param_t p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
         Evaluate the Hessian of the Hamiltonian.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
           chi1 (double): Dimensionless z-spin of the primary.
           chi2 (double): Dimensionless z-spin of the secondary.
           m_1 (double): Primary mass component.
@@ -1264,14 +1265,14 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         return np.array([d2Hdr2, d2Hdrdphi, d2Hdrdpr, d2Hdrdpphi, d2Hdrdphi, d2Hdphi2, d2Hdphidpr, d2Hdphidpphi, d2Hdrdpr, d2Hdphidpr, d2Hdpr2, d2Hdprdpphi, d2Hdrdpphi, d2Hdphidpphi, d2Hdprdpphi, d2Hdpphi2]).reshape(4, 4)
 
-    cdef double xi(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+    cdef double xi(self, qp_param_t q,qp_param_t p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
-        Compute the tortoise factor \\csi to convert between pr and prst.
+        Compute the tortoise factor :math:`\\xi` to convert between :math:`p_r` and :math:`p_{r_*}`.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
           chi1 (double): Dimensionless z-spin of the primary.
           chi2 (double): Dimensionless z-spin of the secondary.
           m_1 (double): Primary mass component.
@@ -1305,14 +1306,14 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         return xi
 
-    cpdef Hamiltonian_C_dynamics_return_t dynamics(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+    cpdef Hamiltonian_C_dynamics_return_t dynamics(self, qp_param_t q,qp_param_t p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
-        Compute the dynamics from the Hamiltonian,i.e., dHdr, dHdphi, dHdpr, dHdpphi,H and xi.
+        Compute the dynamics from the Hamiltonian: dHdr, dHdphi, dHdpr, dHdpphi, H and xi.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
           chi1 (double): Dimensionless z-spin of the primary.
           chi2 (double): Dimensionless z-spin of the secondary.
           m_1 (double): Primary mass component.
@@ -1555,14 +1556,14 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double  dHdpphi = M2 * dHeffdpphi / nuH
         return dHdr, dHdphi, dHdpr, dHdpphi,H,xi
 
-    cpdef double omega(self, double[:]q,double[:]p,double chi_1,double chi_2,double m_1,double m_2):
+    cpdef double omega(self, qp_param_t q,qp_param_t p,double chi_1,double chi_2,double m_1,double m_2):
 
         """
         Compute the orbital frequency from the Hamiltonian.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
           chi1 (double): Dimensionless z-spin of the primary.
           chi2 (double): Dimensionless z-spin of the secondary.
           m_1 (double): Primary mass component.
@@ -1673,8 +1674,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
     cpdef Hamiltonian_C_auxderivs_return_t auxderivs(
         self,
-        double[:] q,
-        double[:] p,
+        qp_param_t q,
+        qp_param_t p,
         double chi_1,
         double chi_2,
         double m_1,
@@ -1684,8 +1685,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         Compute derivatives of the potentials which are used in the post-adiabatic approximation.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
           chi1 (double): Dimensionless z-spin of the primary.
           chi2 (double): Dimensionless z-spin of the secondary.
           m_1 (double): Primary mass component.

@@ -20,7 +20,7 @@ from ..hamiltonian.Hamiltonian_C cimport (
     Hamiltonian_C_dynamics_return_t,
     Hamiltonian_C_grad_return_t,
 )
-from ..utils.containers cimport EOBParams
+from ..utils.containers cimport EOBParams, qp_param_t
 from ..waveform.waveform cimport RadiationReactionForce
 from ..utils.nr_utils import bbh_final_spin_non_precessing_HBR2016
 
@@ -218,8 +218,8 @@ cpdef double j0_eqn(
     double chi_2,
     double m_1,
     double m_2,
-    double[:] q,
-    double[:] p
+    qp_param_t q,
+    qp_param_t p
 ):
     q[0] = r
     p[1] = j0_sol
@@ -236,8 +236,8 @@ cpdef compute_adiabatic_solution(
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
 ):
     """
@@ -276,8 +276,8 @@ cpdef double pr_eqn(
     double m_1,
     double m_2,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
 ):
     """
     Evaluate the equation for odd-PA orders, corresponding to corrections to pr.
@@ -324,8 +324,8 @@ cpdef compute_pr(
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     EOBParams params=None,
 ):
@@ -394,8 +394,8 @@ cpdef double pphi_eqn(
     double m_1,
     double m_2,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
 ):
     """
     Evaluate the equation for even-PA orders, corresponding to corrections to pphi.
@@ -446,8 +446,8 @@ cpdef compute_pphi(
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     EOBParams params=None
 ):
@@ -503,8 +503,8 @@ cpdef compute_postadiabatic_solution(
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     int order=8,
     EOBParams params=None,
@@ -608,8 +608,10 @@ cpdef compute_postadiabatic_dynamics(
         r_size = 10
 
     r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
-    cdef double[::1] q = np.zeros(2)
-    cdef double[::1] p = np.zeros(2)
+    cdef:
+        qp_param_t q = (0, 0)
+        qp_param_t p = (0, 0)
+
     pphi = compute_adiabatic_solution(r, H, chi_1, chi_2, m_1, m_2, q, p, tol=tol,)
 
     pr, pphi = compute_postadiabatic_solution(
@@ -627,15 +629,23 @@ cpdef compute_postadiabatic_dynamics(
         order=order,
         params=params,
     )
+
     dt_dr = np.zeros(r.shape[0])
     dphi_dr = np.zeros(r.shape[0])
-    cdef int i
-    cdef double dH_dpr, dH_dpphi, csi
-    cdef Hamiltonian_C_dynamics_return_t dyn
+
+    cdef:
+        int i
+        double dH_dpr
+        double dH_dpphi
+        double csi
+        Hamiltonian_C_dynamics_return_t dyn
+
+    q[1] = 0
 
     for i in range(r.shape[0]):
-        q = np.array([r[i], 0])
-        p = np.array([pr[i], pphi[i]])
+        q[0] = r[i]
+        p[0] = pr[i]
+        p[1] = pphi[i]
 
         dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
         dH_dpr = dyn[2]
