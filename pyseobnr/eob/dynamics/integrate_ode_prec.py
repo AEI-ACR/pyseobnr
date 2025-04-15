@@ -168,8 +168,8 @@ def compute_dynamics_prec_opt(
     chi2_v_start = tmp[7:10]
 
     params.p_params.omega = omega_start
-    params.p_params.chi1_v[:] = chi1_v_start
-    params.p_params.chi2_v[:] = chi2_v_start
+    params.p_params.chi1_v = tuple(chi1_v_start)
+    params.p_params.chi2_v = tuple(chi2_v_start)
 
     params.p_params.chi_1, params.p_params.chi_2 = chi1_LN_start, chi2_LN_start
     params.p_params.chi1_L, params.p_params.chi2_L = chi1_L_start, chi2_L_start
@@ -345,8 +345,8 @@ def compute_dynamics_prec_opt(
         chi2_v = tmp[7:10]
         # tmp_LN = tmp[10:13]
 
-        params.p_params.chi1_v[:] = chi1_v
-        params.p_params.chi2_v[:] = chi2_v
+        params.p_params.chi1_v = tuple(chi1_v)
+        params.p_params.chi2_v = tuple(chi2_v)
         # params.p_params.lN[:] = tmp_LN#/my_norm(tmp_LN)
 
         ap = chi1_LN * X1 + chi2_LN * X2

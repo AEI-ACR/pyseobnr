@@ -1,4 +1,5 @@
-from pyseobnr.eob.utils.containers cimport EOBParams
+# cython: language_level=3
+
 
 cdef class Hamiltonian_v5PHM_C:
 
@@ -23,105 +24,105 @@ cdef class Hamiltonian_v5PHM_C:
 
     cpdef Hamiltonian_v5PHM_C_call_result_t _call(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
         double chi_2,
-        double chiL1,
-        double chiL2
+        double chi_L1,
+        double chi_L2
     ):
         pass
 
     cpdef Hamiltonian_v5PHM_C_grad_result_t grad(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
         double chi_2,
-        double chiL1,
-        double chiL2
+        double chi_L1,
+        double chi_L2
     ):
         pass
 
     cpdef hessian(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
         double chi_2,
-        double chiL1,
-        double chiL2
+        double chi_L1,
+        double chi_L2
     ):
         pass
 
     cpdef double csi(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
         double chi_2,
-        double chiL1,
-        double chiL2
+        double chi_L1,
+        double chi_L2
     ):
         pass
 
     cpdef Hamiltonian_v5PHM_C_dynamics_result_t dynamics(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
         double chi_2,
-        double chiL1,
-        double chiL2
+        double chi_L1,
+        double chi_L2
     ):
         pass
 
     cpdef double omega(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
         double chi_2,
-        double chiL1,
-        double chiL2
+        double chi_L1,
+        double chi_L2
     ):
         pass
 
     cpdef Hamiltonian_v5PHM_C_auxderivs_result_t auxderivs(
         self,
-        double[:] q,
-        double[:] p,
-        double[:] chi1_v,
-        double[:] chi2_v,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
         double m_1,
         double m_2,
         double chi_1,
         double chi_2,
-        double chiL1,
-        double chiL2
+        double chi_L1,
+        double chi_L2
     ):
         pass

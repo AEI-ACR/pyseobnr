@@ -324,8 +324,8 @@ def test_compute_rhs_aligned():
 
     for idx, row in enumerate(dyn_fine):
 
-        q = row[:2]
-        p = row[2:]
+        q = tuple(row[0:2])
+        p = tuple(row[2:4])
 
         dynamics = hamiltonian1.dynamics(
             q,
@@ -338,7 +338,7 @@ def test_compute_rhs_aligned():
 
         H_val = dynamics[4]
         omega = dynamics[3]
-        eob_params_call1.dynamics.p_circ[1] = p[1]
+        eob_params_call1.dynamics.p_circ = (eob_params_call1.dynamics.p_circ[0], p[1])
 
         omega_circ = hamiltonian1.omega(
             q,

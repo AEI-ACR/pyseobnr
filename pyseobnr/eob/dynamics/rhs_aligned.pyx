@@ -9,7 +9,7 @@ import cython
 import numpy as np
 cimport numpy as cnp
 
-from pyseobnr.eob.utils.containers cimport EOBParams
+from pyseobnr.eob.utils.containers cimport EOBParams, qp_param_t
 from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
 from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C, Hamiltonian_C_dynamics_return_t
 
@@ -43,9 +43,8 @@ cpdef (double, double, double, double) get_rhs(
 
     """
 
-    # memview slicing is ok in cython
-    cdef double[::1] q = z[0:2]
-    cdef double[::1] p = z[2:4]
+    cdef qp_param_t q = (z[0], z[1])
+    cdef qp_param_t p = (z[2], z[3])
 
     cdef Hamiltonian_C_dynamics_return_t dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
     cdef double H_val = dynamics[4]
@@ -81,17 +80,6 @@ cpdef augment_dynamics(
         double H_val
         double omega
         double omega_c
-        # const double[:] row
-
-        # those inputs should be compatible with the oe of the Hamiltonian calls
-        # otherwise we get a conversion overhead
-        double[2] p_c
-        double[2] q
-        double[2] p
-
-        double[::1] q_view
-        double[::1] p_view
-        double[::1] pc_view
 
     cdef Hamiltonian_C_dynamics_return_t dyn
 
@@ -101,19 +89,20 @@ cpdef augment_dynamics(
 
     cdef:
         const double* current_row_input
-        double* current_row_output
 
-    p_c[0] = 0
-    p_view = p
-    q_view = q
-    pc_view = p_c
+    cdef:
+        qp_param_t q = (0, 0)
+        qp_param_t p = (0, 0)
+        qp_param_t p_c = (0, 0)
 
-    result = np.empty((N, 3))
-    cdef double[:, ::1] result_view = result
+    cdef cnp.ndarray[
+        cnp.double_t,
+        ndim=2,
+        mode="c",
+        negative_indices=False] result = np.empty((N, 3))
 
     if dynamics.strides[0] != 1:
         for i in range(N):
-            # row = dynamics[i]
             q[0] = dynamics[i, 1]
             q[1] = dynamics[i, 2]
 
@@ -122,16 +111,15 @@ cpdef augment_dynamics(
             p_c[1] = p[1]
 
             # Evaluate a few things: H, omega, omega_circ
-            dyn = H.dynamics(q_view, p_view, chi_1, chi_2, m_1, m_2)
+            dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
             omega = dyn[3]
             H_val = dyn[4]
 
-            omega_c = H.omega(q_view, pc_view, chi_1, chi_2, m_1, m_2)
+            omega_c = H.omega(q, p_c, chi_1, chi_2, m_1, m_2)
 
-            current_row_output = &result_view[i][0]
-            current_row_output[0] = H_val
-            current_row_output[1] = omega
-            current_row_output[2] = omega_c
+            result[i, 0] = H_val
+            result[i, 1] = omega
+            result[i, 2] = omega_c
     else:
         for i in range(N):
             current_row_input = &dynamics[i][0]
@@ -143,16 +131,15 @@ cpdef augment_dynamics(
             p_c[1] = current_row_input[4]
 
             # Evaluate a few things: H, omega, omega_circ
-            dyn = H.dynamics(q_view, p_view, chi_1, chi_2, m_1, m_2)
+            dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
             omega = dyn[3]
             H_val = dyn[4]
 
-            omega_c = H.omega(q_view, pc_view, chi_1, chi_2, m_1, m_2)
+            omega_c = H.omega(q, p_c, chi_1, chi_2, m_1, m_2)
 
-            current_row_output = &result_view[i][0]
-            current_row_output[0] = H_val
-            current_row_output[1] = omega
-            current_row_output[2] = omega_c
+            result[i, 0] = H_val
+            result[i, 1] = omega
+            result[i, 2] = omega_c
 
     return np.c_[dynamics, result]
 
@@ -200,7 +187,10 @@ cpdef cnp.ndarray[cnp.double_t, ndim=2, mode="c", negative_indices=False] comput
 
     for i in range(N):
         # Only evaluate omega
-        dyn = H.dynamics(dynamics[i, 1:2], dynamics[i, 3:4], chi_1, chi_2, m_1, m_2)
+        dyn = H.dynamics(
+            (dynamics[i, 1], dynamics[i, 2]),
+            (dynamics[i, 3], dynamics[i, 4]),
+            chi_1, chi_2, m_1, m_2)
         result[i, 0] = dyn[4]  # H_val
         result[i, 1] = dyn[3]  # omega
 

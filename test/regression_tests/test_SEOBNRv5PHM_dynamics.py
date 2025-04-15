@@ -124,8 +124,8 @@ def test_compute_rhs_precessing():
 
     for idx, row in enumerate(dyn_fine):
 
-        q = row[:2]
-        p = row[2:]
+        q = tuple(row[0:2])
+        p = tuple(row[2:4])
 
         chi1_LN = eob_params_call1.p_params.chi_1
         chi2_LN = eob_params_call1.p_params.chi_2
@@ -147,7 +147,10 @@ def test_compute_rhs_precessing():
 
         H_val = dynamics[4]
         omega = dynamics[3]
-        eob_params_call1.dynamics.p_circ[1] = p[1]
+        eob_params_call1.dynamics.p_circ = (
+            eob_params_call1.dynamics.p_circ[0],
+            p[1],
+        )
 
         omega_circ = hamiltonian_prec.omega(
             q,
@@ -189,21 +192,3 @@ def test_compute_rhs_precessing():
                 eob_params_call1,
             ),
         )
-
-    import datetime
-
-    start = datetime.datetime.now()
-
-    row0 = dyn_fine[0, :4]
-    for i in range(100000):
-        _ = get_rhs_prec(
-            0,
-            row0,
-            hamiltonian_prec,
-            RR,
-            m_1,
-            m_2,
-            eob_params_call1,
-        )
-
-    print(((datetime.datetime.now() - start).total_seconds()) / i)
