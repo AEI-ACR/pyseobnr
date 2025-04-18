@@ -168,8 +168,8 @@ def compute_dynamics_prec_opt(
     chi2_v_start = tmp[7:10]
 
     params.p_params.omega = omega_start
-    params.p_params.chi1_v[:] = chi1_v_start
-    params.p_params.chi2_v[:] = chi2_v_start
+    params.p_params.chi1_v = tuple(chi1_v_start)
+    params.p_params.chi2_v = tuple(chi2_v_start)
 
     params.p_params.chi_1, params.p_params.chi_2 = chi1_LN_start, chi2_LN_start
     params.p_params.chi1_L, params.p_params.chi2_L = chi1_L_start, chi2_L_start
@@ -180,7 +180,7 @@ def compute_dynamics_prec_opt(
     am_start = chi1_LN_start * X1 - chi2_LN_start * X2
 
     dSO_start = dSO_poly_fit(params.p_params.nu, ap_start, am_start)
-    H.calibration_coeffs["dSO"] = dSO_start
+    H.calibration_coeffs.dSO = dSO_start
 
     # Step 3.2: compute the initial conditions - uses the aligned-spin ID
     if y_init is None:
@@ -345,8 +345,8 @@ def compute_dynamics_prec_opt(
         chi2_v = tmp[7:10]
         # tmp_LN = tmp[10:13]
 
-        params.p_params.chi1_v[:] = chi1_v
-        params.p_params.chi2_v[:] = chi2_v
+        params.p_params.chi1_v = tuple(chi1_v)
+        params.p_params.chi2_v = tuple(chi2_v)
         # params.p_params.lN[:] = tmp_LN#/my_norm(tmp_LN)
 
         ap = chi1_LN * X1 + chi2_LN * X2
@@ -358,7 +358,7 @@ def compute_dynamics_prec_opt(
             break
 
         dSO_new = dSO_poly_fit(params.p_params.nu, ap, am)
-        H.calibration_coeffs["dSO"] = dSO_new
+        H.calibration_coeffs.dSO = dSO_new
 
         params.p_params.chi_1 = chi1_LN
         params.p_params.chi_2 = chi2_LN
@@ -467,7 +467,7 @@ def compute_dynamics_prec_opt(
     dynamics = np.vstack((dynamics_low, dynamics_fine))
 
     # Return EOB dynamics, LN vectors,  PN stuff
-    return (dynamics_low, dynamics_fine, dynamics, idx_close)
+    return dynamics_low, dynamics_fine, dynamics, idx_close
 
 
 def transition_dynamics_v2(

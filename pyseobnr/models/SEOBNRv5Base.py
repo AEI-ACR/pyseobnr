@@ -22,6 +22,7 @@ class SEOBNRv5ModelBase:
         self.computed_modes = None
         self.mixed_modes = None
         self.prefixes = None
+        self.H = None
 
         self.rtol_ode = None
         self.atol_ode = None
@@ -127,6 +128,10 @@ class SEOBNRv5ModelBase:
         self.tol_PA = self.settings.get("tol_PA", 1e-11)
         self.rtol_ode = self.settings.get("rtol_ode", 1e-11)
         self.atol_ode = self.settings.get("atol_ode", 1e-12)
+
+        # points the hamiltonian's parameter to the current class parameters
+        if self.H is not None:
+            self.H.eob_params = self.eob_pars
 
 
 class SEOBNRv5ModelBaseWithpSEOBSupport(SEOBNRv5ModelBase):
