@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 ```
 
-# Using the _pyseobnr_ interface
+## Using the _pyseobnr_ interface
 
 The following demonstrates how to use the internal SEOBNRv5EHM waveform generator. It takes in parameters in geometric units and returns results in geometric units as well. It also gives access to things beyond the waveform modes, such as the dynamics.
 
@@ -337,12 +337,12 @@ For debugging purposes, other information is also provided, for example, one can
 model.nqc_coeffs
 ```
 
-# A note on conventions
+## A note on conventions
 The internal `SEOBNRv5EHM` generator uses the same conventions as in the `SEOBNRv5HM` model.
 
 +++
 
-# Generate modes and polarizations in physical units with LAL conventions
+## Generate modes and polarizations in physical units with LAL conventions
 
 The GenerateWaveform() class accepts a dictionary of parameters (example below) and from it, one can recover the gravitational modes dictionary with the right convention and physical scaling, the time-domain polarizations and the Fourier-domain polarizations
 
@@ -547,7 +547,7 @@ plt.grid(True)
 plt.show()
 ```
 
-# Using the `gwsignal` interface (new waveform interface)
+## Using the `gwsignal` interface (new waveform interface)
 Unlike the internal generator, the interface can accept a much wider variety of inputs both in SI and so-called 'cosmo' units (where say masses are in solar masses). This interface also returns the modes and polarizations in SI units and follows `LAL` conventions.
 
 ```{code-cell} ipython3

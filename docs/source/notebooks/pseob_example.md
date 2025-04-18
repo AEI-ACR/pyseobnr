@@ -12,10 +12,10 @@ kernelspec:
   name: python3
 ---
 
-## pSEOB example
+## pSEOBNRv5PHM: parametrized spin-precessing model example
 
-The notebook contains an example on how to use the parametrized model pSEOBNRv5HM \
-to generate a waveform with a GR deviation in the quasi-normal-mode damping time.
+The notebook contains an example on how to use the parametrized model pSEOBNRv5PHM \
+to generate a waveform with a GR deviation in the quasinormal-mode damping time.
 
 ```{code-cell} ipython3
 import warnings
@@ -49,7 +49,7 @@ f_max = 2048.0
 distance = 1000.0  # Mpc
 inclination = np.pi / 3.0
 phiRef = 0.0
-approximant = "SEOBNRv5HM"
+approximant = "SEOBNRv5PHM"
 ModeArray = [(2, 2), (3, 3)]
 
 dev = 0.3
@@ -89,7 +89,9 @@ params_GR = {
     "ModeArray": ModeArray,
 }
 
-# Add parametrized deviations to the parameter dictionary
+# Add parametrized deviations to the parameter dictionary.
+# See the documentation of GenerateWaveform for all possible
+# options of non-GR deviation parameters.
 params_dtau = deepcopy(params_GR)
 params_dtau["dtau_dict"] = deviation_dict
 ```
