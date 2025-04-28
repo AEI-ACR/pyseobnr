@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 IntegratorType = Literal["rk8pd", "rkf45"]
 
 
+@enum.unique
 class ColsEccDyn(enum.IntEnum):
     """
     Column indices for the dynamics of an eccentric system.

@@ -1,7 +1,7 @@
 # cython: language_level=3
 cimport cython
 
-from ..utils.containers cimport EOBParams
+from ..utils.containers cimport EOBParams, qp_param_t
 from ..dynamics.Keplerian_evolution_equations_flags cimport edot_zdot_xavg_flags
 from ..dynamics.secular_evolution_equations_flags cimport edot_zdot_xdot_flags
 from .modes_ecc_corr_NS_v5EHM_v1_flags._implementation cimport BaseModesCalculation
@@ -19,9 +19,9 @@ cdef class RadiationReactionForceEcc:
 
     cpdef (double, double) RR(
         self,
-        double[::1] q,
-        double[::1] p,
-        double[::1] Kep,
+        qp_param_t q,
+        qp_param_t p,
+        (double, double, double) Kep,
         double omega,
         double omega_circ,
         double H,
@@ -38,9 +38,9 @@ cdef class SEOBNRv5RRForceEcc(RadiationReactionForceEcc):
 
     cpdef (double, double) RR(
         self,
-        double[::1] q,
-        double[::1] p,
-        double[::1] Kep,
+        qp_param_t q,
+        qp_param_t p,
+        (double, double, double) Kep,
         double omega,
         double omega_circ,
         double H,
@@ -66,7 +66,7 @@ cdef double compute_flux_ecc(
     double pr,
     double pphi,
     double omega,
-    double[::1] Kep,
+    (double, double, double) Kep,
     double H,
     EOBParams eob_pars,
     hlm_ecc_corr_NS_v5EHM_v1_flags instance_hlm,

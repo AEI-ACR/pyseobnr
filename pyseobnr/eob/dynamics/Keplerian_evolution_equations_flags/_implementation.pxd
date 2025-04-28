@@ -178,3 +178,9 @@ cdef class edot_zdot_xavg_flags(BaseCoupledExpressionsCalculation):
     )
 
     cpdef double get(self, str radial_or_azimuthal)
+
+    cpdef void compute(self
+        , double e
+        , double omega
+        , double z
+    )

@@ -7,7 +7,7 @@ class Model(ABC):
     """
 
     def __init__(self) -> None:
-        pass
+        super().__init__()
 
     def __call__(self):
         """Evaluate the waveform model"""

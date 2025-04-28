@@ -8,17 +8,20 @@ Contains the functions needed for computing the post-adiabatic dynamics as well 
 cimport cython
 
 import numpy as np
+cimport numpy as cnp
 
-from libc.math cimport fabs
+from libc.math cimport fabs, ceil
 
 from pygsl_lite import errno, roots
 from scipy import optimize
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 from ..hamiltonian.Hamiltonian_C cimport (
-    Hamiltonian_C
+    Hamiltonian_C,
+    Hamiltonian_C_dynamics_return_t,
+    Hamiltonian_C_grad_return_t,
 )
-from ..utils.containers cimport EOBParams
+from ..utils.containers cimport EOBParams, qp_param_t
 from ..waveform.waveform cimport RadiationReactionForce
 from ..utils.nr_utils import bbh_final_spin_non_precessing_HBR2016
 
@@ -139,7 +142,7 @@ cdef double single_deriv(double[:] y, double h, double[:] coeffs):
 
 
 @cython.cdivision(True)
-cpdef fin_diff_derivative(
+cpdef cnp.ndarray[double, ndim=1, mode="c"] fin_diff_derivative(
     x: np.array,
     y: np.array,
     int n=8,
@@ -150,7 +153,7 @@ cpdef fin_diff_derivative(
     asymmetric stencils at the end points.
     """
 
-    dy_dx = np.zeros(x.size)
+    cdef cnp.ndarray[double, ndim=1, mode="c"] dy_dx = np.empty(x.size)
     cdef double h = fabs(x[1] - x[0])
     cdef int size = x.shape[0]
     cdef int i
@@ -216,26 +219,26 @@ cpdef double j0_eqn(
     double chi_2,
     double m_1,
     double m_2,
-    double[:] q,
-    double[:] p
+    qp_param_t q,
+    qp_param_t p
 ):
     q[0] = r
     p[1] = j0_sol
 
-    cdef double[4] dH_dq = H.grad(q, p, chi_1, chi_2, m_1, m_2)
+    cdef Hamiltonian_C_grad_return_t dH_dq = H.grad(q, p, chi_1, chi_2, m_1, m_2)
     cdef double dH_dr = dH_dq[0]
     return dH_dr
 
 
-cpdef compute_adiabatic_solution(
-    double[:] r,
+cpdef cnp.ndarray[double, ndim=1, mode="c"] compute_adiabatic_solution(
+    cnp.ndarray[double, ndim=1, mode="c"] r,
     Hamiltonian_C H,
     double chi_1,
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
 ):
     """
@@ -243,13 +246,21 @@ cpdef compute_adiabatic_solution(
     Corresponds to Eq.(2.5) of arXiv:2105.06983
     """
     cdef int i
-    cdef double[:] j0 = Newtonian_j0(r)
+    cdef cnp.ndarray[double, ndim=1, mode="c"] j0 = Newtonian_j0(r)
 
     for i in range(r.shape[0]):
         j0_solution = optimize.root(
             j0_eqn,
             j0[i],
-            args=(r[i], H, chi_1, chi_2, m_1, m_2, q, p),
+            args=(
+                r[i],
+                H,
+                chi_1,
+                chi_2,
+                m_1,
+                m_2,
+                q,
+                p),
             tol=tol,
         )
         j0[i] = j0_solution.x
@@ -274,8 +285,8 @@ cpdef double pr_eqn(
     double m_1,
     double m_2,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
 ):
     """
     Evaluate the equation for odd-PA orders, corresponding to corrections to pr.
@@ -291,8 +302,7 @@ cpdef double pr_eqn(
         double omega
         double omega_circ
         double result
-    cdef double[6] dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
-    # cdef (double,double,double,double)  dH_dx = dynamics[:4]
+    cdef Hamiltonian_C_dynamics_return_t dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
 
     dH_dpr = dynamics[2]
     H_val = dynamics[4]
@@ -314,17 +324,17 @@ cpdef double pr_eqn_wrapper(pr_sol, args):
 
 
 cpdef compute_pr(
-    double[:] r,
-    double[:] pr,
-    double[:] pphi,
+    cnp.ndarray[double, ndim=1, mode="c"] r,
+    cnp.ndarray[double, ndim=1, mode="c"] pr,
+    cnp.ndarray[double, ndim=1, mode="c"] pphi,
     Hamiltonian_C H,
     RadiationReactionForce RR,
     double chi_1,
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     EOBParams params=None,
 ):
@@ -334,7 +344,7 @@ cpdef compute_pr(
     arXiv:2105.06983 at every radial grid point
     """
 
-    cdef double[:] dpphi_dr = -fin_diff_derivative(r, pphi)
+    cdef cnp.ndarray[double, ndim=1, mode="c"] dpphi_dr = -fin_diff_derivative(r, pphi)
 
     cdef int i, iter
     for i in range(r.shape[0]):
@@ -393,8 +403,8 @@ cpdef double pphi_eqn(
     double m_1,
     double m_2,
     EOBParams params,
-    double[::1] q,
-    double[::1] p
+    qp_param_t q,
+    qp_param_t p
 ):
     """
     Evaluate the equation for even-PA orders, corresponding to corrections to pphi.
@@ -413,8 +423,7 @@ cpdef double pphi_eqn(
     p[0] = pr
     p[1] = pphi_sol
 
-    cdef double[6] dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
-    # cdef (double,double,double,double) dH_dx = dynamics[:4]
+    cdef Hamiltonian_C_dynamics_return_t dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
     dH_dr = dynamics[0]
     dH_dpr = dynamics[2]
     H_val = dynamics[4]
@@ -437,17 +446,17 @@ cpdef double pphi_eqn_wrapper(pphi_sol, args):
 
 
 cpdef compute_pphi(
-    double[:] r,
-    double[:] pr,
-    double[:] pphi,
+    cnp.ndarray[double, ndim=1, mode="c"] r,
+    cnp.ndarray[double, ndim=1, mode="c"] pr,
+    cnp.ndarray[double, ndim=1, mode="c"] pphi,
     Hamiltonian_C H,
     RadiationReactionForce RR,
     double chi_1,
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     EOBParams params=None
 ):
@@ -495,16 +504,16 @@ cpdef compute_pphi(
 
 
 cpdef compute_postadiabatic_solution(
-    double[:] r,
-    double[:] pphi,
+    cnp.ndarray[double, ndim=1, mode="c"] r,
+    cnp.ndarray[double, ndim=1, mode="c"] pphi,
     Hamiltonian_C H,
     RadiationReactionForce RR,
     double chi_1,
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=1e-12,
     int order=8,
     EOBParams params=None,
@@ -512,14 +521,14 @@ cpdef compute_postadiabatic_solution(
     """
     Compute the postadiabatic solution iteratively
     """
-    pr = np.zeros(r.size)
-    cdef int n
+    cdef cnp.ndarray[double, ndim=1, mode="c"] pr = np.zeros(r.shape[0])
+    cdef int n, parity
     cdef double tol_current
     for n in range(1, order+1):
         tol_current = 1.0e-2/10.0**n
         parity = n % 2
         if n>=7:
-            tol_current=tol
+            tol_current = tol
         if parity:
             pr = compute_pr(
                 r,
@@ -582,7 +591,7 @@ cpdef compute_postadiabatic_dynamics(
     Returns:
         np.array: The dynamics results, as (t,q,p)
     """
-    cdef double r0
+    cdef double r0, r_ISCO
     r0, _, _ = computeIC(
         omega0,
         H,
@@ -600,17 +609,37 @@ cpdef compute_postadiabatic_dynamics(
     cdef double r_final = max(10.0, r_final_prefactor * r_ISCO)
 
     cdef double dr0 = 0.3
-    cdef int r_size = int(np.ceil((r0 - r_final) / dr0))
+    cdef int r_size = int(ceil((r0 - r_final) / dr0))
 
     if r_size <= 4 or r0<=11.5:
         raise ValueError
     elif r_size < 10:
         r_size = 10
 
-    r, _ = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=True)
-    cdef double[::1] q = np.zeros(2)
-    cdef double[::1] p = np.zeros(2)
-    pphi = compute_adiabatic_solution(r, H, chi_1, chi_2, m_1, m_2, q, p, tol=tol,)
+    cdef:
+        cnp.ndarray[double, ndim=1, mode="c"] r
+        cnp.ndarray[double, ndim=1, mode="c"] pr
+        cnp.ndarray[double, ndim=1, mode="c"] pphi
+        cnp.ndarray[double, ndim=1, mode="c"] dt_dr
+        cnp.ndarray[double, ndim=1, mode="c"] dphi_dr
+
+    r = np.linspace(r0, r_final, num=r_size, endpoint=True, retstep=False)
+
+    cdef:
+        qp_param_t q = (0, 0)
+        qp_param_t p = (0, 0)
+
+    pphi = compute_adiabatic_solution(
+        r,
+        H,
+        chi_1,
+        chi_2,
+        m_1,
+        m_2,
+        q,
+        p,
+        tol=tol
+    )
 
     pr, pphi = compute_postadiabatic_solution(
         r,
@@ -627,23 +656,29 @@ cpdef compute_postadiabatic_dynamics(
         order=order,
         params=params,
     )
+
     dt_dr = np.zeros(r.shape[0])
     dphi_dr = np.zeros(r.shape[0])
-    cdef int i
-    cdef double dH_dpr, dH_dpphi, csi
-    cdef double[6] dyn
+
+    cdef:
+        int i
+        double dH_dpr_times_csi
+        double dH_dpphi
+        Hamiltonian_C_dynamics_return_t dyn
+
+    q[1] = 0
 
     for i in range(r.shape[0]):
-        q = np.array([r[i], 0])
-        p = np.array([pr[i], pphi[i]])
+        q[0] = r[i]
+        p[0] = pr[i]
+        p[1] = pphi[i]
 
         dyn = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
-        dH_dpr = dyn[2]
+        dH_dpr_times_csi = dyn[2] * dyn[5]
         dH_dpphi = dyn[3]
 
-        csi = dyn[5]
-        dt_dr[i] = 1 / (dH_dpr * csi)
-        dphi_dr[i] = dH_dpphi / (dH_dpr * csi)
+        dt_dr[i] = 1 / dH_dpr_times_csi  # (dH_dpr * csi)
+        dphi_dr[i] = dH_dpphi / dH_dpr_times_csi  # (dH_dpr * csi)
 
     t = cumulative_integral(r, dt_dr)
 
@@ -680,6 +715,11 @@ cpdef compute_combined_dynamics(
     inspiral is too short), the code falls back to ODE
     integration.
     """
+    cdef:
+        cnp.ndarray[double, ndim=2] postadiabatic_dynamics
+        cnp.ndarray[double, ndim=2] ode_dynamics_low
+        cnp.ndarray[double, ndim=2] ode_dynamics_high
+
     try:
         postadiabatic_dynamics = compute_postadiabatic_dynamics(
             omega0,
@@ -828,7 +868,7 @@ def compute_adiabatic_parameter(
 
         omega[i] = dyn[-1]
 
-    domega_dr = fin_diff_derivative(dynamics[:, 1], omega)
+    cdef cnp.ndarray[double, ndim=1, mode="c"] domega_dr = fin_diff_derivative(dynamics[:, 1], omega)
 
     adiabatic_param = dr_dt * domega_dr / (2 * omega * omega)
 

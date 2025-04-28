@@ -3,7 +3,7 @@ from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
 
 
 cpdef augment_dynamics(
-    double[:, :] dynamics,
+    const double[:, :] dynamics,
     double chi_1,
     double chi_2,
     double m_1,

@@ -1,8 +1,11 @@
 # cython: language_level=3
 
-from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
+cimport numpy as cnp
 
-cpdef fin_diff_derivative(
+from ..utils.containers cimport qp_param_t
+from ..hamiltonian.Hamiltonian_C cimport Hamiltonian_C
+
+cpdef cnp.ndarray[double, ndim=1, mode="c"] fin_diff_derivative(
     x: np.array,
     y: np.array,
     int n=?,
@@ -21,14 +24,14 @@ cpdef Kerr_ISCO(
     double m2,
 )
 
-cpdef compute_adiabatic_solution(
-    double[:] r,
+cpdef cnp.ndarray[double, ndim=1, mode="c"] compute_adiabatic_solution(
+    cnp.ndarray[double, ndim=1, mode="c"] r,
     Hamiltonian_C H,
     double chi_1,
     double chi_2,
     double m_1,
     double m_2,
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double tol=?,
 )

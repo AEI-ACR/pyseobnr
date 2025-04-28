@@ -289,4 +289,10 @@ cdef class RRforce_ecc_corr_NS_v5EHM_v1_flags(BaseForcesCalculation):
         , double z=*
     )
 
+    cpdef void compute(self
+        , double e
+        , double x
+        , double z
+    )
+
     cpdef double get(self, str radial_or_azimuthal)

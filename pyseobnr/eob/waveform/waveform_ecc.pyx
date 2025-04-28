@@ -1,8 +1,10 @@
 # cython: language_level=3
+# cython: profile=False, linetrace=False, cpow=True
+
 
 import cython
 import numpy as np
-cimport numpy as np
+cimport numpy as cnp
 
 cimport libcpp.complex as ccomplex
 from libc.math cimport log, sqrt, fabs, tgamma
@@ -35,7 +37,7 @@ from .waveform cimport (
 )
 
 DTYPE = np.float64
-ctypedef np.float64_t DTYPE_T
+ctypedef cnp.float64_t DTYPE_T
 
 cdef complex I
 I.real = 0
@@ -161,9 +163,9 @@ cdef class RadiationReactionForceEcc:
 
     cpdef (double, double) RR(
         self,
-        double[::1] q,
-        double[::1] p,
-        double[::1] Kep,
+        qp_param_t q,
+        qp_param_t p,
+        (double, double, double) Kep,
         double omega,
         double omega_circ,
         double H,
@@ -269,9 +271,9 @@ cdef class SEOBNRv5RRForceEcc(RadiationReactionForceEcc):
 
     cpdef (double, double) RR(
         self,
-        double[::1] q,
-        double[::1] p,
-        double[::1] Kep,
+        qp_param_t q,
+        qp_param_t p,
+        (double, double, double) Kep,
         double omega,
         double omega_circ,
         double H,
@@ -313,12 +315,10 @@ cdef class SEOBNRv5RRForceEcc(RadiationReactionForceEcc):
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef (double, double) RR_force_ecc(
-    double[::1] q,
-    double[::1] p,
-    double[::1] Kep,
+    qp_param_t q,
+    qp_param_t p,
+    (double, double, double) Kep,
     double omega,
     double omega_circ,
     double H,
@@ -356,13 +356,7 @@ cpdef (double, double) RR_force_ecc(
     # x-parameter related to the orbit-average orbital frequency
     cdef double x = Kep[2]
 
-    cdef dict input_values = {
-      "e": e,
-      "x": x,
-      "z": z,
-    }
-
-    instance_forces.compute(**input_values)
+    instance_forces.compute(e=e, z=z, x=x)
 
     cdef double r = q[0]
     cdef double phi = q[1]
@@ -386,15 +380,13 @@ cpdef (double, double) RR_force_ecc(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cdef double compute_flux_ecc(
     double r,
     double phi,
     double pr,
     double pphi,
     double omega,
-    double[::1] Kep,
+    (double, double, double) Kep,
     double H,
     EOBParams eob_pars,
     hlm_ecc_corr_NS_v5EHM_v1_flags instance_hlm,
@@ -483,12 +475,7 @@ cdef double compute_flux_ecc(
     compute_rholm(v, vh, nu, eob_pars)
 
     # Updates all the modes at once in an efficient way
-    cdef dict input_values = {
-            "e": e,
-            "x": x,
-            "z": z,
-        }
-    instance_hlm.compute(**input_values)
+    instance_hlm.compute(e=e, z=z, x=x)
 
     for l in range(2, ell_max+1):
         for m in range(1, l+1):
@@ -516,8 +503,6 @@ cdef double compute_flux_ecc(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_hlms_ecc(
     double[:, :] dynamics,
     BaseModesCalculation modes_calculation,
@@ -546,17 +531,9 @@ cpdef compute_hlms_ecc(
     cdef bint extra_PN_terms = eob_pars.flux_params.extra_PN_terms
 
     cdef double pphi, v, H, vh, phi
-    cdef double[:] row
-    cdef double[:] Kep
+    cdef (double, double, double) Kep = (0, 0, 0)
     cdef double vs[PN_limit]
     cdef double vhs[PN_limit]
-
-    # Modes
-    cdef dict modes = {
-        (ell_m[0], ell_m[1]): np.zeros(N, dtype=np.complex128)
-        for ell_m in eob_pars.mode_array
-    }
-    cdef double complex[:, :, :] temp_modes = np.zeros((ell_max, ell_max, N), dtype=np.complex128)
 
     # Source term
     cdef double Slm = 0.0
@@ -590,21 +567,36 @@ cpdef compute_hlms_ecc(
         extra_PN_terms)
     compute_delta_coeffs(nu, delta, a, chi_S, chi_A, delta_coeffs, delta_coeffs_vh)
 
-    # Computation of the factorized modes
+    # Modes
+    cdef int nb_modes = len(eob_pars.mode_array)
+    cdef int[:, ::1] l_modes = np.empty((nb_modes, 2), dtype=np.intc)
+    for j in range(nb_modes):
+        ell_m = eob_pars.mode_array[j]
+        l_modes[j, 0] = ell_m[0]
+        l_modes[j, 1] = ell_m[1]
 
+    # this temporary array is compact in the sense that its shape
+    # is the one needed for the modes
+    cdef double complex[:, ::1] temp_modes = np.empty(
+        (N, nb_modes),
+        dtype=np.complex128
+    )
+
+    vs[0] = 1
+    vhs[0] = 1
+
+    # Computation of the factorized modes
     for i in range(N):
         # For each instant of time, extract the quantities needed for the computation of the modes
         # (r, phi, pr_star, pphi, e, z, x, H, omega)
-        row = dynamics[i]
-        phi = row[1]
-        pphi = row[3]
-        H = nu*row[7]
-        # omega = row[8]
-        v = row[6]**(0.5)  # omega**(1./3.)
-        vh = H**(1./3.) * row[6]**(0.5)  # (H*omega)**(1./3.)
+        phi = dynamics[i, 1]
+        pphi = dynamics[i, 3]
+        H = nu*dynamics[i, 7]
+        v = dynamics[i, 6]**(0.5)  # omega**(1./3.)
+        vh = H**(1./3.) * v  # (H*omega)**(1./3.)
 
         # Various powers of v that enter the computation of rholm and deltalm
-        for j in range(PN_limit):
+        for j in range(1, PN_limit):
             vs[j] = v**j
             vhs[j] = vh**j
 
@@ -612,20 +604,21 @@ cpdef compute_hlms_ecc(
         source2 = v * pphi
 
         # Compute the eccentric correction coefficients
-        Kep = row[4:7]
+        Kep[0] = dynamics[i, 4]
+        Kep[1] = dynamics[i, 5]
+        Kep[2] = dynamics[i, 6]
         modes_calculation.compute(e=Kep[0], z=Kep[1], x=Kep[2])
 
         # Compute all the modes for the current instant of time
-        for j in range(len(eob_pars.mode_array)):
-            ell_m = eob_pars.mode_array[j]
-            l = ell_m[0]
-            m = ell_m[1]
+        for j in range(nb_modes):
+            l = l_modes[j, 0]
+            m = l_modes[j, 1]
             if ((l + m) % 2) == 0:
                 Slm = source1
             else:
                 Slm = source2
 
-            temp_modes[l, m, i] = compute_mode_ecc(
+            temp_modes[i, j] = compute_mode_ecc(
                 l,
                 m,
                 phi,
@@ -635,11 +628,12 @@ cpdef compute_hlms_ecc(
                 modes_calculation,
                 eob_pars)
 
-    for j in range(len(eob_pars.mode_array)):
+    cdef dict modes = {}
+    for j in range(nb_modes):
         ell_m = eob_pars.mode_array[j]
         l = ell_m[0]
         m = ell_m[1]
-        modes[l, m] = temp_modes[l, m]
+        modes[l, m] = temp_modes[:, j]
 
     return modes
 
@@ -649,8 +643,6 @@ cpdef compute_hlms_ecc(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cdef double complex compute_mode_ecc(
     int l,
     int m,
@@ -729,8 +721,6 @@ cdef double complex compute_mode_ecc(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-@cython.profile(True)
-@cython.linetrace(True)
 cpdef compute_special_coeffs_ecc(
     double[:, :] dynamics,
     double t_attach,
@@ -756,7 +746,6 @@ cpdef compute_special_coeffs_ecc(
         modes = {
             (2, 1): 7,
             (4, 3): 7,
-            # (5, 5): 5
         }
 
     cdef int i, j, l, m, power
@@ -765,13 +754,11 @@ cpdef compute_special_coeffs_ecc(
     cdef double vs[PN_limit]
     cdef double vhs[PN_limit]
 
-    # cdef np.ndarray[DTYPE_T, ndim=1] dynamics_55 = np.zeros(dynamics.shape[1]-1)
-    cdef np.ndarray[DTYPE_T, ndim=1] dynamics_all = np.zeros(dynamics.shape[1]-1)
+    cdef cnp.ndarray[DTYPE_T, ndim=1] dynamics_all = np.zeros(dynamics.shape[1]-1)
 
     for i in range(1, dynamics.shape[1]):
         spline = CubicSpline(dynamics[:, 0], dynamics[:, i])
         dynamics_all[i-1] = spline(t_attach)
-        # dynamics_55[i-1] = spline(t_attach-10)
 
     compute_rho_coeffs(
         eob_pars.p_params.nu,
@@ -799,14 +786,10 @@ cpdef compute_special_coeffs_ecc(
     # Now, loop over every mode of interest
     for mode in modes.keys():
         l, m = mode
-        # if l==5 and m==5:
-        #     dynamics_interp = 1*dynamics_55
-        # else:
         dynamics_interp = 1*dynamics_all
 
         phi = dynamics_interp[1]
         pphi = dynamics_interp[3]
-        # omega = dynamics_interp[8]
         H = eob_pars.p_params.nu * dynamics_interp[7]
         v = dynamics_interp[6]**(0.5)  # omega**(1./3)
         vh = H**(1./3.) * v  # (H*omega)**(1./3)
@@ -851,7 +834,6 @@ cpdef compute_special_coeffs_ecc(
 
         # Step 5: compute c_lm = (|h_{lm}^{NR}|/K - rho_{lm}(clm=0))/v**power
         clm1 = (amp/K - rholm)*1/v**power
-        # clm2 = (-amp/K - rholm)*1/v**power
 
         # We always pick the positive solution
         eob_pars.flux_params.f_coeffs[l, m, power] = clm1
