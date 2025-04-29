@@ -38,6 +38,11 @@ References
 
    Link: https://arxiv.org/abs/2412.12823
 
+.. [Pompili2025] *A parametrized spin-precessing inspiral-merger-ringdown waveform model for tests of general relativity*,
+   Pompili, Maggio, Silva, Buonanno, 2025.
+
+   Link: https://arxiv.org/abs/2504.10130
+
 .. [Cotesta2020] *Frequency domain reduced order model of aligned-spin effective-one-body waveforms
    with higher-order modes*, Cotesta, Marsat and Pürrer, 2020.
 

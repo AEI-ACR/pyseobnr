@@ -95,7 +95,7 @@ def compute_MR_mode_free(
     final_spin = attach_params["final_spin"]
     omega_complex = compute_QNM(ell, m, 0, final_spin, final_mass).conjugate()
 
-    # See Eq. (2.15) of https://arxiv.org/pdf/2212.09655.pdf
+    # See Eq. (2.20) of [Pompili2025]_
     # No minus sign for taulm0 since we take the conjugate before
     # For precessing cases this modifies the QNM frequencies in the J-frame
     if dtau <= -1:
