@@ -435,6 +435,7 @@ class GenerateWaveform:
         All GR deviations default to 0.
         For the dictionaries ``domega_dict``, ``dA_dict``, ``dw_dict``, ``dtau_dict``,
         keys are the modes ``l,m`` as a string, for :math:`\\ell > 0`.
+        For a description of the non-GR deviation parameters, see Section II of [Pompili2025]_.
 
         If ``lmax`` is set, it will activate all the supported modes for the selected
         approximant up until :math:`\\ell =` ``lmax``. If specified together with ``mode_array``,
