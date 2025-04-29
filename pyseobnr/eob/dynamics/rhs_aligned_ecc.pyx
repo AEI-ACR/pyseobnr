@@ -10,16 +10,16 @@ This allows some of the cython functions used in the RHS to be called more effic
 import numpy as np
 cimport numpy as np
 
-from pyseobnr.eob.utils.containers cimport EOBParams
+from pyseobnr.eob.utils.containers cimport EOBParams, qp_param_t
 from pyseobnr.eob.waveform.waveform_ecc cimport RadiationReactionForceEcc
 from pyseobnr.eob.dynamics.Keplerian_evolution_equations_flags cimport BaseCoupledExpressionsCalculation
 from pyseobnr.eob.dynamics.secular_evolution_equations_flags cimport (
     BaseCoupledExpressionsCalculation as BaseCoupledExpressionsCalculation_secular
 )
-from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
+from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C, Hamiltonian_C_dynamics_return_t
 
 
-cpdef get_rhs_ecc(
+cpdef (double, double, double, double, double, double) get_rhs_ecc(
     double t,
     double[::1] z,
     Hamiltonian_C H,
@@ -50,17 +50,17 @@ cpdef get_rhs_ecc(
         params (EOBParams): Container with useful variables
 
     Return:
-        np.array: (dHdr, dHdphi, dHdpr, dHdpphi, edot, zdot)
+        tuple: (dHdr, dHdphi, dHdpr, dHdpphi, edot, zdot)
     """
 
-    cdef double[::1] q = z[:2]
-    cdef double[::1] p = z[2:4]
-    cdef double[::1] Kep = z[4:]
+    cdef:
+        qp_param_t q = (z[0], z[1])
+        qp_param_t p = (z[2], z[3])
+        (double, double, double) Kep = (z[4], z[5], 0)
 
     cdef double H_val, omega, xi
-    cdef double deriv[6]
 
-    cdef double[6] dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
+    cdef Hamiltonian_C_dynamics_return_t dynamics = H.dynamics(q, p, chi_1, chi_2, m_1, m_2)
 
     omega = dynamics[3]
     H_val = dynamics[4]
@@ -73,26 +73,24 @@ cpdef get_rhs_ecc(
     evolution.compute(z=Kep[1], e=Kep[0], omega=omega)
     cdef double x_avg = evolution.get("xavg_omegainst")
 
-    Kep = np.append(Kep, x_avg)
+    Kep[2] = x_avg
     params.ecc_params.x_avg = x_avg
 
     cdef (double, double) RR_f = RR.RR(q, p, Kep, omega, omega, H_val, params)
 
-    deriv[:] = [
+    return (
         xi * dynamics[2],
         dynamics[3],
         -dynamics[0] * xi + RR_f[0],
         -dynamics[1] + RR_f[1],
         evolution.get("edot"),
         evolution.get("zdot")
-    ]
-
-    return deriv
+    )
 
 
-cpdef get_rhs_ecc_secular(
+cpdef (double, double, double) get_rhs_ecc_secular(
     double t,
-    double[::1] Kep,
+    (double, double, double) Kep,
     RadiationReactionForceEcc RR,
 ):
     """
@@ -111,18 +109,15 @@ cpdef get_rhs_ecc_secular(
         List: [de/dt, dz/dt, dx/dt]
     """
 
-    cdef double deriv[3]
     cdef BaseCoupledExpressionsCalculation_secular evolution = RR.secular_evolution_equations
 
     evolution.compute(e=Kep[0], z=Kep[1], x=Kep[2])
 
-    deriv[:] = [
+    return (
         evolution.get("edot"),
         evolution.get("zdot"),
         evolution.get("xdot"),
-    ]
-
-    return deriv
+    )
 
 
 cpdef compute_x(

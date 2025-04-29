@@ -34,7 +34,7 @@ from pyseobnr.eob.fits.fits_Hamiltonian import NR_deltaT, NR_deltaT_NS, a6_NS, d
 from pyseobnr.eob.fits.GSF_fits import GSF_amplitude_fits
 from pyseobnr.eob.fits.IV_fits import InputValueFits
 from pyseobnr.eob.hamiltonian import Hamiltonian
-from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
+from pyseobnr.eob.utils.containers import EOBParams
 from pyseobnr.eob.utils.math_ops_opt import my_norm
 from pyseobnr.eob.utils.nr_utils import bbh_final_mass_non_precessing_UIB2016
 from pyseobnr.eob.utils.utils import estimate_time_max_amplitude
@@ -248,21 +248,23 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         return settings
 
     def _set_H_coeffs(self):
-        dc = {}
         # Actual coeffs inside the Hamiltonian
         a6_fit = a6_NS(self.nu) + self.da6
         dSO_fit = dSO(self.nu, self.ap, self.am)
-        dc["a6"] = a6_fit
-        dc["dSO"] = dSO_fit + self.ddSO
 
-        cfs = CalibCoeffs(dc)
-        self.H.calibration_coeffs = cfs
+        self.H.calibration_coeffs.a6 = a6_fit
+        self.H.calibration_coeffs.dSO = dSO_fit + self.ddSO
+
+        assert self.eob_pars.c_coeffs.a6 == a6_fit
+        assert self.eob_pars.c_coeffs.dSO == dSO_fit + self.ddSO
 
     def __call__(self):
         # Evaluate the model
 
         # Initialize the containers
         self._initialize_params(phys_pars=self.phys_pars)
+
+        assert id(self.H.eob_params) == id(self.eob_pars)
 
         # Compute the shift from reference point to peak of (2,2) mode
         NR_deltaT_fit = NR_deltaT_NS(self.nu) + NR_deltaT(self.nu, self.ap, self.am)
@@ -852,14 +854,12 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         self.eob_pars.aligned = False
 
     def _set_H_coeffs(self):
-        dc = {}
         # Actual coeffs inside the Hamiltonian
         a6_fit = a6_NS(self.nu) + self.da6
-        dc["a6"] = a6_fit
-        dc["ddSO"] = self.ddSO
-
-        cfs = CalibCoeffs(dc)
-        self.H.calibration_coeffs = cfs
+        self.eob_pars.c_coeffs.a6 = a6_fit
+        self.eob_pars.c_coeffs.ddSO = self.ddSO
+        assert self.H.calibration_coeffs.a6 == a6_fit
+        assert self.H.calibration_coeffs.ddSO == self.ddSO
 
     def __call__(self, parameters=None):
         # Evaluate the model
@@ -893,7 +893,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             result[f"{key[0]},{key[1]}"] = 1 * w.data[:, w.index(key[0], key[1])]
         return result
 
-    def _add_negative_m_modes(self, waveform_modes, fac=1):
+    def _add_negative_m_modes(self, waveform_modes: dict[tuple[int, int], Any], fac=1):
         """Add the negative m modes using the usual
 
         Note:
@@ -923,6 +923,18 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     result[:, i] = waveform_modes[(ell, m)]
                 i += 1
         return result
+
+    def _compute_full_rotation(
+        self, qt: np.ndarray, quat_i2j: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        q_tot = (
+            qt.conj()  # qJ2P
+            * np.conjugate(quat_i2j)
+            * quaternion.from_euler_angles(  # qI02I
+                self.settings["phiref"], self.settings["inclination"], 0.0
+            )
+        )
+        return quaternion.as_euler_angles(q_tot).T
 
     def _evaluate_model(self):
         try:
@@ -1633,14 +1645,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 self.success = True
             else:
                 # Construct full rotation
-                qJ2P = qt.conj()
-                qI02I = quaternion.from_euler_angles(
-                    self.settings["phiref"], self.settings["inclination"], 0.0
-                )
-
-                qTot = qJ2P * np.conjugate(quatI2J) * qI02I
-
-                alphaTot, betaTot, gammaTot = quaternion.as_euler_angles(qTot).T
+                alphaTot, betaTot, gammaTot = self._compute_full_rotation(qt, quatI2J)
 
                 sYlm = custom_swsh(betaTot, alphaTot, self.max_ell_returned)
                 # Construct polarizations

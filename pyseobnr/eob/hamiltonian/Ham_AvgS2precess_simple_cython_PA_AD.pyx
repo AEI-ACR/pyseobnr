@@ -1,54 +1,86 @@
 
-# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False,profile=True, linetrace=True
+# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False
+# cython: profile=False, linetrace=False
 
 cimport cython
 import numpy as np
 cimport numpy as np
 
-from pyseobnr.eob.utils.containers cimport EOBParams,CalibCoeffs
-from pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C cimport Hamiltonian_v5PHM_C
+from libc.math cimport log, sqrt
 
-
-from libc.math cimport log, sqrt, exp, abs, tgamma,sin,cos
-
+from ..utils.containers cimport qp_param_t, chiv_param_t
+from .Hamiltonian_v5PHM_C cimport (
+  Hamiltonian_v5PHM_C,
+  Hamiltonian_v5PHM_C_call_result_t,
+  Hamiltonian_v5PHM_C_grad_result_t,
+  Hamiltonian_v5PHM_C_dynamics_result_t,
+  Hamiltonian_v5PHM_C_auxderivs_result_t
+)
 
 
 @cython.cpow(True)
 cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
-    cdef public CalibCoeffs calibration_coeffs
-    def __cinit__(self,EOBParams params):
-        self.EOBpars = params
 
-    def __call__(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-        return self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
+    def __call__(
+        self,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
+        double m_1,
+        double m_2,
+        double chi_1,
+        double chi_2,
+        double chi_L1,
+        double chi_L2
+    ):
+        return self._call(
+          q,
+          p,
+          chi1_v,
+          chi2_v,
+          m_1,
+          m_2,
+          chi_1,
+          chi_2,
+          chi_L1,
+          chi_L2)
 
-    cpdef _call(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
+    cpdef Hamiltonian_v5PHM_C_call_result_t _call(
+        self,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
+        double m_1,
+        double m_2,
+        double chi_1,
+        double chi_2,
+        double chi_L1,
+        double chi_L2
+    ):
         """
         Evaluate the Hamiltonian as well as several potentials.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
-          chi1_v (double[:]): Dimensionless spin vector of the primary.
-          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
+          chi1_v (tuple[double, double, double]): Dimensionless spin vector of the primary.
+          chi2_v (tuple[double, double, double]): Dimensionless spin vector of the secondary.
           m_1 (double): Primary mass component.
           m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
-          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
-          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+          chi_L1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chi_L2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
 
         Returns:
-           (tuple)  H,xi, A, Bnp, Bnpa, Qq, Heven, Hodd, Bp
-
+           (tuple)  H, xi, A, Bnp, Bnpa, Qq, Heven, Hodd, Bp
         """
 
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
 
@@ -60,13 +92,11 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
 
-        cdef double pphi = L
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO_GR = self.EOBpars.c_coeffs.dSO
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO_GR = c_coeffs['dSO']
         # Fractional deviation to the GR value for dSO
-        cdef double ddSO = c_coeffs['ddSO']
+        cdef double ddSO = self.EOBpars.c_coeffs.ddSO
         cdef double dSO = dSO_GR + ddSO
 
         # Extra quantities used in the Hamiltonian
@@ -130,13 +160,13 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef double A = (ASalign2 + ASprec2 + Apm + ap2/r**2)/(ap2*(1.0 + 2.0/r)/r**2 + 1.0)
 
-        cdef double ap = X_1*chiL1 + X_2*chiL2
+        cdef double ap = X_1*chi_L1 + X_2*chi_L2
 
         cdef double lap = ap
 
         cdef double Heven = (A*(Bnpa*L**2*lap**2/r**2 + Bp*L**2/r**2 + Qq + prst**2*(Bnp + 1.0)/xi**2 + 1.0))**0.5
 
-        cdef double am = X_1*chiL1 - X_2*chiL2
+        cdef double am = X_1*chi_L1 - X_2*chi_L2
 
         cdef double lam = am
 
@@ -150,8 +180,6 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef double Hodd = (Ga3 + L*delta*gam*lam + L*gap*lap + SOcalib)/(ap2*(r + 2.0) + r**3)
 
-        cdef double pr = prst/xi
-
         cdef double Heff = Heven + Hodd
 
         # Evaluate H_real/nu
@@ -159,21 +187,33 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         return H,xi, A, Bnp, Bnpa, Qq, Heven, Hodd, Bp
 
 
-    cpdef grad(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
+    cpdef Hamiltonian_v5PHM_C_grad_result_t grad(
+        self,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
+        double m_1,
+        double m_2,
+        double chi_1,
+        double chi_2,
+        double chi_L1,
+        double chi_L2
+    ):
         """
         Compute the gradient of the Hamiltonian in polar coordinates.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
-          chi1_v (double[:]): Dimensionless spin vector of the primary.
-          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
+          chi1_v (tuple[double, double, double]): Dimensionless spin vector of the primary.
+          chi2_v (tuple[double, double, double]): Dimensionless spin vector of the secondary.
           m_1 (double): Primary mass component.
           m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
-          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
-          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+          chi_L1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chi_L2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
 
         Returns:
            (tuple) dHdr, dHdphi, dHdpr, dHdpphi
@@ -181,10 +221,7 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
 
@@ -198,11 +235,11 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef double pphi = L
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO_GR = c_coeffs['dSO']
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO_GR = self.EOBpars.c_coeffs.dSO
+
         # Fractional deviation to the GR value for dSO
-        cdef double ddSO = c_coeffs['ddSO']
+        cdef double ddSO = self.EOBpars.c_coeffs.ddSO
         cdef double dSO = dSO_GR + ddSO
 
         # Extra quantities used in the Jacobian
@@ -227,8 +264,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double x13 = r**4
         cdef double x14 = x13**(-1)
         cdef double x15 = 3.0*nu
-        cdef double x16 = X_1*chiL1
-        cdef double x17 = X_2*chiL2
+        cdef double x16 = X_1*chi_L1
+        cdef double x17 = X_2*chi_L2
         cdef double x18 = x16 + x17
         cdef double x19 = pphi*x18
         cdef double x20 = r**2
@@ -447,10 +484,19 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double x233 = pphi*x216
         cdef double x234 = 4.0*pphi**3*x14
 
-
         # Evaluate Hamiltonian
-        cdef double H
-        H,_,_,_,_,_,_,_,_ = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
+        cdef double H = self._call(
+          q,
+          p,
+          chi1_v,
+          chi2_v,
+          m_1,
+          m_2,
+          chi_1,
+          chi_2,
+          chi_L1,
+          chi_L2
+        )[0]
 
         # Heff Jacobian expressions
         cdef double dHeffdr = x12*(-dSO*x14*x15*x19 + x19*(x24*(1.25*x3 - 0.75*x48 - 0.416666666666667*x57 + 1.66666666666667*x58 + 1.25*x6 + 1.25*x7) - x31*x55) + x19*(-x21*x22 - x23*x27 - x24*(-11.0625*nu + 1.13541666666667*x28 - 0.15625) - x29*x31 - x32*x37) + x43*(0.375*x14*x49*x50 - x24*(0.0833333333333333*x51 + x52)) + x44*(-x21*x38 - x24*(-0.0625*nu + 1.07291666666667*x28 + 0.15625) - x27*x39 - x31*x40 - x37*x41)) + 0.5*x205*(x192*x195*(30720.0*x0*x119*x138 + 7680.0*x13*x138*x210 - x14*(x177 + x178 - 3.0*x48) + x206*x24 - x209*(x109*(14350.0*nu - 1320.0*x28 + 2805.0) + x111*(5830.0*nu - 1640.0*x28 - 855.0) + 0.625*x202) - x209*(0.015625*x179*(-135.0*nu + 140.0*x28 - 15.0) - 6.09375*x197 - x199*(35.0*nu + 45.0)) - x215 - x35*(0.5*x200 + 0.25*x201 + 8.25*x58) - x35*(0.5*x196 + x2*x208 - 5.0*x57 + 4.5*x6 + 4.5*x7)) - x192*x203*(x14*x206 - x207*x24*x9)/x194**2 + x204*(-663.496888455656*nu*r**(-5.5)*x70 - nu*x21*x80 + 39.6112800271521*nu*x71*x73 + x1*x21*x25*x97*x98 + x1*x25*x60*x98*(r*x9 + x10 + x212)/x96**2 - x100 - x112*x27 + 7.59859378406358e-45*x113*x115*x142*x165*x167*x184*x220*x70 + 6.78168402777778e-8*x114*x14*x170*x171*x175*x184*x190 + x14*x70*(118.4*x211 - 51.6952380952381*x79) - 9.25454462627843e-34*x142*x218*x219/x164**3 - 2.24091649004576e-37*x165*x169*x171*x184*x218*x221*x35 + 1.69542100694444e-8*x169*x170*x171*x175*x184*x35*(x138*x187*x223 - x14*(x180*(12.0*nu - 3.0) - 7.875*x57 + x9*(9.0*nu + 8.4375)) + 38400.0*x140*x186 + x185*x189*x218*x34 - x187*x214 + x222 - x35*(0.125*x181 + 0.0625*x182 + 0.0625*x183) - 2.29252167428035e-22*x174*x188*x220*x34/x155) + 1.69542100694444e-8*x169*x170*x171*x175*x190*x220*x35 - 8.47710503472222e-8*x191*x209 + x21*x25*(-x14*(x101*(-5.25*nu - 2.8125) + x102*(2.25 - x208) + x105*(0.5625 - 2.25*nu)) + x24*x49 - x35*(0.03125*x104*x110 - 0.25*x106 + 0.0104166666666667*x108*x49)) - x216*x92 - x30*x73*x89 - x36*x70*x94 - 3.70688355060912*x74*x78 - 2.0*x81*x85 - 3.0*x84*x95 - 2.0*x86*x90 - 4.41515887225116e-12*x169*x175*x221*x224*x225/x141**3 - 6.62902677807736e-23*x165*x219*x224/x141**5 + 1.01821851311268e-18*x114**3*x142*x155*x165*x167*x70/r**12 - 1.65460508380811e-18*x168/r**14)) - (3.0*x20 + x9)*(pphi*x63 + pphi*x67 + pphi*x69 + x19*x59 + x43*x64)/x11**2
@@ -469,22 +515,34 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         return dHdr, dHdphi, dHdpr, dHdpphi
 
-    cpdef hessian(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
+    cpdef hessian(
+      self,
+      qp_param_t q,
+      qp_param_t p,
+      chiv_param_t chi1_v,
+      chiv_param_t chi2_v,
+      double m_1,
+      double m_2,
+      double chi_1,
+      double chi_2,
+      double chi_L1,
+      double chi_L2
+    ):
 
         """
         Evaluate the Hessian of the Hamiltonian.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
-          chi1_v (double[:]): Dimensionless spin vector of the primary.
-          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          q (qp_param_t): Canonical positions (r,phi).
+          p (qp_param_t): Canonical momenta  (prstar,pphi).
+          chi1_v (tuple[double, double, double]): Dimensionless spin vector of the primary.
+          chi2_v (tuple[double, double, double]): Dimensionless spin vector of the secondary.
           m_1 (double): Primary mass component.
           m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
-          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
-          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+          chi_L1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chi_L2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
 
         Returns:
            (np.array)  d2Hdr2, d2Hdrdphi, d2Hdrdpr, d2Hdrdpphi, d2Hdrdphi, d2Hdphi2, d2Hdphidpr, d2Hdphidpphi, d2Hdrdpr, d2Hdphidpr, d2Hdpr2, d2Hdprdpphi, d2Hdrdpphi, d2Hdphidpphi, d2Hdprdpphi, d2Hdpphi2
@@ -493,10 +551,7 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
 
@@ -510,11 +565,11 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef double pphi = L
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO_GR = c_coeffs['dSO']
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO_GR = self.EOBpars.c_coeffs.dSO
+
         # Fractional deviation to the GR value for dSO
-        cdef double ddSO = c_coeffs['ddSO']
+        cdef double ddSO = self.EOBpars.c_coeffs.ddSO
         cdef double dSO = dSO_GR + ddSO
 
         # Extra quantities used in the Jacobian
@@ -539,8 +594,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double x13 = r**4
         cdef double x14 = x13**(-1)
         cdef double x15 = 3.0*nu
-        cdef double x16 = X_1*chiL1
-        cdef double x17 = X_2*chiL2
+        cdef double x16 = X_1*chi_L1
+        cdef double x17 = X_2*chi_L2
         cdef double x18 = x16 + x17
         cdef double x19 = pphi*x18
         cdef double x20 = r**2
@@ -785,8 +840,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double y24 = r**5
         cdef double y25 = y24**(-1)
         cdef double y26 = 12.0*nu
-        cdef double y27 = X_1*chiL1
-        cdef double y28 = X_2*chiL2
+        cdef double y27 = X_1*chi_L1
+        cdef double y28 = X_2*chi_L2
         cdef double y29 = y27 + y28
         cdef double y30 = pphi*y29
         cdef double y31 = dSO*y30
@@ -1237,8 +1292,7 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double y476 = -y475
 
         # Evaluate Hamiltonian
-        cdef double H
-        H,_,_,_,_,_,_,_,_ = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
+        cdef double H = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chi_L1,chi_L2)[0]
 
         # Evaluate Heff Jacobian
         cdef double dHeffdr = x12*(-dSO*x14*x15*x19 + x19*(x24*(1.25*x3 - 0.75*x48 - 0.416666666666667*x57 + 1.66666666666667*x58 + 1.25*x6 + 1.25*x7) - x31*x55) + x19*(-x21*x22 - x23*x27 - x24*(-11.0625*nu + 1.13541666666667*x28 - 0.15625) - x29*x31 - x32*x37) + x43*(0.375*x14*x49*x50 - x24*(0.0833333333333333*x51 + x52)) + x44*(-x21*x38 - x24*(-0.0625*nu + 1.07291666666667*x28 + 0.15625) - x27*x39 - x31*x40 - x37*x41)) + 0.5*x205*(x192*x195*(30720.0*x0*x119*x138 + 7680.0*x13*x138*x210 - x14*(x177 + x178 - 3.0*x48) + x206*x24 - x209*(x109*(14350.0*nu - 1320.0*x28 + 2805.0) + x111*(5830.0*nu - 1640.0*x28 - 855.0) + 0.625*x202) - x209*(0.015625*x179*(-135.0*nu + 140.0*x28 - 15.0) - 6.09375*x197 - x199*(35.0*nu + 45.0)) - x215 - x35*(0.5*x200 + 0.25*x201 + 8.25*x58) - x35*(0.5*x196 + x2*x208 - 5.0*x57 + 4.5*x6 + 4.5*x7)) - x192*x203*(x14*x206 - x207*x24*x9)/x194**2 + x204*(-663.496888455656*nu*r**(-5.5)*x70 - nu*x21*x80 + 39.6112800271521*nu*x71*x73 + x1*x21*x25*x97*x98 + x1*x25*x60*x98*(r*x9 + x10 + x212)/x96**2 - x100 - x112*x27 + 7.59859378406358e-45*x113*x115*x142*x165*x167*x184*x220*x70 + 6.78168402777778e-8*x114*x14*x170*x171*x175*x184*x190 + x14*x70*(118.4*x211 - 51.6952380952381*x79) - 9.25454462627843e-34*x142*x218*x219/x164**3 - 2.24091649004576e-37*x165*x169*x171*x184*x218*x221*x35 + 1.69542100694444e-8*x169*x170*x171*x175*x184*x35*(x138*x187*x223 - x14*(x180*(12.0*nu - 3.0) - 7.875*x57 + x9*(9.0*nu + 8.4375)) + 38400.0*x140*x186 + x185*x189*x218*x34 - x187*x214 + x222 - x35*(0.125*x181 + 0.0625*x182 + 0.0625*x183) - 2.29252167428035e-22*x174*x188*x220*x34/x155) + 1.69542100694444e-8*x169*x170*x171*x175*x190*x220*x35 - 8.47710503472222e-8*x191*x209 + x21*x25*(-x14*(x101*(-5.25*nu - 2.8125) + x102*(2.25 - x208) + x105*(0.5625 - 2.25*nu)) + x24*x49 - x35*(0.03125*x104*x110 - 0.25*x106 + 0.0104166666666667*x108*x49)) - x216*x92 - x30*x73*x89 - x36*x70*x94 - 3.70688355060912*x74*x78 - 2.0*x81*x85 - 3.0*x84*x95 - 2.0*x86*x90 - 4.41515887225116e-12*x169*x175*x221*x224*x225/x141**3 - 6.62902677807736e-23*x165*x219*x224/x141**5 + 1.01821851311268e-18*x114**3*x142*x155*x165*x167*x70/r**12 - 1.65460508380811e-18*x168/r**14)) - (3.0*x20 + x9)*(pphi*x63 + pphi*x67 + pphi*x69 + x19*x59 + x43*x64)/x11**2
@@ -1284,34 +1338,40 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         return np.array([d2Hdr2, d2Hdrdphi, d2Hdrdpr, d2Hdrdpphi, d2Hdrdphi, d2Hdphi2, d2Hdphidpr, d2Hdphidpphi, d2Hdrdpr, d2Hdphidpr, d2Hdpr2, d2Hdprdpphi, d2Hdrdpphi, d2Hdphidpphi, d2Hdprdpphi, d2Hdpphi2]).reshape(4, 4)
 
-    cdef double xi(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-
+    cpdef double csi(
+      self,
+      qp_param_t q,
+      qp_param_t p,
+      chiv_param_t chi1_v,
+      chiv_param_t chi2_v,
+      double m_1,
+      double m_2,
+      double chi_1,
+      double chi_2,
+      double chi_L1,
+      double chi_L2
+    ):
         """
         Compute the tortoise coordinate conversion factor.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
-          chi1_v (double[:]): Dimensionless spin vector of the primary.
-          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
+          chi1_v (tuple[double, double, double]): Dimensionless spin vector of the primary.
+          chi2_v (tuple[double, double, double]): Dimensionless spin vector of the secondary.
           m_1 (double): Primary mass component.
           m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
-          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
-          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+          chi_L1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chi_L2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
 
         Returns:
            (double) xi
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
-        cdef double prst = p[0]
-        cdef double L = p[1]
 
         cdef double chix1 = chi1_v[0]
         cdef double chiy1 = chi1_v[1]
@@ -1321,23 +1381,12 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double chiy2 = chi2_v[1]
         cdef double chiz2 = chi2_v[2]
 
-        cdef double pphi = L
-
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO_GR = c_coeffs['dSO']
-        # Fractional deviation to the GR value for dSO
-        cdef double ddSO = c_coeffs['ddSO']
-        cdef double dSO = dSO_GR + ddSO
-
-
+        cdef double a6 = self.EOBpars.c_coeffs.a6
 
         # Extra quantities used in the Jacobian
-        cdef double M = self.EOBpars.p_params.M
         cdef double nu = self.EOBpars.p_params.nu
         cdef double X_1 = self.EOBpars.p_params.X_1
         cdef double X_2 = self.EOBpars.p_params.X_2
-        cdef double delta = self.EOBpars.p_params.delta
 
         # Actual Hamiltonian expressions
         cdef double Dbpm = r*(6730497718123.02*nu**3 + 133772083200.0*nu**2*r**2 + 1822680546449.21*nu**2*r + 80059249540278.2*nu**2 + 2589101062873.81*nu*r**2 + 10611661054566.2*nu*r - 12049908701745.2*nu + 5107745331375.71*r**2 - 326837426.241486*r*(14700.0*nu + 42911.0) - 39476764256925.6*r - (-5041721180160.0*nu**2 - 25392914995744.3*nu - 879923036160.0*r**2 - 283115520.0*r*(14700.0*nu + 42911.0) + 104186110149937.0)*log(r) + 5787938193408.0*log(r)**2 + 275059053208689.0)/(55296.0*nu*(14515200.0*nu**3 - 42636451.6032331*nu**2 - 2510664218.28128*nu + 1002013764.01019) - 967680.0*r**3*(-138240.0*nu**2 - 2675575.66847905*nu - 5278341.3229329) - 9216.0*r**2*(-197773496.793534*nu**2 - 630116198.873299*nu + 5805304367.87913) + r*(5927865218923.02*nu**3 + 43133561885859.3*nu**2 + 43393301259014.8*nu + 86618264430493.3*(1 - 0.496948781616935*nu)**2 + 188440788778196.0) + 5787938193408.0*r*log(r)**2 + (-1698693120.0*nu*(11592.0*nu + 69847.0) + 879923036160.0*r**3 + 283115520.0*r**2*(14700.0*nu + 42911.0) + 49152.0*r*(102574080.0*nu**2 + 409207698.136075*nu - 2119671837.36038))*log(r))
@@ -1354,32 +1403,42 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         return xi
 
-    cpdef dynamics(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
+    cpdef Hamiltonian_v5PHM_C_dynamics_result_t dynamics(
+        self,
+        qp_param_t q,
+        qp_param_t p,
+        chiv_param_t chi1_v,
+        chiv_param_t chi2_v,
+        double m_1,
+        double m_2,
+        double chi_1,
+        double chi_2,
+        double chi_L1,
+        double chi_L2
+    ):
 
         """
-        Compute the dynamics from the Hamiltonian,i.e., dHdr, dHdphi, dHdpr, dHdpphi,H and xi.
+        Compute the dynamics from the Hamiltonian: dHdr, dHdphi, dHdpr, dHdpphi, H and xi.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
-          chi1_v (double[:]): Dimensionless spin vector of the primary.
-          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
+          chi1_v (tuple[double, double, double]): Dimensionless spin vector of the primary.
+          chi2_v (tuple[double, double, double]): Dimensionless spin vector of the secondary.
           m_1 (double): Primary mass component.
           m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
-          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
-          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+          chi_L1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chi_L2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
 
         Returns:
-           (tuple) dHdr, dHdphi, dHdpr, dHdpphi,H and xi
+           (tuple) dHdr, dHdphi, dHdpr, dHdpphi, H and xi
         """
 
         # Coordinate definitions
 
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
 
@@ -1393,13 +1452,12 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef double pphi = L
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO_GR = c_coeffs['dSO']
-        # Fractional deviation to the GR value for dSO
-        cdef double ddSO = c_coeffs['ddSO']
-        cdef double dSO = dSO_GR + ddSO
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO_GR = self.EOBpars.c_coeffs.dSO
 
+        # Fractional deviation to the GR value for dSO
+        cdef double ddSO = self.EOBpars.c_coeffs.ddSO
+        cdef double dSO = dSO_GR + ddSO
 
         # Extra quantities used in the Jacobian
         cdef double M = self.EOBpars.p_params.M
@@ -1423,8 +1481,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double x13 = r**4
         cdef double x14 = x13**(-1)
         cdef double x15 = 3.0*nu
-        cdef double x16 = X_1*chiL1
-        cdef double x17 = X_2*chiL2
+        cdef double x16 = X_1*chi_L1
+        cdef double x17 = X_2*chi_L2
         cdef double x18 = x16 + x17
         cdef double x19 = pphi*x18
         cdef double x20 = r**2
@@ -1643,10 +1701,20 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double x233 = pphi*x216
         cdef double x234 = 4.0*pphi**3*x14
 
-
         # Evaluate Hamiltonian
-        cdef double H,xi
-        H,xi,_,_,_,_,_,_,_  = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
+        cdef Hamiltonian_v5PHM_C_call_result_t call_ret = self._call(
+          q,
+          p,
+          chi1_v,
+          chi2_v,
+          m_1,
+          m_2,
+          chi_1,
+          chi_2,
+          chi_L1,
+          chi_L2)
+        cdef double H = call_ret[0]
+        cdef double xi = call_ret[1]
 
         # Heff Jacobian expressions
         cdef double dHeffdr = x12*(-dSO*x14*x15*x19 + x19*(x24*(1.25*x3 - 0.75*x48 - 0.416666666666667*x57 + 1.66666666666667*x58 + 1.25*x6 + 1.25*x7) - x31*x55) + x19*(-x21*x22 - x23*x27 - x24*(-11.0625*nu + 1.13541666666667*x28 - 0.15625) - x29*x31 - x32*x37) + x43*(0.375*x14*x49*x50 - x24*(0.0833333333333333*x51 + x52)) + x44*(-x21*x38 - x24*(-0.0625*nu + 1.07291666666667*x28 + 0.15625) - x27*x39 - x31*x40 - x37*x41)) + 0.5*x205*(x192*x195*(30720.0*x0*x119*x138 + 7680.0*x13*x138*x210 - x14*(x177 + x178 - 3.0*x48) + x206*x24 - x209*(x109*(14350.0*nu - 1320.0*x28 + 2805.0) + x111*(5830.0*nu - 1640.0*x28 - 855.0) + 0.625*x202) - x209*(0.015625*x179*(-135.0*nu + 140.0*x28 - 15.0) - 6.09375*x197 - x199*(35.0*nu + 45.0)) - x215 - x35*(0.5*x200 + 0.25*x201 + 8.25*x58) - x35*(0.5*x196 + x2*x208 - 5.0*x57 + 4.5*x6 + 4.5*x7)) - x192*x203*(x14*x206 - x207*x24*x9)/x194**2 + x204*(-663.496888455656*nu*r**(-5.5)*x70 - nu*x21*x80 + 39.6112800271521*nu*x71*x73 + x1*x21*x25*x97*x98 + x1*x25*x60*x98*(r*x9 + x10 + x212)/x96**2 - x100 - x112*x27 + 7.59859378406358e-45*x113*x115*x142*x165*x167*x184*x220*x70 + 6.78168402777778e-8*x114*x14*x170*x171*x175*x184*x190 + x14*x70*(118.4*x211 - 51.6952380952381*x79) - 9.25454462627843e-34*x142*x218*x219/x164**3 - 2.24091649004576e-37*x165*x169*x171*x184*x218*x221*x35 + 1.69542100694444e-8*x169*x170*x171*x175*x184*x35*(x138*x187*x223 - x14*(x180*(12.0*nu - 3.0) - 7.875*x57 + x9*(9.0*nu + 8.4375)) + 38400.0*x140*x186 + x185*x189*x218*x34 - x187*x214 + x222 - x35*(0.125*x181 + 0.0625*x182 + 0.0625*x183) - 2.29252167428035e-22*x174*x188*x220*x34/x155) + 1.69542100694444e-8*x169*x170*x171*x175*x190*x220*x35 - 8.47710503472222e-8*x191*x209 + x21*x25*(-x14*(x101*(-5.25*nu - 2.8125) + x102*(2.25 - x208) + x105*(0.5625 - 2.25*nu)) + x24*x49 - x35*(0.03125*x104*x110 - 0.25*x106 + 0.0104166666666667*x108*x49)) - x216*x92 - x30*x73*x89 - x36*x70*x94 - 3.70688355060912*x74*x78 - 2.0*x81*x85 - 3.0*x84*x95 - 2.0*x86*x90 - 4.41515887225116e-12*x169*x175*x221*x224*x225/x141**3 - 6.62902677807736e-23*x165*x219*x224/x141**5 + 1.01821851311268e-18*x114**3*x142*x155*x165*x167*x70/r**12 - 1.65460508380811e-18*x168/r**14)) - (3.0*x20 + x9)*(pphi*x63 + pphi*x67 + pphi*x69 + x19*x59 + x43*x64)/x11**2
@@ -1664,34 +1732,31 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double  dHdpr = M2 * dHeffdpr / nuH
         cdef double  dHdpphi = M2 * dHeffdpphi / nuH
 
-        return dHdr, dHdphi, dHdpr, dHdpphi,H,xi
+        return dHdr, dHdphi, dHdpr, dHdpphi, H, xi
 
-    cpdef double omega(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
+    cpdef double omega(self, qp_param_t q,qp_param_t p,chiv_param_t chi1_v,chiv_param_t chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chi_L1,double chi_L2):
 
         """
         Compute the orbital frequency from the Hamiltonian.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
-          chi1_v (double[:]): Dimensionless spin vector of the primary.
-          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
+          chi1_v (tuple[double, double, double]): Dimensionless spin vector of the primary.
+          chi2_v (tuple[double, double, double]): Dimensionless spin vector of the secondary.
           m_1 (double): Primary mass component.
           m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
-          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
-          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+          chi_L1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chi_L2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
 
         Returns:
            (double) dHdpphi
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
 
@@ -1705,13 +1770,12 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef double pphi = L
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO_GR = c_coeffs['dSO']
-        # Fractional deviation to the GR value for dSO
-        cdef double ddSO = c_coeffs['ddSO']
-        cdef double dSO = dSO_GR + ddSO
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO_GR = self.EOBpars.c_coeffs.dSO
 
+        # Fractional deviation to the GR value for dSO
+        cdef double ddSO = self.EOBpars.c_coeffs.ddSO
+        cdef double dSO = dSO_GR + ddSO
 
         # Extra quantities used in the Jacobian
         cdef double M = self.EOBpars.p_params.M
@@ -1730,8 +1794,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double z8 = z2 + z7
         cdef double z9 = z1*z8
         cdef double z10 = z0**(-1)
-        cdef double z11 = X_1*chiL1
-        cdef double z12 = X_2*chiL2
+        cdef double z11 = X_1*chi_L1
+        cdef double z12 = X_2*chi_L2
         cdef double z13 = z11 + z12
         cdef double z14 = -1.40625*nu - 0.46875
         cdef double z15 = r**2
@@ -1817,37 +1881,44 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double z95 = -12049908701745.2*nu - 39476764256925.6*r + 5107745331375.71*z15 + 80059249540278.2*z19 + 5787938193408.0*z66 + 6730497718123.02*z67 + 10611661054566.2*z79 + 2589101062873.81*z80 + 1822680546449.21*z81 - 326837426.241486*z83 + 133772083200.0*z84 - z86 + 275059053208689.0
         cdef double z96 = 5787938193408.0*z87 - 9216.0*z88 - 967680.0*z89 + 55296.0*z90 + z91 + z92
 
-
         # Evaluate Hamiltonian
-        cdef double H
-        H,_,_,_,_,_,_,_,_ = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chiL1,chiL2)
+        cdef double H = self._call(q,p,chi1_v,chi2_v,m_1,m_2,chi_1,chi_2,chi_L1,chi_L2)[0]
 
         # Heff Jacobian expressions
-
         cdef double dHeffdpphi = z73*(z73*(147.443752990146*nu*r**(-4.5)*z74 - 11.3175085791863*nu*r**(-3.5)*z75 + 1.69542100694444e-8*prst**2*z61*z78**2*z96*(z10*(-2.625*z58 + 0.0625*z63*(z59 - 1.0) + z8*(3.0*nu + 2.8125)) + z24*(0.015625*z52*(115.0*nu + z93 - 37.0) + 0.03125*z58*(26.0*nu + 449.0) + 0.015625*z8*(-1171.0*nu - 861.0)) + z49 + 7680.0*z60*z71*z95/z96)/(z94**2*z95) + 1.48275342024365*r**(-2.5)*z77 + z10*z74*(92.7110442849544*nu - 131.0*z19 + 10.0*z67) + z10*z75*(-33.9782122170436*nu - 89.5298327361234*z19 - 14.0*z64 + 188.0*z67) + z16*z74*(8.0*nu - 6.0*z19) + z16*z75*(-2.78300763695006*nu - 5.4*z19 + 6.0*z67) + z16*z76*(1.38977750996128*nu + 3.33842023648322*z19 - 6.0*z64 + 3.42857142857143*z67) + z24*z74*(nu*(452.542166996693 - 51.6952380952381*z65) + z19*(118.4*z65 - 1796.13660498019) + 602.318540416564*z67) - z31*z39*z51 + 0.121954868780449*z39*z77 + z40*z57 + 1.0 + 1.27277314139085e-19*z74*z78**4*(0.3125*delta*z47*(18.0*nu - 1.0) - 0.03125*(-33.0*nu + 32.0*z19 - 5.0)*(5.0*z2 + 5.0*z5 + 5.0*z6) - 0.03125*(-5.0*nu + z93 + 1.0)*(-15.0*z2 + 15.0*z5 + 15.0*z6))*(z87 - 1.59227685093395e-9*z88 - 1.67189069348064e-7*z89 + 9.55366110560367e-9*z90 + 1.72773095804465e-13*z91 + 1.72773095804465e-13*z92)**2/(r**13*z94**4*(-0.0438084424460039*nu - 0.143521050466841*r + 0.0185696317637669*z15 + 0.291062041428379*z19 + 0.0210425293255724*z66 + 0.0244692826489756*z67 + 0.0385795738434214*z79 + 0.00941289164152486*z80 + 0.00662650629087394*z81 - 1.18824456940711e-6*z83 + 0.000486339502879429*z84 - 3.63558293513537e-15*z86 + 1)**2))/(z49*(z50 + 1.0) + 1.0))**(-0.5)*(2.0*pphi*z16*z57 - pphi*z50*z51)/(z49*(4.0*z39 + 2.0) + 2.0) + (nu*dSO*z10*z13 + pphi*z13*(z14*z18 + z20*z21 + z22*z25) + pphi*z30*(z18*z26 + z21*z27 + z25*z28) + 2.0*z13*z45 + z13*(z16*(0.208333333333333*delta*z47 - 0.625*z2 + 0.375*z35 - 0.833333333333333*z48 - 0.625*z5 - 0.625*z6) + z45) + z13*(z14*z40 + z16*(-5.53125*nu + 0.567708333333333*z19 - 0.078125) + z20*z41 + z22*z42 + z39*(0.71875*nu - 0.09375) + 1.75) + z29*(-0.125*delta*z38 + z16*(0.0416666666666667*delta*z8 + z46*(0.416666666666667 - 0.833333333333333*X_2))) - 0.25*z30*z38 + z30*(z16*(-0.03125*nu + 0.536458333333333*z19 + 0.078125) + z26*z40 + z27*z41 + z28*z42 + z39*(0.34375*nu + 0.09375) + 0.25))/(z0 + z9)
 
         # Compute H Jacobian
-
         cdef double omega = M * M * dHeffdpphi / (nu*H)
 
         return omega
 
-    cpdef auxderivs(self, double[:]q,double[:]p,double[:]chi1_v,double[:]chi2_v,double m_1,double m_2,double chi_1,double chi_2,double chiL1,double chiL2):
-
+    cpdef Hamiltonian_v5PHM_C_auxderivs_result_t auxderivs(
+      self,
+      qp_param_t q,
+      qp_param_t p,
+      chiv_param_t chi1_v,
+      chiv_param_t chi2_v,
+      double m_1,
+      double m_2,
+      double chi_1,
+      double chi_2,
+      double chi_L1,
+      double chi_L2
+    ):
         """
         Compute derivatives of the potentials which are used in the post-adiabatic approximation.
 
         Args:
-          q (double[:]): Canonical positions (r,phi).
-          p (double[:]): Canonical momenta  (prstar,pphi).
-          chi1_v (double[:]): Dimensionless spin vector of the primary.
-          chi2_v (double[:]): Dimensionless spin vector of the secondary.
+          q (tuple[double, double]): Canonical positions (r,phi).
+          p (tuple[double, double]): Canonical momenta  (prstar,pphi).
+          chi1_v (tuple[double, double, double]): Dimensionless spin vector of the primary.
+          chi2_v (tuple[double, double, double]): Dimensionless spin vector of the secondary.
           m_1 (double): Primary mass component.
           m_2 (double): Secondary mass component.
           chi_1 (double): Projection of chi1_v onto the Newtonian orbital angular momentum unit vector (lN).
           chi_2 (double): Projection of chi2_v onto the Newtonian orbital angular momentum unit vector (lN).
-          chiL1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
-          chiL2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
+          chi_L1 (double): Projection of chi1_v onto the orbital angular momentum unit vector (l).
+          chi_L2 (double): Projection of chi2_v onto the orbital angular momentum unit vector (l).
 
         Returns:
            (tuple) dAdr, dBnpdr, dBnpadr, dxidr, dQdr, dQdprst, dHodddr, dBpdr, dHevendr
@@ -1855,10 +1926,7 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         """
 
         # Coordinate definitions
-
         cdef double r = q[0]
-        cdef double phi = q[1]
-
         cdef double prst = p[0]
         cdef double L = p[1]
 
@@ -1872,16 +1940,14 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
 
         cdef double pphi = L
 
-        cdef CalibCoeffs c_coeffs = self.calibration_coeffs
-        cdef double a6 = c_coeffs['a6']
-        cdef double dSO_GR = c_coeffs['dSO']
+        cdef double a6 = self.EOBpars.c_coeffs.a6
+        cdef double dSO_GR = self.EOBpars.c_coeffs.dSO
+
         # Fractional deviation to the GR value for dSO
-        cdef double ddSO = c_coeffs['ddSO']
+        cdef double ddSO = self.EOBpars.c_coeffs.ddSO
         cdef double dSO = dSO_GR + ddSO
 
-
         # Extra quantities used in the auxiliary derivatives
-        cdef double M = self.EOBpars.p_params.M
         cdef double nu = self.EOBpars.p_params.nu
         cdef double X_1 = self.EOBpars.p_params.X_1
         cdef double X_2 = self.EOBpars.p_params.X_2
@@ -2073,8 +2139,8 @@ cdef class Ham_AvgS2precess_simple_cython_PA_AD(Hamiltonian_v5PHM_C):
         cdef double w184 = 6.0*w177
         cdef double w185 = w139 + w17
         cdef double w186 = 3.0*nu
-        cdef double w187 = X_1*chiL1
-        cdef double w188 = X_2*chiL2
+        cdef double w187 = X_1*chi_L1
+        cdef double w188 = X_2*chi_L2
         cdef double w189 = w187 + w188
         cdef double w190 = pphi*w189
         cdef double w191 = dSO*w190

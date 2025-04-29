@@ -51,5 +51,5 @@ repos:
     rev: v0.15.0
     hooks:
     -   id: cython-lint
-        exclude: '^.*/_implementation\.(pyx|pxd)$'
+        exclude: '^.*/_implementation\.(pyx|pxd)$|(Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C\.pyx)|(Ham_AvgS2precess_simple_cython_PA_AD\.pyx)'
     -   id: double-quote-cython-strings

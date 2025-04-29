@@ -16,10 +16,15 @@ from libc.math cimport (
     tgamma,
 )
 
-
 import numpy as np
-cimport numpy as np
-from scipy.special.cython_special cimport loggamma, sph_harm
+cimport numpy as cnp
+from scipy.special.cython_special cimport loggamma
+
+try:
+    from scipy.special import sph_harm_y as sph_harm
+except ImportError:
+    from scipy.special.cython_special cimport sph_harm
+
 from scipy.interpolate import CubicSpline
 from scipy.special import factorial2
 
@@ -33,6 +38,10 @@ cdef extern from "complex.h":
     double carg(double complex z)
 
 DEF euler_gamma=0.5772156649015329
+
+cdef complex I
+I.real = 0
+I.imag = 1
 
 # Lookup table of fast spin-weighted spherical harmonics
 # Used to compute Newtonian prefactors in factorized waveform
@@ -102,10 +111,10 @@ ylms[:] = [
 
 
 DTYPE = np.float64
-ctypedef np.float64_t DTYPE_T
+ctypedef cnp.float64_t DTYPE_T
 
 DTYPE_c = np.complex128
-ctypedef np.complex128_t DTYPE_tc
+ctypedef cnp.complex128_t DTYPE_tc
 
 # Lookup table for factorial until n=21
 cdef double[21] LOOKUP_TABLE
@@ -193,7 +202,7 @@ cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int
 
     # Eqs 5 and 6. Dependent on the value of epsilon (parity), we get different n
     if epsilon == 0:
-        n = 1j * m
+        n = I * m
         n = n ** l
 
         mult1 = 8.0 * pi / factorial2(2 * l + 1)
@@ -205,7 +214,7 @@ cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int
 
     elif epsilon == 1:
 
-        n = 1j * m
+        n = I * m
         n = n ** l
         n = -n
 
@@ -215,7 +224,7 @@ cpdef double complex calculate_multipole_prefix(double m1, double m2, int l, int
         mult2 /= (2 * l - 1) * (l + 1) * l * (l - 1)
         mult2 = sqrt(mult2)
 
-        n *= 1j * mult1
+        n *= I * mult1
         n *= mult2
 
     prefix = n * eta * c
@@ -1308,7 +1317,7 @@ cpdef double complex compute_extra_flm_terms(int l, int m, double vh, EOBParams 
     cdef double vh3 = vh**3
     cdef double complex extra_term = 0.0
     if l==3 and m==3:
-        extra_term = (vh3 * vh3 * eob_pars.flux_params.f_coeffs_vh[3, 3][6]) * 1.0j
+        extra_term = (vh3 * vh3 * eob_pars.flux_params.f_coeffs_vh[3, 3][6]) * I
     return extra_term
 
 
@@ -2175,8 +2184,8 @@ cpdef double compute_refactorized_flux(
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
 cpdef (double, double) RR_force(
-    double[::1] q,
-    double[::1] p,
+    qp_param_t q,
+    qp_param_t p,
     double omega,
     double omega_circ,
     double H,
@@ -2208,8 +2217,8 @@ cdef class RadiationReactionForce:
 
     cpdef (double, double) RR(
         self,
-        double[::1] q,
-        double[::1] p,
+        qp_param_t q,
+        qp_param_t p,
         double omega,
         double omega_circ,
         double H,
@@ -2228,8 +2237,8 @@ cdef class SEOBNRv5RRForce(RadiationReactionForce):
 
     cpdef (double, double) RR(
         self,
-        double[::1] q,
-        double[::1] p,
+        qp_param_t q,
+        qp_param_t p,
         double omega,
         double omega_circ,
         double H,
@@ -2293,12 +2302,12 @@ cdef double complex compute_mode(
     cdef double hathatk = m*vh*vh*vh  # this is just m*Omega*H
     # This is just l!
     cdef double z2 = tgamma(l+1)
-    cdef double complex lnr1 = loggamma(l+1.0-2.0j*hathatk)
+    cdef double complex lnr1 = loggamma(l + 1.0 - 2.0 * hathatk * I)
 
     Tlm = (
         cexp(
             (pi * hathatk)
-            + (2.0j * (hathatk * log(4.0 * k / sqrt(M_E)))))
+            + (2.0 * (hathatk * log(4.0 * k / sqrt(M_E)))) * I)
         * cexp(lnr1)
     )
     Tlm /= z2
@@ -2313,7 +2322,7 @@ cdef double complex compute_mode(
     # Compute delta
     deltalm = compute_deltalm_single(vs, vhs, l, m, eob_pars.flux_params)
     # Put everything together
-    cdef double complex hlm = Tlm * cexp(1.0j * deltalm) * Slm * rholm
+    cdef double complex hlm = Tlm * cexp(deltalm * I) * Slm * rholm
     hlm *= hNewton
     return hlm
 
@@ -2372,14 +2381,18 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
         eob_pars.flux_params.delta_coeffs_vh)
 
     cdef int N = dynamics.shape[0]
-    cdef double complex[:, :, ::1] temp_modes = np.zeros((ell_max, ell_max, N), dtype=np.complex128)
-
     cdef int nb_modes = len(eob_pars.mode_array)
     cdef int[:, ::1] l_modes = np.empty((nb_modes, 2), dtype=np.intc)
     for j in range(nb_modes):
         ell_m = eob_pars.mode_array[j]
         l_modes[j, 0] = ell_m[0]
         l_modes[j, 1] = ell_m[1]
+
+    # this temporary array is compact in the sense that its shape
+    # is the one needed for the modes
+    cdef double complex[:, ::1] temp_modes = np.empty(
+        (N, nb_modes),
+        dtype=np.complex128)
 
     vs[0] = 1
     vhs[0] = 1
@@ -2446,14 +2459,22 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
                 Slm = source2
 
             # modes[l,m][i] = compute_mode(v_phi2,phi, Slm, vs,vhs,l, m, eob_pars)
-            temp_modes[l, m, i] = compute_mode(v_phi2, phi, Slm, vs, vhs, l, m, eob_pars)
+            temp_modes[i, j] = compute_mode(
+                v_phi2,
+                phi,
+                Slm,
+                vs,
+                vhs,
+                l,
+                m,
+                eob_pars)
 
     cdef dict modes = {}
     for j in range(nb_modes):
         ell_m = eob_pars.mode_array[j]
         l = ell_m[0]
         m = ell_m[1]
-        modes[l, m] = temp_modes[l, m]
+        modes[l, m] = temp_modes[:, j]
     return modes
 
 
@@ -2500,8 +2521,8 @@ cpdef compute_special_coeffs(
     cdef double vs[PN_limit]
     cdef double vhs[PN_limit]
 
-    cdef np.ndarray[DTYPE_T, ndim=1] dynamics_55 = np.zeros(dynamics.shape[1]-1)
-    cdef np.ndarray[DTYPE_T, ndim=1] dynamics_all = np.zeros(dynamics.shape[1]-1)
+    cdef cnp.ndarray[DTYPE_T, ndim=1] dynamics_55 = np.zeros(dynamics.shape[1]-1)
+    cdef cnp.ndarray[DTYPE_T, ndim=1] dynamics_all = np.zeros(dynamics.shape[1]-1)
 
     for i in range(1, dynamics.shape[1]):
         spline = CubicSpline(dynamics[:, 0], dynamics[:, i])
@@ -2606,7 +2627,7 @@ cpdef compute_factors(double[::1] phi_orb, int m_max, double complex[:, :] resul
     cdef int i, m
     cdef double complex factor
     for i in range(N):
-        factor = cexp(-1.0j * phi_orb[i])
+        factor = cexp(-phi_orb[i] * I)
         result[0][i] = factor
         for m in range(1, m_max):
             result[m][i] = result[m-1][i]*factor
@@ -2631,4 +2652,4 @@ cpdef unrotate_leading_pn(
     cdef int i
     # print(re_part.shape[0],im_part.shape[0],phi.shape[0],result.shape[0])
     for i in range(N):
-        result[i] = (re_part[i]+1.0j*im_part[i])*factor[i]
+        result[i] = (re_part[i] + I * im_part[i])*factor[i]

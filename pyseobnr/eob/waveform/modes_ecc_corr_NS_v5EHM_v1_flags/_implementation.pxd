@@ -1247,4 +1247,10 @@ cdef class hlm_ecc_corr_NS_v5EHM_v1_flags(BaseModesCalculation):
         , double z=*
     )
 
+    cpdef void compute(self
+        , double e
+        , double x
+        , double z
+    )
+
     cpdef ccomplex.complex[double] get(self, int l, int m)

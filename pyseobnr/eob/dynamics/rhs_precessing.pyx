@@ -6,21 +6,13 @@ This allows some of the cython functions used in the RHS to be called more effic
 """
 
 import cython
-import numpy as np
-cimport numpy as np
 
-from pyseobnr.eob.utils.containers cimport EOBParams
+from pyseobnr.eob.utils.containers cimport EOBParams, qp_param_t
 from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
 from pyseobnr.eob.hamiltonian.Hamiltonian_v5PHM_C cimport (
-    Hamiltonian_v5PHM_C
+    Hamiltonian_v5PHM_C,
+    Hamiltonian_v5PHM_C_dynamics_result_t
 )
-
-DTYPE = np.float64
-
-# "ctypedef" assigns a corresponding compile-time type to DTYPE_t. For
-# every type in the numpy module there's a corresponding compile-time
-# type with a _t-suffix.
-ctypedef np.float64_t DTYPE_t
 
 
 @cython.wraparound(False)
@@ -44,8 +36,8 @@ cpdef (double, double, double, double) get_rhs_prec(
     * :math:`\\dot{p}_{r}`,
     * :math:`\\dot{p}_{\\phi}`.
     """
-    cdef double[::1] q = z[:2]
-    cdef double[::1] p = z[2:]
+    cdef qp_param_t q = (z[0], z[1])
+    cdef qp_param_t p = (z[2], z[3])
 
     cdef double chi1_LN = params.p_params.chi_1
     cdef double chi2_LN = params.p_params.chi_2
@@ -53,7 +45,7 @@ cpdef (double, double, double, double) get_rhs_prec(
     cdef double chi1_L = params.p_params.chi1_L
     cdef double chi2_L = params.p_params.chi2_L
 
-    cdef double[6] dynamics = H.dynamics(
+    cdef Hamiltonian_v5PHM_C_dynamics_result_t dynamics = H.dynamics(
         q,
         p,
         params.p_params.chi1_v,
