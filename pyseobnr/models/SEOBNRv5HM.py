@@ -927,13 +927,17 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
     def _compute_full_rotation(
         self, qt: np.ndarray, quat_i2j: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        q_tot = (
-            qt.conj()  # qJ2P
-            * np.conjugate(quat_i2j)
+
+        # warning: parenthesis on the right of qt.conj() as
+        # we want to multiply qt (big) only once on the right
+
+        q_tot = qt.conj() * (  # qJ2P
+            quat_i2j.conj()
             * quaternion.from_euler_angles(  # qI02I
                 self.settings["phiref"], self.settings["inclination"], 0.0
             )
         )
+
         return quaternion.as_euler_angles(q_tot).T
 
     def _evaluate_model(self):
@@ -1363,10 +1367,6 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
             idx = np.where(t_full < t_attach)[0]
 
-            # Quaternion representing the rotation to the frame where L_N is
-            # along z
-            qt = quaternion.as_quat_array(np.zeros((len(t_full), 4)))
-
             self.idx = idx
             self.final_spin = final_spin
             self.final_mass = final_mass
@@ -1400,9 +1400,11 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             self.t_forres = t_full[idx]
             # qt[idx] = quaternion.squad(quatJ2P_dyn, t_dyn, t_full[idx])
 
+            # Quaternion representing the rotation to the frame where L_N is
+            # along z. Empty init as will be filled out completely in the next steps.
+            qt = quaternion.as_quat_array(np.empty((len(t_full), 4)))
             # Interpolate the quaternions from P to J-frame to the finer time grid of the waveform modes
             qt[idx] = interpolate_quats(quatJ2P_dyn, t_dyn, t_full[idx])
-
             qt[idx[-1] + 1 :] = quat_postMerger
 
             # Routine to compute and include  spin-precessing anti-symmetric modes
