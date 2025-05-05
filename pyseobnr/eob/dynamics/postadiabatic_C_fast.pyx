@@ -440,9 +440,8 @@ cpdef cnp.ndarray[double, ndim=2] compute_postadiabatic_dynamics(
         dt_dr[i] = 1 / dH_dpr_times_csi  # (dH_dpr * csi)
         dphi_dr[i] = dH_dpphi / dH_dpr_times_csi  # (dH_dpr * csi)
 
-    t = cumulative_integral(r, dt_dr)
-
-    phi = cumulative_integral(r, dphi_dr)
+    cdef cnp.ndarray[double, ndim=1, mode="c"] t = cumulative_integral(r, dt_dr)
+    cdef cnp.ndarray[double, ndim=1, mode="c"] phi = cumulative_integral(r, dphi_dr)
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi]
     return postadiabatic_dynamics
