@@ -201,7 +201,10 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         self.max_ell_returned = self._validate_modes(
             settings
         )  # we need to pass the user settings here
-        self.lmax_nyquist = self.settings.get("lmax_nyquist", self.max_ell_returned)
+        self.lmax_nyquist: int = int(
+            self.settings.get("lmax_nyquist", self.max_ell_returned)
+        )
+
         # Now deal with which mixed modes the user wants, if any
 
         self.mixed_modes = [(3, 2), (4, 3)]
@@ -229,7 +232,7 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         # This does not allow attaching the merger-ringdown at the last point of the dynamics.
         self.deltaT_sampling = self.settings.get("deltaT_sampling", False)
 
-    def _default_settings(self):
+    def _default_settings(self) -> dict[str, Any]:
 
         M_default: Final = 50
 
@@ -543,6 +546,7 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 t_new,
                 hlms_joined,
                 phi_orb,
+                m_max=self.max_ell_returned,  # m is never above ell
             )
             del hlms_joined
             # Step 9: construct the full IMR waveform
@@ -770,7 +774,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         # sign of the final spin
         self._sign_final_spin: int | None = None
 
-    def _default_settings(self):
+    def _default_settings(self) -> dict[str, Any]:
         M_default: Final = 50
         # dt is set equal to 0.1M for a system of 10 solar masses.
         dt: Final = (
@@ -1297,6 +1301,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 t_new,
                 hlms_joined,
                 dynamics[:, 2],
+                m_max=self.max_ell_returned,  # m is never above ell
             )
 
             # Sep 8.9) Compute the quaternions necessary to rotate the inspiral part of the waveform
