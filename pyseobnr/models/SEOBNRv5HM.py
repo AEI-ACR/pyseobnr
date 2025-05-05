@@ -890,7 +890,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
     def _unpack_scri(self, w):
         result = {}
         for key in w.LM:
-            result[f"{key[0]},{key[1]}"] = 1 * w.data[:, w.index(key[0], key[1])]
+            result[f"{key[0]},{key[1]}"] = np.copy(w.data[:, w.index(key[0], key[1])])
         return result
 
     def _add_negative_m_modes(self, waveform_modes: dict[tuple[int, int], Any], fac=1):
@@ -915,14 +915,25 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         keys = waveform_modes.keys()
         shape = waveform_modes[(2, 2)].shape
         n_elem = (ell_max + 3) * (ell_max - 1)
-        result = np.zeros((shape[0], n_elem), dtype=np.complex128)
+        # result = np.empty((shape[0], n_elem), dtype=np.complex128)
+        result = []
+        zero_array = None
         i = 0
         for ell in range(ell_min, ell_max + 1):
             for m in range(-ell, ell + 1):
                 if (ell, m) in keys:
-                    result[:, i] = waveform_modes[(ell, m)]
+                    # result[:, i] = waveform_modes[(ell, m)]
+                    result += [waveform_modes[(ell, m)]]
+                else:
+                    if zero_array is None:
+                        # instanciate this array only once
+                        zero_array = np.zeros(shape[0], dtype=np.complex128)
+                    # result[:, i] = np.zeros(shape[0], dtype=np.complex128)
+                    result += [zero_array]
                 i += 1
-        return result
+
+        assert i == n_elem
+        return np.column_stack(result)
 
     def _compute_full_rotation(
         self, qt: np.ndarray, quat_i2j: np.ndarray
@@ -1619,7 +1630,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 # Rotate to the P->J. This is a time-dependent rotation
                 w.frame = qt
                 w_modes = w.to_inertial_frame()
-                self.wavefom_modesJ = self._unpack_scri(deepcopy(w_modes))
+                self.wavefom_modesJ = self._unpack_scri(w_modes)
 
                 # Store the I2J quaternion
                 self.quaternion = quaternion.as_float_array(qt)

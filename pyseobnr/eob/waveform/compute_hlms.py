@@ -107,7 +107,7 @@ def interpolate_modes_fast(
         result_re = intrp_re.eval_e_vector(t_new)
         result_im = intrp_im.eval_e_vector(t_new)
         unrotate_leading_pn(result_re, result_im, factors[m - 1], tmp_store)
-        modes_intrp[key] = 1 * tmp_store
+        modes_intrp[key] = np.copy(tmp_store)
     return modes_intrp
 
 
