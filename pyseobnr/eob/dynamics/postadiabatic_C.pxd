@@ -11,7 +11,7 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] fin_diff_derivative(
     int n=?,
 )
 
-cpdef cumulative_integral(
+cpdef cnp.ndarray[double, ndim=1, mode="c"] cumulative_integral(
     x: np.array,
     y: np.array,
     int order=?,
