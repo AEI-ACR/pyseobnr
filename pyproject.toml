@@ -7,8 +7,8 @@
         "setuptools_scm[toml]>=3.4.3",
         "wheel",
         "cython>=3.0.11",
-        "numpy<2.0.0",
-        "scipy",
+        "numpy>=1.23.0",
+        "scipy>=1.8.0",
         "importlib_resources ; python_version < '3.10'",
     ]
 
@@ -49,7 +49,7 @@
 
     # requirements:
     dependencies = [
-        "numpy>=1.23.0,<2.0.0", # qnm incompatible with numpy 2
+        "numpy>=1.23.0",
         "scipy>=1.8.0",
         "h5py",
         "numexpr",
