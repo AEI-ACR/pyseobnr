@@ -107,7 +107,7 @@ def interpolate_modes_fast(
         result_re = intrp_re.eval_e_vector(t_new)
         result_im = intrp_im.eval_e_vector(t_new)
         unrotate_leading_pn(result_re, result_im, factors[m - 1], tmp_store)
-        modes_intrp[key] = 1 * tmp_store
+        modes_intrp[key] = np.copy(tmp_store)
     return modes_intrp
 
 
@@ -250,6 +250,12 @@ def compute_IMR_modes(
             c1f=MR_fits.c1f(), c2f=MR_fits.c2f(), d1f=MR_fits.d1f(), d2f=MR_fits.d2f()
         )
 
+    # see below for odd m's
+    IVfits_omegas = InputValueFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2]).omega()
+
+    # we compute this quantity only once
+    idx_interp_22 = np.argmin(np.abs(t_for_compute - t_attach))
+
     # Placeholder for the IMR modes. Note that by construction
     # this is longer than is needed for the (5,5) mode, since idx_55<idx
     n_samples = idx + 1 + int(ringdown_time // dt) + 10
@@ -259,18 +265,20 @@ def compute_IMR_modes(
             t_a = t_attach - 10
             idx_end = idx_55
             t_ring = t_ringdown_55
+            idx_interp = np.argmin(np.abs(t_for_compute - t_a))
         else:
             t_a = 1 * t_attach
             idx_end = idx
             t_ring = t_ringdown
+            idx_interp = idx_interp_22
         ell, m = ell_m
 
         amp = np.abs(mode)
         phase = np.unwrap(np.angle(mode))
 
-        idx_interp = np.argmin(np.abs(t_for_compute - t_a))
-        left = np.max((0, idx_interp - N_interp))
-        right = np.min((idx_interp + N_interp, len(t_for_compute)))
+        # idx_interp = np.argmin(np.abs(t_for_compute - t_a))
+        left = max((0, idx_interp - N_interp))
+        right = min((idx_interp + N_interp, len(t_for_compute)))
 
         intrp_amp = InterpolatedUnivariateSpline(
             t_for_compute[left:right], amp[left:right]
@@ -281,7 +289,6 @@ def compute_IMR_modes(
         amp_max = intrp_amp(t_a)
         damp_max = intrp_amp.derivative()(t_a)
         phi_match = intrp_phase(t_a)
-        omega_max = intrp_phase.derivative()(t_a)
 
         # To improve the stability of the merger-ringdown for odd-m configurations
         # with a minimum in the amplitude close to the attachment point,
@@ -292,8 +299,9 @@ def compute_IMR_modes(
         # previous prescription.
 
         if m % 2 == 1:
-            IVfits = InputValueFits(m1, m2, [0.0, 0.0, chi1], [0.0, 0.0, chi2])
-            omega_max = IVfits.omega()[ell, m] * (1.0 + dw_dict[f"{ell},{m}"])
+            omega_max = IVfits_omegas[ell, m] * (1.0 + dw_dict[f"{ell},{m}"])
+        else:
+            omega_max = intrp_phase.derivative()(t_a)
 
         attach_params = dict(
             amp=amp_max,
