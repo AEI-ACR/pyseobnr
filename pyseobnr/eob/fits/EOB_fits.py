@@ -276,43 +276,40 @@ def EOBCalculateNQCCoefficients_freeattach(
     return coeffs
 
 
-def EOBNonQCCorrection(
-    r: np.ndarray,
-    phi: np.ndarray | None,
-    pr: np.ndarray,
-    pphi: np.ndarray,
-    omega: np.ndarray,
-    coeffs: dict,
-) -> np.ndarray:
+class EOBNonQCCorrectionImpl:
+    """Returns the NQC correction array as a function of the NQC coefficients
+
+    The implementation reuses the intermediate calculations.
     """
-    Evaluate the NQC correction, given the coefficients.
 
-    Args:
-        r: r along the dynamics
-        phi: phase along the dynamics
-        pr: pr along the dynamics
-        pphi: pphi along the dynamics
-        omega: omega along the dynamics
-        coeffs: dictionary containing the NQC coefficients
+    def __init__(self, r, phi, pr, pphi, omega):
 
-    Returns:
-        the NQC corrections along the dynamics
+        sqrtR = np.sqrt(r)
+        rOmega = r * omega
+        rOmegaSq = rOmega * rOmega
+        p = pr
 
-    """
-    sqrtR = np.sqrt(r)
-    rOmega = r * omega
-    rOmegaSq = rOmega * rOmega
-    p = pr
-    mag = 1.0 + (p * p / rOmegaSq) * (
-        coeffs["a1"]
-        + coeffs["a2"] / r
-        + (coeffs["a3"] + coeffs["a3S"]) / (r * sqrtR)
-        + coeffs["a4"] / (r * r)
-        + coeffs["a5"] / (r * r * sqrtR)
-    )
-    phase = coeffs["b1"] * p / rOmega + p * p * p / rOmega * (
-        coeffs["b2"] + coeffs["b3"] / sqrtR + coeffs["b4"] / r
-    )
+        self.mc1 = p * p / rOmegaSq
+        self.mc2 = 1.0 / r
+        self.mc3 = 1.0 / (r * sqrtR)
+        self.mc4 = 1.0 / (r * r)
+        self.mc5 = self.mc3 * self.mc2  # 1.0 / (r * r * sqrtR)
 
-    nqc = mag * np.exp(1j * phase)
-    return nqc
+        self.pc1 = p / rOmega
+        self.pc2 = p * p * p / rOmega
+        self.pc3 = 1.0 / sqrtR
+        self.pc4 = self.mc2
+
+    def get_nqc_multiplier(self, coeffs):
+        mag = 1.0 + self.mc1 * (
+            coeffs["a1"]
+            + coeffs["a2"] * self.mc2
+            + (coeffs["a3"] + coeffs["a3S"]) * self.mc3
+            + coeffs["a4"] * self.mc4
+            + coeffs["a5"] / self.mc5
+        )
+        phase = coeffs["b1"] * self.pc1 + self.pc2 * (
+            coeffs["b2"] + coeffs["b3"] * self.pc3 + coeffs["b4"] * self.pc4
+        )
+
+        return mag * np.exp(1j * phase)

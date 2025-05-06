@@ -21,7 +21,7 @@ from ...auxiliary.mode_mixing.auxiliary_functions_modemixing import (
 from ...models.common import VALID_MODES
 from ..fits.EOB_fits import (
     EOBCalculateNQCCoefficients_freeattach,
-    EOBNonQCCorrection,
+    EOBNonQCCorrectionImpl,
     compute_QNM,
 )
 from ..fits.IV_fits import InputValueFits
@@ -722,11 +722,15 @@ def apply_nqc_corrections(
 
     """
     r, pr, omega_orb = polar_dynamics
+
+    nqc_apply = EOBNonQCCorrectionImpl(r=r, phi=None, pr=pr, pphi=None, omega=omega_orb)
+
     for key in hlms.keys():
         ell, m = key
         try:
-            NQC_coeffs = nqc_coeffs[(ell, m)]
+            nqc_coeffs_current_mode = nqc_coeffs[(ell, m)]
         except KeyError:
             continue
-        correction = EOBNonQCCorrection(r, None, pr, None, omega_orb, NQC_coeffs)
+        # correction = EOBNonQCCorrection(r, None, pr, None, omega_orb, nqc_coeffs_current_mode)
+        correction = nqc_apply.get_nqc_multiplier(coeffs=nqc_coeffs_current_mode)
         hlms[key] *= correction
