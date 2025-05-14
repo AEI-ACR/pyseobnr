@@ -1,5 +1,5 @@
 # cython: language_level=3
-# cython: profile=False, linetrace=False, cpow=True
+# cython: profile=False, linetrace=False, cpow=True, binding=True, initializedcheck=False
 
 
 import cython

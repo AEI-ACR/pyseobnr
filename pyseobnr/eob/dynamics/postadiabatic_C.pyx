@@ -10,7 +10,7 @@ cimport cython
 import numpy as np
 cimport numpy as cnp
 
-from libc.math cimport fabs, ceil
+from libc.math cimport fabs, ceil, sqrt
 
 from pygsl_lite import errno, roots
 from scipy import optimize
@@ -180,7 +180,7 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] fin_diff_derivative(
     return dy_dx
 
 
-cpdef Kerr_ISCO(
+cpdef (double, double) Kerr_ISCO(
     double chi1,
     double chi2,
     double m1,
@@ -194,16 +194,16 @@ cpdef Kerr_ISCO(
             m1, m2, chi1, chi2, version="M3J4"
     )
     # Compute the ISCO radius for this spin
-    Z_1 = 1+(1-a**2)**(1./3)*((1+a)**(1./3)+(1-a)**(1./3))
-    Z_2 = np.sqrt(3*a**2+Z_1**2)
-    r_ISCO = 3+Z_2-np.sign(a)*np.sqrt((3-Z_1)*(3+Z_1+2*Z_2))
+    cdef double Z_1 = 1 + (1 - a**2) ** (1.0 / 3) * ((1 + a) ** (1.0 / 3) + (1 - a) ** (1.0 / 3))
+    cdef double Z_2 = sqrt(3 * a**2 + Z_1**2)
+    cdef double r_ISCO = 3 + Z_2 - np.sign(a) * sqrt((3 - Z_1) * (3 + Z_1 + 2 * Z_2))
 
     # Compute the ISCO L for this spin
-    L_ISCO = 2/(3*np.sqrt(3))*(1+2*np.sqrt(3*r_ISCO)-2)
-    return np.array([r_ISCO, L_ISCO])
+    cdef double L_ISCO = 2 / (3 * sqrt(3)) * (1 + 2 * sqrt(3 * r_ISCO) - 2)
+    return r_ISCO, L_ISCO
 
 
-def Newtonian_j0(r):
+cpdef Newtonian_j0(cnp.ndarray[double, ndim=1] r):
     """
     Newtonian expression for orbital angular momentum using
     consistent normalization.
@@ -348,7 +348,7 @@ cpdef compute_pr(
 
     cdef int i, iter
     for i in range(r.shape[0]):
-        if np.abs(pr[i])<1e-14:
+        if np.abs(pr[i]) < 1e-14:
             x0 = 0.0
             x1 = -3e-2
         else:
@@ -527,8 +527,10 @@ cpdef compute_postadiabatic_solution(
     for n in range(1, order+1):
         tol_current = 1.0e-2/10.0**n
         parity = n % 2
-        if n>=7:
-            tol_current = tol
+
+        if n >= 7:
+            tol_current=tol
+
         if parity:
             pr = compute_pr(
                 r,
@@ -591,7 +593,7 @@ cpdef compute_postadiabatic_dynamics(
     Returns:
         np.array: The dynamics results, as (t,q,p)
     """
-    cdef double r0, r_ISCO
+    cdef double r0
     r0, _, _ = computeIC(
         omega0,
         H,
@@ -605,13 +607,13 @@ cpdef compute_postadiabatic_dynamics(
     cdef double chi_eff = m_1*chi_1+m_2*chi_2
     cdef double nu = m_1*m_2/(m_1+m_2)**2
     cdef double r_final_prefactor = 2.7+chi_eff*(1-4.*nu)
-    r_ISCO, _ = Kerr_ISCO(chi_1, chi_2, m_1, m_2)
+    cdef double r_ISCO = Kerr_ISCO(chi_1, chi_2, m_1, m_2)[0]
     cdef double r_final = max(10.0, r_final_prefactor * r_ISCO)
 
     cdef double dr0 = 0.3
     cdef int r_size = int(ceil((r0 - r_final) / dr0))
 
-    if r_size <= 4 or r0<=11.5:
+    if r_size <= 4 or r0 <= 11.5:
         raise ValueError
     elif r_size < 10:
         r_size = 10
@@ -657,8 +659,8 @@ cpdef compute_postadiabatic_dynamics(
         params=params,
     )
 
-    dt_dr = np.zeros(r.shape[0])
-    dphi_dr = np.zeros(r.shape[0])
+    dt_dr = np.empty(r.shape[0])
+    dphi_dr = np.empty(r.shape[0])
 
     cdef:
         int i
@@ -830,10 +832,10 @@ cpdef cumulative_integral(
     return integral
 
 
-def univariate_spline_integral(
+cpdef univariate_spline_integral(
     x: np.array,
     y: np.array,
-) -> np.array:
+):
     y_x_interp = InterpolatedUnivariateSpline(x[::-1], y[::-1])
     y_x_integral = y_x_interp.antiderivative()(x[::-1])[::-1]
     integral = y_x_integral - y_x_integral[0]

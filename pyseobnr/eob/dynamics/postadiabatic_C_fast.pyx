@@ -21,7 +21,7 @@ from ..waveform.waveform cimport RadiationReactionForce
 
 from .initial_conditions_aligned_opt import computeIC_opt as computeIC
 from .integrate_ode import compute_dynamics_opt as compute_dynamics
-from .rhs_aligned import augment_dynamics
+from .rhs_aligned cimport augment_dynamics
 from .postadiabatic_C cimport fin_diff_derivative, cumulative_integral, Kerr_ISCO, compute_adiabatic_solution
 
 
@@ -79,6 +79,8 @@ cpdef double pr_eqn(
     return result
 
 
+@cython.wraparound(False)
+@cython.boundscheck(False)
 cpdef compute_pr(
     cnp.ndarray[double, ndim=1, mode="c"] r,
     cnp.ndarray[double, ndim=1, mode="c"] pr,
@@ -95,9 +97,9 @@ cpdef compute_pr(
 ):
     """
     Compute the value to pr at odd PA orders.
-    This is done by evaluating  Eq(C7) of
+    This is done by evaluating Eq(C7) of
     SEOBNRv5 theory doc at every radial grid point.
-    See DCC:T2300060
+    See [SEOBNRv5HM-theory]_ .
     """
     cdef cnp.ndarray[double, ndim=1, mode="c"] dpphi_dr = -fin_diff_derivative(r, pphi)
     cdef int i
@@ -163,7 +165,6 @@ cpdef double pphi_eqn(
         double xi
         double omega
         double omega_circ
-        double result
     cdef:
         double A
         double Bnp
@@ -218,16 +219,20 @@ cpdef double pphi_eqn(
     cdef double C_0_pt2 = dpr_dr*drdt*tmp - pr/pphi_sol*tmp*flux[1]
     cdef double C_0 = C_0_pt1+C_0_pt2
 
-    D = C_1*C_1 - 4*C_2*C_0
+    cdef double D = C_1*C_1 - 4*C_2*C_0
 
-    if D<0 and fabs(D)<1e-10:
-        D = 0.0
-    if D<0:
-        raise ValueError
-    result = (-C_1-sqrt(D))/(2*C_2)
+    if D < 0:
+        if fabs(D) < 1e-10:
+            D = 0.0
+        else:
+            raise ValueError
+
+    cdef double result = (-C_1-sqrt(D))/(2*C_2)
     return result
 
 
+@cython.wraparound(False)
+@cython.boundscheck(False)
 cpdef cnp.ndarray[double, ndim=1, mode="c"] compute_pphi(
     cnp.ndarray[double, ndim=1, mode="c"] r,
     cnp.ndarray[double, ndim=1, mode="c"] pr,
@@ -246,7 +251,7 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] compute_pphi(
     Compute value of pphi at even PA orders.
     This is done by solving Eq.(C8) from SEOBNRv5
     theory doc at every radial grid point.
-    See DCC:T2300060
+    See [SEOBNRv5HM-theory]_ .
     """
 
     cdef cnp.ndarray[double, ndim=1, mode="c"] dpr_dr = -fin_diff_derivative(r, pr)
@@ -292,8 +297,8 @@ cpdef compute_postadiabatic_solution(
     of pr and pphi iteratively up to the given PA order.
     """
     cdef cnp.ndarray[double, ndim=1, mode="c"] pr = np.zeros(r.size)
-    cdef int n, parity
 
+    cdef int n, parity
     for n in range(1, order+1):
         parity = n % 2
         if parity:
@@ -356,7 +361,7 @@ cpdef cnp.ndarray[double, ndim=2] compute_postadiabatic_dynamics(
     Returns:
         np.array: The dynamics results, as (t,q,p)
     """
-    cdef double r0, r_ISCO
+    cdef double r0
     r0, _, _ = computeIC(
         omega0,
         H,
@@ -371,13 +376,13 @@ cpdef cnp.ndarray[double, ndim=2] compute_postadiabatic_dynamics(
     cdef double chi_eff = m_1*chi_1+m_2*chi_2
     cdef double nu = m_1*m_2/(m_1+m_2)**2
     cdef double r_final_prefactor = 2.7+chi_eff*(1-4.*nu)
-    r_ISCO, _ = Kerr_ISCO(chi_1, chi_2, m_1, m_2)
+    cdef double r_ISCO = Kerr_ISCO(chi_1, chi_2, m_1, m_2)[0]
     cdef double r_final = max(10, r_final_prefactor * r_ISCO)
 
     cdef double dr0 = 0.2
     cdef int r_size = int(ceil((r0 - r_final) / dr0))
 
-    if r_size <= 4 or r0<=11.5:
+    if r_size <= 4 or r0 <= 11.5:
         raise ValueError
     elif r_size < 10:
         r_size = 10
@@ -440,7 +445,6 @@ cpdef cnp.ndarray[double, ndim=2] compute_postadiabatic_dynamics(
     phi = cumulative_integral(r, dphi_dr)
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi]
-
     return postadiabatic_dynamics
 
 
