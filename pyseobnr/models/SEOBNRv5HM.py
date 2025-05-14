@@ -201,7 +201,10 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         self.max_ell_returned = self._validate_modes(
             settings
         )  # we need to pass the user settings here
-        self.lmax_nyquist = self.settings.get("lmax_nyquist", self.max_ell_returned)
+        self.lmax_nyquist: int = int(
+            self.settings.get("lmax_nyquist", self.max_ell_returned)
+        )
+
         # Now deal with which mixed modes the user wants, if any
 
         self.mixed_modes = [(3, 2), (4, 3)]
@@ -229,7 +232,7 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         # This does not allow attaching the merger-ringdown at the last point of the dynamics.
         self.deltaT_sampling = self.settings.get("deltaT_sampling", False)
 
-    def _default_settings(self):
+    def _default_settings(self) -> dict[str, Any]:
 
         M_default: Final = 50
 
@@ -543,6 +546,7 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 t_new,
                 hlms_joined,
                 phi_orb,
+                m_max=self.max_ell_returned,  # m is never above ell
             )
             del hlms_joined
             # Step 9: construct the full IMR waveform
@@ -770,7 +774,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         # sign of the final spin
         self._sign_final_spin: int | None = None
 
-    def _default_settings(self):
+    def _default_settings(self) -> dict[str, Any]:
         M_default: Final = 50
         # dt is set equal to 0.1M for a system of 10 solar masses.
         dt: Final = (
@@ -890,7 +894,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
     def _unpack_scri(self, w):
         result = {}
         for key in w.LM:
-            result[f"{key[0]},{key[1]}"] = 1 * w.data[:, w.index(key[0], key[1])]
+            result[f"{key[0]},{key[1]}"] = np.copy(w.data[:, w.index(key[0], key[1])])
         return result
 
     def _add_negative_m_modes(self, waveform_modes: dict[tuple[int, int], Any], fac=1):
@@ -915,25 +919,40 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         keys = waveform_modes.keys()
         shape = waveform_modes[(2, 2)].shape
         n_elem = (ell_max + 3) * (ell_max - 1)
-        result = np.zeros((shape[0], n_elem), dtype=np.complex128)
+        # result = np.empty((shape[0], n_elem), dtype=np.complex128)
+        result = []
+        zero_array = None
         i = 0
         for ell in range(ell_min, ell_max + 1):
             for m in range(-ell, ell + 1):
                 if (ell, m) in keys:
-                    result[:, i] = waveform_modes[(ell, m)]
+                    # result[:, i] = waveform_modes[(ell, m)]
+                    result += [waveform_modes[(ell, m)]]
+                else:
+                    if zero_array is None:
+                        # instanciate this array only once
+                        zero_array = np.zeros(shape[0], dtype=np.complex128)
+                    # result[:, i] = np.zeros(shape[0], dtype=np.complex128)
+                    result += [zero_array]
                 i += 1
-        return result
+
+        assert i == n_elem
+        return np.column_stack(result)
 
     def _compute_full_rotation(
         self, qt: np.ndarray, quat_i2j: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        q_tot = (
-            qt.conj()  # qJ2P
-            * np.conjugate(quat_i2j)
+
+        # warning: parenthesis on the right of qt.conj() as
+        # we want to multiply qt (big) only once on the right
+
+        q_tot = qt.conj() * (  # qJ2P
+            quat_i2j.conj()
             * quaternion.from_euler_angles(  # qI02I
                 self.settings["phiref"], self.settings["inclination"], 0.0
             )
         )
+
         return quaternion.as_euler_angles(q_tot).T
 
     def _evaluate_model(self):
@@ -1282,6 +1301,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 t_new,
                 hlms_joined,
                 dynamics[:, 2],
+                m_max=self.max_ell_returned,  # m is never above ell
             )
 
             # Sep 8.9) Compute the quaternions necessary to rotate the inspiral part of the waveform
@@ -1363,10 +1383,6 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
             idx = np.where(t_full < t_attach)[0]
 
-            # Quaternion representing the rotation to the frame where L_N is
-            # along z
-            qt = quaternion.as_quat_array(np.zeros((len(t_full), 4)))
-
             self.idx = idx
             self.final_spin = final_spin
             self.final_mass = final_mass
@@ -1400,9 +1416,11 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             self.t_forres = t_full[idx]
             # qt[idx] = quaternion.squad(quatJ2P_dyn, t_dyn, t_full[idx])
 
+            # Quaternion representing the rotation to the frame where L_N is
+            # along z. Empty init as will be filled out completely in the next steps.
+            qt = quaternion.as_quat_array(np.empty((len(t_full), 4)))
             # Interpolate the quaternions from P to J-frame to the finer time grid of the waveform modes
             qt[idx] = interpolate_quats(quatJ2P_dyn, t_dyn, t_full[idx])
-
             qt[idx[-1] + 1 :] = quat_postMerger
 
             # Routine to compute and include  spin-precessing anti-symmetric modes
@@ -1617,7 +1635,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 # Rotate to the P->J. This is a time-dependent rotation
                 w.frame = qt
                 w_modes = w.to_inertial_frame()
-                self.wavefom_modesJ = self._unpack_scri(deepcopy(w_modes))
+                self.wavefom_modesJ = self._unpack_scri(w_modes)
 
                 # Store the I2J quaternion
                 self.quaternion = quaternion.as_float_array(qt)
