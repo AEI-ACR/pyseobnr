@@ -479,7 +479,7 @@ def inspiral_merger_quaternion_angles(
 
     # The inverse transformation, J->I
     quatJ2I = quatI2J.conjugate()
-    alpha_J2I, beta_J2I, gamma_J2I = quaternion.as_euler_angles(quatJ2I)
+    # alpha_J2I, beta_J2I, gamma_J2I = quaternion.as_euler_angles(quatJ2I)
 
     quatJ2P_dyn = SEOBEulerJ2PFromDynamics(t_dynamics, omega_dynamics, LN_in_J)
     # Compute Euler angles from the quaternions

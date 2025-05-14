@@ -17,7 +17,7 @@ cpdef cumulative_integral(
     int order=?,
 )
 
-cpdef Kerr_ISCO(
+cpdef (double, double) Kerr_ISCO(
     double chi1,
     double chi2,
     double m1,
@@ -34,4 +34,11 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] compute_adiabatic_solution(
     qp_param_t q,
     qp_param_t p,
     double tol=?,
+)
+
+cpdef Newtonian_j0(cnp.ndarray[double, ndim=1] r)
+
+cpdef univariate_spline_integral(
+    x: np.array,
+    y: np.array,
 )
