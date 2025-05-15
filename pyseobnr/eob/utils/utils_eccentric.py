@@ -18,8 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 def interpolate_dynamics_ecc(
-    dyn_fine, dt=0.1, peak_omega=None, step_back=250.0, step_back_total=False
-):
+    dyn_fine: np.ndarray,
+    dt: float = 0.1,
+    peak_omega: float | None = None,
+    step_back: float = 250.0,
+    step_back_total: bool = False,
+) -> np.ndarray:
     """
     Interpolate the dynamics to a finer grid in the case of the eccentric model.
 
@@ -30,16 +34,16 @@ def interpolate_dynamics_ecc(
     * On the full array if ``peak_omega`` is not defined
 
     Args:
-        dyn_fine (np.array): Dynamics array
-        dt (float): Time step to which to interpolate
-        peak_omega (float): Position of the peak (stopping condition for the dynamics)
-        step_back (float): Step back relative to the end of the dynamics
-        step_back_total (bool): If ``True``, the returned interpolated array will be
+        dyn_fine: Dynamics array
+        dt: Time step to which to interpolate
+        peak_omega: Position of the peak (stopping condition for the dynamics)
+        step_back: Step back relative to the end of the dynamics
+        step_back_total: If ``True``, the returned interpolated array will be
             the interpolated section only. If ``False``, the non-interpolated and
             interpolated sections will be joined at ``peak_omega-step_back``.
 
     Returns:
-        np.array: Interpolated dynamics array
+        Interpolated dynamics array
 
     .. seealso::
 
@@ -69,7 +73,7 @@ def interpolate_dynamics_ecc(
 
 def compute_ref_values(
     *,
-    dynamics_fine: np.array,
+    dynamics_fine: np.ndarray,
     r_final_qc: float,
 ) -> tuple[float, float]:
     """
@@ -77,12 +81,12 @@ def compute_ref_values(
     eccentric and background QC dynamics are aligned.
 
     Args:
-    dynamics_fine (double[:,:]): Dynamical variables
-        (t, r, phi, pr, pphi, eccentricity, relativistic anomaly,
-        x-parameter, Hamiltonian, omega)
-        corresponding to the fine dynamics
-    r_final_qc (float): Final value of the separation of the background
-        QC dynamics
+        dynamics_fine: Dynamical variables
+            (t, r, phi, pr, pphi, eccentricity, relativistic anomaly,
+            x-parameter, Hamiltonian, omega)
+            corresponding to the fine dynamics
+        r_final_qc: Final value of the separation of the background
+            QC dynamics
 
     Returns:
         tuple: (t_ref, r_ref). Reference values used for alignment.
@@ -122,10 +126,10 @@ def compute_ref_values(
 def compute_attachment_time_qc(
     *,
     r_ref: float,
-    dynamics_qc: np.array,
-    dynamics_fine_qc: np.array,
+    dynamics_qc: np.ndarray,
+    dynamics_fine_qc: np.ndarray,
     params: EOBParams,
-) -> tuple[np.array, float, float]:
+) -> tuple[np.ndarray, float, float]:
     """
     Computation of the merger-ringdown attachment time for the QC
     evolution. Additionally, computation of the QC time array aligned at
@@ -211,47 +215,46 @@ def compute_attachment_time_qc(
 
 def interpolate_background_qc_dynamics(
     *,
-    t_ecc_low_aligned: np.array,
-    t_ecc_fine_aligned: np.array,
-    t_qc_aligned: np.array,
-    dynamics_low: np.array,
-    dynamics_fine: np.array,
-    dynamics: np.array,
-    dyn_qc: np.array,
-) -> tuple[np.array, np.array, np.array, np.array, np.array]:
+    t_ecc_low_aligned: np.ndarray,
+    t_ecc_fine_aligned: np.ndarray,
+    t_qc_aligned: np.ndarray,
+    dynamics_low: np.ndarray,
+    dynamics_fine: np.ndarray,
+    dynamics: np.ndarray,
+    dyn_qc: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Interpolate the background QC dynamics into the eccentric grid.
 
     Args:
-        t_ecc_low_aligned (np.array): Time array corresponding to the low
+        t_ecc_low_aligned: Time array corresponding to the low
             eccentric dynamics, aligned at the eccentric attachment
             time
-        t_ecc_fine_aligned (np.array): Time array corresponding to the fine
+        t_ecc_fine_aligned: Time array corresponding to the fine
             eccentric dynamics, aligned at the eccentric attachment time
-        t_qc_aligned (np.array): Time array corresponding to the full
+        t_qc_aligned: Time array corresponding to the full
             eccentric dynamics, aligned at the eccentric attachment time
-        dynamics_low (double[:,:]): Dynamical variables
+        dynamics_low: Dynamical variables
             (r, phi, pr, pphi, eccentricity, relativistic anomaly,
             x-parameter, Hamiltonian, omega)
             corresponding to the coarse (low) dynamics
-        dynamics_fine (double[:,:]): Dynamical variables
+        dynamics_fine: Dynamical variables
             (r, phi, pr, pphi, eccentricity, relativistic anomaly,
             x-parameter, Hamiltonian, omega)
             corresponding to the fine dynamics
-        dynamics (double[:,:]): Dynamical variables
+        dynamics: Dynamical variables
             (r, phi, pr, pphi, eccentricity, relativistic anomaly,
             x-parameter, Hamiltonian, omega)
             corresponding to the full dynamics
-        dyn_qc (double[:,:]): Dynamical variables
+        dyn_qc: Dynamical variables
             (r, phi, pr, pphi, omega)
             corresponding to the full dynamics of the QC evolution
-        params (EOBParams): EOB parameters of the system
 
     Returns:
-        tuple: (dynamics_low, dynamics_fine, dynamics, dynamics_low_qc,
-            dynamics_fine_qc). Low, fine and low + fine arrays for the
-            eccentric dynamics, and also the low and fine
-            arrays for the QC dynamics.
+        tuple: (dynamics_low, dynamics_fine, dynamics, dynamics_low_qc, dynamics_fine_qc)
+
+        Low, fine and low + fine arrays for the eccentric dynamics, and also the low
+        and fine arrays for the QC dynamics.
     """
 
     # After the alignment, if the aligned QC dynamics ends before the
@@ -327,10 +330,10 @@ def root_r(t, r_stop, ezx_interp, params):
 
 
 def compute_starting_values(
-    r_stop,
-    dynamics,
-    threshold,
-    params,
+    r_stop: float,
+    dynamics: np.ndarray,
+    threshold: bool,
+    params: EOBParams,
 ) -> tuple[float, float, float, float]:
     """
     Compute the exact values of starting time, eccentricity,
@@ -338,13 +341,13 @@ def compute_starting_values(
     orbital frequency that correspond to r = r_stop.
 
     Args:
-        r_stop (float): Value of the separation at which to compute the
+        r_stop: Value of the separation at which to compute the
             starting values
-        dynamics (np.array): Dynamical variables
+        dynamics: Dynamical variables
             (t, eccentricity, rel_anomaly, omega_avg^{2/3})
-        threshold (bool): If False, then perform a root solving procedure
+        threshold: If False, then perform a root solving procedure
             to find the time at which r = r_stop
-        params (EOBParams): EOB parameters of the system
+        params: EOB parameters of the system
 
     Returns:
         tuple: (t_start, eccentricity, rel_anomaly, omega_avg).
@@ -405,6 +408,7 @@ def dot_phi_omega_avg_e_z(
     Instantaneous orbital angular velocity 'dot_phi' as a function of the
     orbit-averaged orbital angular frequency 'omega_avg', eccentricity 'e',
     and relativistic anomaly 'z', with post-adiabatic (PA) contributions.
+
     The PA contributions are set to zero by default.
     The name of the corresponding expression in the supplementary material
     "docs/mathematica/dynamical_variables.m" is "phidotomegaAvgez".
@@ -693,6 +697,7 @@ def r_omega_avg_e_z(
     frequency 'omega_avg', eccentricity 'e', and relativistic anomaly 'z',
     with post-adiabatic (PA) contributions. The PA contributions are set to
     zero by default.
+
     The name of the corresponding expression in the supplementary material
     "docs/mathematica/dynamical_variables.m" is "romegaAvgez".
     """
@@ -861,6 +866,7 @@ def pphi_omega_avg_e_z(
     frequency 'omega_avg', eccentricity 'e', and relativistic anomaly 'z',
     with post-adiabatic (PA) contributions. The PA contributions are set to
     zero by default.
+
     The name of the corresponding expression in the supplementary material
     "docs/mathematica/dynamical_variables.m" is "pphiomegaAvgez".
     """
@@ -1001,6 +1007,7 @@ def r_diss_omega_avg_e_z(omega_avg, e, z, nu, flags_ecc: dict | None = None):
     Dissipative contribution to the relative separation 'r' as a function of
     the orbit-averaged orbital angular frequency 'omega_avg', eccentricity 'e',
     and relativistic anomaly 'z'.
+
     The name of the corresponding expression in the supplementary material
     "docs/mathematica/dynamical_variables.m" is "rdissomegaAvgez".
     """
@@ -1043,6 +1050,7 @@ def pphi_diss_omega_avg_e_z(omega_avg, e, z, nu, flags_ecc: dict | None = None):
     Dissipative contribution to the angular momentum 'pphi' as a function of
     the orbit-averaged orbital angular frequency 'omega_avg', eccentricity 'e',
     and relativistic anomaly 'z'.
+
     The name of the corresponding expression in the supplementary material
     "docs/mathematica/dynamical_variables.m" is "pphidissomegaAvgez".
     """
@@ -1095,6 +1103,7 @@ def prstar_omega_avg_e_z(
     Radial momentum 'prstar' conjugate to the tortoise 'r' as a function of the
     orbit-averaged orbital angular frequency 'omega_avg', eccentricity 'e',
     and relativistic anomaly 'z', with PA contributions.
+
     The name of the corresponding expression in the supplementary material
     "docs/mathematica/dynamical_variables.m" is "prstaromegaAvgez".
     """
@@ -1372,6 +1381,7 @@ def dot_prstar_omega_avg_e_z(
     Time derivative of the tortoise radial momentum 'dot_prstar'
     as a function of the orbit-averaged orbital angular frequency 'omega_avg',
     eccentricity 'e', and relativistic anomaly 'z'.
+
     The name of the corresponding expression in the supplementary material
     "docs/mathematica/dynamical_variables.m" is "prstardotomegaAvgez".
     """

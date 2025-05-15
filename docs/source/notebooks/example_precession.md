@@ -20,29 +20,15 @@ The notebook contains an example on how to access spin-precessing waveforms \
 and dynamical quantities with the SEOBNRv5PHM model.
 
 ```{code-cell} ipython3
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
-
-# These imports are for cosmetic purposes only
-import seaborn as sns
-
-sns.set_palette("colorblind")
-colors = [
-    "#377eb8",
-    "#ff7f00",
-    "#4daf4a",
-    "#f781bf",
-    "#a65628",
-    "#984ea3",
-    "#999999",
-    "#e41a1c",
-    "#dede00",
-]
-golden = 1.6180339887498948482045868
-sns.set_theme(style="white", font_scale=0.9)
 ```
 
 ```{code-cell} ipython3
+warnings.filterwarnings("ignore", "Wswiglal-redir-stdio")  # silence LAL warnings
+
 from pyseobnr.generate_waveform import generate_modes_opt
 ```
 
@@ -55,7 +41,7 @@ chi_2 = np.array([0.5, 0.0, 0.5])
 omega0 = 0.01
 ```
 
-Using generate_modes_opt with debug=True we also get an SEOBNRv5HM object back which contains more information than just the waveform modes.
+Using `generate_modes_opt` with `debug=True` we also get an `SEOBNRv5PHM` object back which contains more information than just the waveform modes.
 
 ```{code-cell} ipython3
 _, _, model = generate_modes_opt(
@@ -179,7 +165,7 @@ plt.ylabel(r"$\gamma$")
 plt.grid(True, which="both")
 ```
 
-# Activation of the anti-symmetric modes
+## Activation of the anti-symmetric modes
 
 The model `SEOBNRv5PHM` supports the handling of the anti-symmetric modes that should be activated explicitly using the setting `enable_antisymmetric_modes`. The selection of the anti-symmetric modes can be done through `antisymmetric_modes`.
 

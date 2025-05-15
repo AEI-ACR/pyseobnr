@@ -1274,7 +1274,7 @@ class GenerateWaveform:
         increased so that ``f_max / deltaF`` is the next power of 2. (If the user wishes to discard
         the extra high frequency content, this must be done separately.)
 
-        .. warnings::
+        .. warning::
 
             The user should take care to ensure that ``deltaF`` is sufficiently small to contain the full
             signal (time series duration ``= 1 / deltaF``). If the provided ``deltaF`` is too large the
