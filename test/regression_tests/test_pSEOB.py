@@ -170,3 +170,55 @@ def test_pSEOB_settings_passed_with_missing_modes():
             assert model.settings[current_dict] == random_dict
             # dict corrected
             assert getattr(model, current_dict) == {"3,3": 0.0} | random_dict
+
+
+def test_pSEOB_settings_compatible_with_PHM_antisymmetric():
+    """Checks the compatibility of the pSEOB deviations when anti-symmetric modes are enabled"""
+
+    # note that the code would fail to execute as the damping time would be
+    # different between symmetric and anti-symmetric modes (yielding in arrays
+    # of different sizes).
+    q = 41.83615272380585
+    omega0 = 0.02
+    chi_1 = 0.98917404
+    chi_2 = 0.3
+
+    # 3,3 is missing from here
+    random_dict = {
+        k: random.uniform(-1, 1) for k in ("2,2", "2,1", "3,2", "4,4", "4,3", "5,5")
+    }
+
+    with mock.patch(
+        "pyseobnr.models.SEOBNRv5HM.NQC_correction", wraps=NQC_correction
+    ) as p_NQC_correction, mock.patch(
+        "pyseobnr.models.SEOBNRv5HM.compute_IMR_modes", wraps=compute_IMR_modes
+    ) as p_compute_IMR_modes:
+
+        *_, model = generate_modes_opt(
+            q,
+            chi_1,
+            chi_2,
+            omega0,
+            approximant="SEOBNRv5PHM",
+            debug=True,
+            settings={
+                "M": 154.2059835575123,
+                "dt": 6.103515625e-05,
+                "dtau_dict": random_dict,
+                "enable_antisymmetric_modes": True,
+            },
+        )
+
+        p_NQC_correction.assert_called_once()
+        p_compute_IMR_modes.assert_called()
+        assert p_compute_IMR_modes.call_count == 2
+        assert "dtau_dict" in p_compute_IMR_modes.call_args_list[0].kwargs
+        assert "dtau_dict" not in p_compute_IMR_modes.call_args_list[1].kwargs
+        assert (
+            p_compute_IMR_modes.call_args_list[0].kwargs["dtau_dict"]
+            == {"3,3": 0.0} | random_dict
+        )
+        assert (
+            p_compute_IMR_modes.call_args_list[1].kwargs["dtau_22_asym"]
+            == random_dict["2,2"]
+        )

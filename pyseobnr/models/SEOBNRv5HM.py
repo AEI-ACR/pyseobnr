@@ -1574,6 +1574,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     final_state=[final_mass, final_spin],
                     qnm_rotation=qnm_rotation,
                     ivs_mrd=mrd_ivs,
+                    dtau_22_asym=self.dtau_dict["2,2"],
                 )
 
                 # Construct full co-precessing modes (symm + asymm)

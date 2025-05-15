@@ -130,6 +130,7 @@ def compute_IMR_modes(
     dw_dict: dict[str, float] | None = None,
     domega_dict: dict[str, float] | None = None,
     dtau_dict: dict[str, float] | None = None,
+    dtau_22_asym: float = 0.0,
     ivs_mrd: MRAnzatze | None = None,
 ) -> tuple[np.ndarray, dict[tuple[int, int], np.ndarray]]:
     """Computes the IMR modes given the inspiral modes and the
@@ -157,10 +158,17 @@ def compute_IMR_modes(
             peak amplitude
         domega_dict: Dictionary of fractional deviations of QNM frequency for each mode
         dtau_dict: Dictionary of fractional deviation of QNM damping time for each mode
+        dtau_22_asym: Damping time deviation for the antisymmetric modes, only used to
+            get the same ringdown time array as the symmetric mode
         ivs_mrd: fits for the MR ansatze
 
     Returns:
         time array and dictionary containing the waveform modes
+
+    Note:
+        The deviations to the QNM damping time are not acting on the anti-symmetric code:
+        the current implementation just ensures that the anti-symmetric modes have the
+        same length as to the symmetric ones.
     """
 
     # We want to attach the ringdown always at the same time,
@@ -226,7 +234,13 @@ def compute_IMR_modes(
     # the ringdown length. We don't need to compute the co-precessing frame QNM
     # frequencies from the J-frame QNMs as in `compute_MR.py` since this rotation
     # only affects the real part of the frequency and not the damping time.
-    damping_time = 1 / np.imag(omega_complex) * (1 + dtau_dict["2,2"])
+
+    # For the antisymmetric modes we use dtau_22_asym only to get the same
+    # ringdown time array as the symmetric mode
+    damping_time = (
+        1 / np.imag(omega_complex) * (1 + dtau_dict["2,2"]) * (1 + dtau_22_asym)
+    )
+
     # The length of the ringdown rounded to closest M
     ringdown_time = int(30 * damping_time)
 
