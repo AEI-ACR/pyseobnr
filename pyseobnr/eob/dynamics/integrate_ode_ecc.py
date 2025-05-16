@@ -125,7 +125,7 @@ def ODE_system_RHS_ecc_secular_opt(
     :param float t: The current time
     :param np.array Kep: The dynamics variables, stored as ``(e, z, x)``,
         where ``e`` is the eccentricity, ``z`` is the relativistic anomaly,
-        and :py:math:`x = (M \\omega)^{2/3}` is the dimensionless
+        and :math:`x = (M \\omega)^{2/3}` is the dimensionless
         orbit-averaged orbital frequency.
     :param tuple args: Additional arguments to the right hand side function.
 

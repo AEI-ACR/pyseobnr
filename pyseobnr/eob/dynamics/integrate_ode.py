@@ -29,7 +29,7 @@ class ColsDyn(enum.IntEnum):
         the same dynamical variables as in the eccentric model SEOBNRv5EHM
         and precessing SEOBNRv5PHM.
 
-    The columns after :py:math:`p_\\phi` exist only after the call to
+    The columns after :math:`p_\\phi` exist only after the call to
     :py:func:`~.rhs_aligned.augment_dynamics`.
     """
 
