@@ -26,126 +26,214 @@ from ..waveform.waveform cimport RadiationReactionForce
 from ..utils.nr_utils import bbh_final_spin_non_precessing_HBR2016
 
 from .initial_conditions_aligned_opt import computeIC_opt as computeIC
-from .integrate_ode import augment_dynamics
-from .integrate_ode import compute_dynamics_opt as compute_dynamics
+from .integrate_ode import augment_dynamics, compute_dynamics_opt as compute_dynamics
 
 
-fin_diff_coeffs_order_9 = np.array([
-    [-761./280., 8., -14., 56./3., -35./2., 56./5., -14./3., 8./7., -1./8.],
-    [-1./8., -223./140., 7./2., -7./2., 35./12., -7./4., 7./10., -1./6., 1./56.],
-    [1./56., -2./7., -19./20., 2., -5./4., 2./3., -1./4., 2./35., -1./168.],
-    [-1./168., 1./14., -1./2., -9./20., 5./4., -1./2., 1./6., -1./28., 1./280.],
-    [1./280., -4./105., 1./5., -4./5., 0, 4./5., -1./5., 4./105., -1./280.],
-    [-1./280., 1./28., -1./6., 1./2., -5./4., 9./20., 1./2., -1./14., 1./168.],
-    [1./168., -2./35., 1./4., -2./3., 5./4., -2., 19./20., 2./7., -1./56.],
-    [-1./56., 1./6., -7./10., 7./4., -35./12., 7./2., -7./2., 223./140., 1./8.],
-    [1./8., -8./7., 14./3., -56./5., 35./2., -56./3., 14., -8., 761./280.],
-])
+fin_diff_coeffs_order_9 = np.ascontiguousarray(
+    [
+        [
+            -761.0 / 280.0,
+            8.0,
+            -14.0,
+            56.0 / 3.0,
+            -35.0 / 2.0,
+            56.0 / 5.0,
+            -14.0 / 3.0,
+            8.0 / 7.0,
+            -1.0 / 8.0,
+        ],
+        [
+            -1.0 / 8.0,
+            -223.0 / 140.0,
+            7.0 / 2.0,
+            -7.0 / 2.0,
+            35.0 / 12.0,
+            -7.0 / 4.0,
+            7.0 / 10.0,
+            -1.0 / 6.0,
+            1.0 / 56.0,
+        ],
+        [
+            1.0 / 56.0,
+            -2.0 / 7.0,
+            -19.0 / 20.0,
+            2.0,
+            -5.0 / 4.0,
+            2.0 / 3.0,
+            -1.0 / 4.0,
+            2.0 / 35.0,
+            -1.0 / 168.0,
+        ],
+        [
+            -1.0 / 168.0,
+            1.0 / 14.0,
+            -1.0 / 2.0,
+            -9.0 / 20.0,
+            5.0 / 4.0,
+            -1.0 / 2.0,
+            1.0 / 6.0,
+            -1.0 / 28.0,
+            1.0 / 280.0,
+        ],
+        [
+            1.0 / 280.0,
+            -4.0 / 105.0,
+            1.0 / 5.0,
+            -4.0 / 5.0,
+            0,
+            4.0 / 5.0,
+            -1.0 / 5.0,
+            4.0 / 105.0,
+            -1.0 / 280.0,
+        ],
+        [
+            -1.0 / 280.0,
+            1.0 / 28.0,
+            -1.0 / 6.0,
+            1.0 / 2.0,
+            -5.0 / 4.0,
+            9.0 / 20.0,
+            1.0 / 2.0,
+            -1.0 / 14.0,
+            1.0 / 168.0,
+        ],
+        [
+            1.0 / 168.0,
+            -2.0 / 35.0,
+            1.0 / 4.0,
+            -2.0 / 3.0,
+            5.0 / 4.0,
+            -2.0,
+            19.0 / 20.0,
+            2.0 / 7.0,
+            -1.0 / 56.0,
+        ],
+        [
+            -1.0 / 56.0,
+            1.0 / 6.0,
+            -7.0 / 10.0,
+            7.0 / 4.0,
+            -35.0 / 12.0,
+            7.0 / 2.0,
+            -7.0 / 2.0,
+            223.0 / 140.0,
+            1.0 / 8.0,
+        ],
+        [
+            1.0 / 8.0,
+            -8.0 / 7.0,
+            14.0 / 3.0,
+            -56.0 / 5.0,
+            35.0 / 2.0,
+            -56.0 / 3.0,
+            14.0,
+            -8.0,
+            761.0 / 280.0,
+        ],
+    ]
+)
 
-interpolated_integral_order_3 = [
+# for convolutions
+fin_diff_coeffs_order_9_reverse = np.ascontiguousarray(fin_diff_coeffs_order_9[:, ::-1])
+
+
+interpolated_integral_order_3 = np.ascontiguousarray([
     [3./8., 19./24., -5./24., 1./24.],
     [-1./24., 13./24., 13./24., -1./24.],
     [1./24., -5./24., 19./24., 3./8.],
-]
+])
 
-interpolated_integral_order_5 = [
+interpolated_integral_order_5 = np.ascontiguousarray([
     [95./288., 1427./1440., -133./240., 241./720., -173./1440., 3./160.],
     [-3./160., 637./1440., 511./720., -43./240., 77./1440., -11./1440.],
     [11./1440., -31./480., 401./720., 401./720., -31./480., 11./1440.],
     [-11./1440., 77./1440., -43./240., 511./720., 637./1440., -3./160.],
     [3./160., -173./1440., 241./720., -133./240., 1427./1440., 95./288.],
-]
+])
 
-interpolated_integral_order_7 = [
+interpolated_integral_order_7 = np.ascontiguousarray(
     [
-        5257.0 / 17280,
-        139849.0 / 120960,
-        -(4511.0 / 4480),
-        123133.0 / 120960,
-        -(88547.0 / 120960),
-        1537.0 / 4480,
-        -(11351.0 / 120960),
-        275.0 / 24192,
-    ],
-    [
-        -(275.0 / 24192),
-        5311.0 / 13440,
-        11261.0 / 13440,
-        -(44797.0 / 120960),
-        2987.0 / 13440,
-        -(1283.0 / 13440),
-        2999.0 / 120960,
-        -(13.0 / 4480),
-    ],
-    [
-        13.0 / 4480,
-        -(4183.0 / 120960),
-        6403.0 / 13440,
-        9077.0 / 13440,
-        -(20227.0 / 120960),
-        803.0 / 13440,
-        -(191.0 / 13440),
-        191.0 / 120960,
-    ],
-    [
-        -(191.0 / 120960),
-        1879.0 / 120960,
-        -(353.0 / 4480),
-        68323.0 / 120960,
-        68323.0 / 120960,
-        -(353.0 / 4480),
-        1879.0 / 120960,
-        -(191.0 / 120960),
-    ],
-    [
-        191.0 / 120960,
-        -(191.0 / 13440),
-        803.0 / 13440,
-        -(20227.0 / 120960),
-        9077.0 / 13440,
-        6403.0 / 13440,
-        -(4183.0 / 120960),
-        13.0 / 4480,
-    ],
-    [
-        -(13.0 / 4480),
-        2999.0 / 120960,
-        -(1283.0 / 13440),
-        2987.0 / 13440,
-        -(44797.0 / 120960),
-        11261.0 / 13440,
-        5311.0 / 13440,
-        -(275.0 / 24192),
-    ],
-    [
-        275.0 / 24192,
-        -(11351.0 / 120960),
-        1537.0 / 4480,
-        -(88547.0 / 120960),
-        123133.0 / 120960,
-        -(4511.0 / 4480),
-        139849.0 / 120960,
-        5257.0 / 17280,
-    ],
-]
+        [
+            5257.0 / 17280,
+            139849.0 / 120960,
+            -(4511.0 / 4480),
+            123133.0 / 120960,
+            -(88547.0 / 120960),
+            1537.0 / 4480,
+            -(11351.0 / 120960),
+            275.0 / 24192,
+        ],
+        [
+            -(275.0 / 24192),
+            5311.0 / 13440,
+            11261.0 / 13440,
+            -(44797.0 / 120960),
+            2987.0 / 13440,
+            -(1283.0 / 13440),
+            2999.0 / 120960,
+            -(13.0 / 4480),
+        ],
+        [
+            13.0 / 4480,
+            -(4183.0 / 120960),
+            6403.0 / 13440,
+            9077.0 / 13440,
+            -(20227.0 / 120960),
+            803.0 / 13440,
+            -(191.0 / 13440),
+            191.0 / 120960,
+        ],
+        [
+            -(191.0 / 120960),
+            1879.0 / 120960,
+            -(353.0 / 4480),
+            68323.0 / 120960,
+            68323.0 / 120960,
+            -(353.0 / 4480),
+            1879.0 / 120960,
+            -(191.0 / 120960),
+        ],
+        [
+            191.0 / 120960,
+            -(191.0 / 13440),
+            803.0 / 13440,
+            -(20227.0 / 120960),
+            9077.0 / 13440,
+            6403.0 / 13440,
+            -(4183.0 / 120960),
+            13.0 / 4480,
+        ],
+        [
+            -(13.0 / 4480),
+            2999.0 / 120960,
+            -(1283.0 / 13440),
+            2987.0 / 13440,
+            -(44797.0 / 120960),
+            11261.0 / 13440,
+            5311.0 / 13440,
+            -(275.0 / 24192),
+        ],
+        [
+            275.0 / 24192,
+            -(11351.0 / 120960),
+            1537.0 / 4480,
+            -(88547.0 / 120960),
+            123133.0 / 120960,
+            -(4511.0 / 4480),
+            139849.0 / 120960,
+            5257.0 / 17280,
+        ],
+    ]
+)
 
 
-@cython.cdivision(True)
 @cython.boundscheck(False)
-cdef double single_deriv(double[:] y, double h, double[:] coeffs):
-    cdef int i
-    cdef double total = 0.0
-    for i in range(9):
-        total += coeffs[i]*y[i]
-    total /= h
-    return total
-
-
 @cython.cdivision(True)
+@cython.nonecheck(False)
+@cython.initializedcheck(False)
 cpdef cnp.ndarray[double, ndim=1, mode="c"] fin_diff_derivative(
-    x: np.array,
-    y: np.array,
-    int n=8,
+    cnp.ndarray[double, ndim=1] x,
+    cnp.ndarray[double, ndim=1] y,
 ):
     """
     Compute 8th order finite difference derivative,
@@ -153,31 +241,25 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] fin_diff_derivative(
     asymmetric stencils at the end points.
     """
 
-    cdef cnp.ndarray[double, ndim=1, mode="c"] dy_dx = np.empty(x.size)
-    cdef double h = fabs(x[1] - x[0])
     cdef int size = x.shape[0]
-    cdef int i
-    for i in range(size):
-        if i == 0:
-            dy_dx[i] = single_deriv(y[0:9], h, fin_diff_coeffs_order_9[0])
-        elif i == 1:
-            dy_dx[i] = single_deriv(y[0:9], h, fin_diff_coeffs_order_9[1])
-        elif i == 2:
-            dy_dx[i] = single_deriv(y[0:9], h, fin_diff_coeffs_order_9[2])
-        elif i == 3:
-            dy_dx[i] = single_deriv(y[0:9], h, fin_diff_coeffs_order_9[3])
-        elif i == size - 4:
-            dy_dx[i] = single_deriv(y[-9:], h, fin_diff_coeffs_order_9[5])
-        elif i == size - 3:
-            dy_dx[i] = single_deriv(y[-9:], h, fin_diff_coeffs_order_9[6])
-        elif i == size - 2:
-            dy_dx[i] = single_deriv(y[-9:], h, fin_diff_coeffs_order_9[7])
-        elif i == size - 1:
-            dy_dx[i] = single_deriv(y[-9:], h, fin_diff_coeffs_order_9[8])
-        else:
-            dy_dx[i] = single_deriv(y[i-4:i+5], h, fin_diff_coeffs_order_9[4])
+    cdef cnp.ndarray[double, ndim=1, mode="c"] dy_dx = np.empty(size)
+    cdef double h = fabs(x[1] - x[0])
+    cdef int i, j
 
-    return dy_dx
+    current_y = y[:9]
+    for j in range(4):
+        dy_dx[j] = np.convolve(fin_diff_coeffs_order_9_reverse[j], current_y, "valid")[0]
+
+    dy_dx[4:-4] = np.convolve(fin_diff_coeffs_order_9_reverse[4], y, "valid")
+
+    j = 5
+    current_y = y[-9:]  # means we cannot use "wraparound(False)"
+    for i in range(size - 4, size):
+        dy_dx[i] = np.convolve(fin_diff_coeffs_order_9_reverse[j], current_y, "valid")[0]
+        j += 1
+
+    # division at the end, we can multiply the convolution kernel with it.
+    return dy_dx / h
 
 
 cpdef (double, double) Kerr_ISCO(
@@ -682,9 +764,8 @@ cpdef compute_postadiabatic_dynamics(
         dt_dr[i] = 1 / dH_dpr_times_csi  # (dH_dpr * csi)
         dphi_dr[i] = dH_dpphi / dH_dpr_times_csi  # (dH_dpr * csi)
 
-    t = cumulative_integral(r, dt_dr)
-
-    phi = cumulative_integral(r, dphi_dr)
+    cdef cnp.ndarray[double, ndim=1, mode="c"] t = cumulative_integral(r, dt_dr)
+    cdef cnp.ndarray[double, ndim=1, mode="c"] phi = cumulative_integral(r, dphi_dr)
 
     postadiabatic_dynamics = np.c_[t, r, phi, pr, pphi]
 
@@ -773,63 +854,51 @@ cpdef compute_combined_dynamics(
     return combined_dynamics, ode_dynamics_high
 
 
-cpdef cumulative_integral(
-    x: np.array,
-    y: np.array,
+@cython.boundscheck(False)
+@cython.nonecheck(False)
+@cython.initializedcheck(False)
+@cython.cdivision(True)
+cpdef cnp.ndarray[double, ndim=1, mode="c"] cumulative_integral(
+    cnp.ndarray[double, ndim=1] x,
+    cnp.ndarray[double, ndim=1] y,
     int order=7,
 ):
     """
     Compute a cumulative integral numerically using sampled data
     to a given order in accuracy. Assumes an equally spaced grid
     """
-    cdef double h = x[1] - x[0]
 
-    integral = np.zeros(x.size)
+    cdef int size = x.size
+    cdef double h = x[1] - x[0]
+    cdef cnp.ndarray[double, ndim=1, mode="c"] integral = np.empty(x.size)
+    integral[0] = 0
 
     if order == 3:
-        for i in range(x.size - 1):
-            if i == 0:
-                z = np.sum(interpolated_integral_order_3[0] * y[:4])
-            elif i == x.size - 2:
-                z = np.sum(interpolated_integral_order_3[2] * y[-4:])
-            else:
-                z = np.sum(interpolated_integral_order_3[1] * y[i-1:i+3])
+        integral[1] = np.convolve(interpolated_integral_order_3[0][::-1], y[:4], "valid")[0]
+        integral[2:-1] = np.convolve(interpolated_integral_order_3[1][::-1], y, "valid")
+        integral[size - 1] = np.convolve(interpolated_integral_order_3[2][::-1], y[-4:], "valid")[0]
 
-            integral[i+1] = integral[i] + z * h
     elif order == 5:
-        for i in range(x.size - 1):
-            if i == 0:
-                z = np.sum(interpolated_integral_order_5[0] * y[:6])
-            elif i == 1:
-                z = np.sum(interpolated_integral_order_5[1] * y[:6])
-            elif i == x.size - 3:
-                z = np.sum(interpolated_integral_order_5[3] * y[-6:])
-            elif i == x.size - 2:
-                z = np.sum(interpolated_integral_order_5[4] * y[-6:])
-            else:
-                z = np.sum(interpolated_integral_order_5[2] * y[i-2:i+4])
+        integral[1] = np.convolve(interpolated_integral_order_5[0][::-1], y[:6], "valid")[0]
+        integral[2] = np.convolve(interpolated_integral_order_5[1][::-1], y[:6], "valid")[0]
+        integral[3:-2] = np.convolve(interpolated_integral_order_5[2][::-1], y, "valid")
+        integral[size-2] = np.convolve(interpolated_integral_order_5[3][::-1], y[-6:], "valid")[0]
+        integral[size-1] = np.convolve(interpolated_integral_order_5[4][::-1], y[-6:], "valid")[0]
 
-            integral[i+1] = integral[i] + z * h
     elif order == 7:
-        for i in range(x.size - 1):
-            if i == 0:
-                z = np.sum(interpolated_integral_order_7[0] * y[:8])
-            elif i == 1:
-                z = np.sum(interpolated_integral_order_7[1] * y[:8])
-            elif i == 2:
-                z = np.sum(interpolated_integral_order_7[2] * y[:8])
-            elif i == x.size - 4:
-                z = np.sum(interpolated_integral_order_7[4] * y[-8:])
-            elif i == x.size - 3:
-                z = np.sum(interpolated_integral_order_7[5] * y[-8:])
-            elif i == x.size - 2:
-                z = np.sum(interpolated_integral_order_7[6] * y[-8:])
-            else:
-                z = np.sum(interpolated_integral_order_7[3] * y[i-3:i+5])
+        integral[1] = np.convolve(interpolated_integral_order_7[0][::-1], y[:8], "valid")[0]
+        integral[2] = np.convolve(interpolated_integral_order_7[1][::-1], y[:8], "valid")[0]
+        integral[3] = np.convolve(interpolated_integral_order_7[2][::-1], y[:8], "valid")[0]
+        integral[4:-3] = np.convolve(interpolated_integral_order_7[3][::-1], y, "valid")
+        integral[size-3] = np.convolve(interpolated_integral_order_7[4][::-1], y[-8:], "valid")[0]
+        integral[size-2] = np.convolve(interpolated_integral_order_7[5][::-1], y[-8:], "valid")[0]
+        integral[size-1] = np.convolve(interpolated_integral_order_7[6][::-1], y[-8:], "valid")[0]
 
-            integral[i+1] = integral[i] + z * h
+    else:
+        raise RuntimeError("Unsupported order")
 
-    return integral
+    integral *= h
+    return np.cumsum(integral)
 
 
 cpdef univariate_spline_integral(

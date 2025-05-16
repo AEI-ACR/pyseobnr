@@ -6,14 +6,13 @@ from ..utils.containers cimport qp_param_t
 from ..hamiltonian.Hamiltonian_C cimport Hamiltonian_C
 
 cpdef cnp.ndarray[double, ndim=1, mode="c"] fin_diff_derivative(
-    x: np.array,
-    y: np.array,
-    int n=?,
+    cnp.ndarray[double, ndim=1] x,
+    cnp.ndarray[double, ndim=1] y,
 )
 
-cpdef cumulative_integral(
-    x: np.array,
-    y: np.array,
+cpdef cnp.ndarray[double, ndim=1, mode="c"] cumulative_integral(
+    cnp.ndarray[double, ndim=1] x,
+    cnp.ndarray[double, ndim=1] y,
     int order=?,
 )
 
