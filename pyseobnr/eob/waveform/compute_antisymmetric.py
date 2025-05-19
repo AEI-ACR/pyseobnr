@@ -418,7 +418,7 @@ def compute_asymmetric_PN(
 def apply_nqc_phase_antisymmetric(
     inspiral_modes: dict[tuple[int, int], np.ndarray],
     t_modes: np.ndarray,
-    polar_dynamics: np.ndarray | tuple[float, float, float],
+    polar_dynamics: np.ndarray | tuple[np.ndarray, np.ndarray, np.ndarray],
     t_attach: float,
     ivs: IVSAntisymmetric,
     nqc_flags: dict,
@@ -464,8 +464,8 @@ def apply_nqc_phase_antisymmetric(
 
     idx = np.argmin(np.abs(t_modes - nrTimePeak))
     N = 5
-    left = np.max((0, idx - N))
-    right = np.min((idx + N, len(t_modes)))
+    left = max(0, idx - N)
+    right = min(idx + N, len(t_modes))
 
     # Now we (should) have calculated the a values.
     # We now compute the frequency NQCs (b1,b2) by solving Eq.(11) of T1100433v2

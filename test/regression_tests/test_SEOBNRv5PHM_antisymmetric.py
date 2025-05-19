@@ -726,6 +726,103 @@ def test_nqc_flag_computation_for_antisymmetric_modes():
 
     # if all the previous is checked, then it means we can run the full model
     # calculation as well:
+    # with mock.patch(
+    #     "pyseobnr.models.SEOBNRv5HM.apply_nqc_phase_antisymmetric"
+    # ) as p_nqc_asym:
+
+    if True:
+        _ = generate_modes_opt(
+            q,
+            chiA,
+            chiB,
+            omega0,
+            approximant="SEOBNRv5PHM",
+            settings=settings,
+            debug=True,
+        )
+
+        p_nqc_asym.assert_called()
+
+
+def test_apply_nqc_phase_antisymmetric():
+    """Checks the logic in apply_nqc_phase_antisymmetric"""
+    # in particular, if this is not correctly done, the following test yields a 2,2 antisymmetric
+    # mode with zeros only (checked as well), which in turn fails the function
+    # EOBCalculateNQCCoefficients_freeattach_asym when it comes to the calculation of the solution
+    # of Q*coeffs = amps (singular matrix error).
+
+    dict_internal_configuration = _generate_dynamics_array(a1=0.99, a2=0.99)
+
+    m1 = dict_internal_configuration["m1"]
+    m2 = dict_internal_configuration["m2"]
+    q = dict_internal_configuration["q"]
+    chiA = dict_internal_configuration["chiA"]
+    chiB = dict_internal_configuration["chiB"]
+    omega0 = dict_internal_configuration["omega0"]
+    t_attach = dict_internal_configuration["t_attach"]
+    t_array = dict_internal_configuration["t_array"]
+    dyn_EOB = dict_internal_configuration["dyn_EOB"]
+    settings = dict_internal_configuration["settings"]
+
+    new_dyn_array = get_all_dynamics(dyn_EOB, t_array, m1, m2)
+
+    np.testing.assert_almost_equal(
+        new_dyn_array["Sigma_n"], np.zeros_like(new_dyn_array["Sigma_n"])
+    )
+
+    anti_symmetric_modes = compute_asymmetric_PN(
+        dyn=new_dyn_array,
+        mA=m1,
+        mB=m2,
+        modes_to_compute=settings["antisymmetric_modes"],
+        nlo22=True,
+    )
+
+    # the 22 mode should be zero in this case
+    assert (2, 2) in settings["antisymmetric_modes"]
+
+    np.testing.assert_allclose(np.abs(anti_symmetric_modes[(2, 2)]), 0, atol=1e-12)
+
+    params_for_fit_asym = get_params_for_fit(
+        dyn_all=new_dyn_array,
+        t=t_array,
+        mA=m1,
+        mB=m2,
+        q=q,
+        t_attach=t_attach,
+    )
+
+    # run the fits
+    ivs_asym, mrd_ivs = fits_iv_mrd_antisymmetric(
+        params_for_fits=params_for_fit_asym,
+        nu=m1 * m2,
+        modes_to_compute=settings["antisymmetric_modes"],
+    )
+
+    assert ivs_asym is not None
+    assert mrd_ivs is not None
+
+    # finally we get to the point where we compute the flag indicating if the NQC should
+    # be applied: this is ultimately what we wanted to check
+    nqc_flags = apply_antisym_factorized_correction(
+        antisym_modes=anti_symmetric_modes,
+        v_orb=new_dyn_array["v"],
+        ivs_asym=ivs_asym,
+        idx_attach=params_for_fit_asym.idx_attach,
+        t=new_dyn_array["t"],
+        t_attach=t_attach,
+        nu=m1 * m2,
+        corr_power=6,
+        interpolation_step_back=10,
+    )
+
+    # For this configuration, we expect that only the (3,3) flag is True
+    assert nqc_flags[2, 2] is False
+    assert nqc_flags[3, 3] is True
+    assert nqc_flags[4, 4] is False
+
+    # if all the previous is checked, then it means we can run the full model
+    # calculation as well:
     with mock.patch(
         "pyseobnr.models.SEOBNRv5HM.apply_nqc_phase_antisymmetric"
     ) as p_nqc_asym:
