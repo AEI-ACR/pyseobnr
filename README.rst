@@ -85,8 +85,11 @@ effective-one-body multipolar waveform models", 2023, `arXiv:2303.18203 <https:/
         eprint = "2303.18203",
         archivePrefix = "arXiv",
         primaryClass = "gr-qc",
-        month = "3",
-        year = "2023"
+        doi = "10.1016/j.softx.2025.102080",
+        journal = "SoftwareX",
+        volume = "30",
+        pages = "102080",
+        year = "2025"
     }
 
 
