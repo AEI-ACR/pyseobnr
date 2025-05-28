@@ -3,7 +3,7 @@
     # -- build --------
     build-backend = "setuptools.build_meta"
     requires = [
-        "setuptools",
+        "setuptools>=78.0.0",
         "setuptools_scm[toml]>=3.4.3",
         "wheel",
         "cython>=3.0.11",
@@ -31,7 +31,7 @@
     ]
 
     description = "Gravitational wave modelling within the effective-one-body framework"
-    license     = { text = "GPL-3.0-or-later" }
+    license     = "GPL-3.0-or-later"
     name        = "pyseobnr"
     readme      = "README.rst"
 
@@ -39,7 +39,6 @@
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Education",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: MacOS",
         "Operating System :: Unix",
         "Programming Language :: Python :: 3",
@@ -56,7 +55,6 @@
         "numba",
         "qnm",
         "scri",
-        "setuptools",
         "pygsl_lite",
         "lalsuite",
         "importlib_resources ; python_version < '3.10'",
@@ -83,6 +81,18 @@
 
 [tool.setuptools_scm]
     write_to = "pyseobnr/_version.py"
+
+[tool.setuptools]
+    include-package-data = false
+
+[tool.setuptools.package-data]
+    "*" = ["*.npz"]
+
+[tool.setuptools.packages.find]
+    where = ["."]
+    include = ["pyseobnr*"]
+    exclude = ["*sanity_checks*"]
+    namespaces = false
 
 [project.optional-dependencies]
     checks = ['bilby', 'gwsurrogate', 'pathos', 'scikit-optimize', 'matplotlib']
