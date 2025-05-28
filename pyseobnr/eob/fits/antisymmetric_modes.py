@@ -6,6 +6,7 @@ import io
 import sys
 from functools import cache
 from itertools import combinations_with_replacement
+from pathlib import Path
 
 import numpy as np
 
@@ -29,7 +30,14 @@ def get_fits_asymmetries() -> dict:
             importlib_resources.files("pyseobnr.eob.fits.asym_fits")
             / f"fits_{ell}{emm}"
         )
+        ff: Path
         for ff in pkg_dir.iterdir():
+
+            if not ff.is_file():
+                continue
+
+            if ff.suffix not in [".npz"]:
+                continue
 
             content = ff.read_bytes()
             quantity = ff.stem
