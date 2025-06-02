@@ -283,6 +283,14 @@ class EOBNonQCCorrectionImpl:
     """
 
     def __init__(self, r, phi, pr, pphi, omega):
+        """Initializes the class
+
+        :param r: r along the dynamics
+        :param phi: phase along the dynamics
+        :param pr: pr along the dynamics
+        :param pphi: pphi along the dynamics
+        :param omega: omega along the dynamics
+        """
 
         sqrtR = np.sqrt(r)
         rOmega = r * omega
@@ -301,6 +309,15 @@ class EOBNonQCCorrectionImpl:
         self.pc4 = self.mc2
 
     def get_nqc_multiplier(self, coeffs):
+        """Returns the NQC corrections along the dynamics
+
+        :param coeffs: coefficients for a specific mode
+
+        .. see::
+
+            The function :py:func:`~pyseobnr.eob.waveform.compute_hlms.apply_nqc_corrections`
+            demonstrates the use of this function.
+        """
         mag = 1.0 + self.mc1 * (
             coeffs["a1"]
             + coeffs["a2"] * self.mc2
