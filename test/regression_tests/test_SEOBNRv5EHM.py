@@ -737,3 +737,22 @@ def test_compute_special_coeffs_ecc_not_called():
         p_compute_special_coeffs_ecc.assert_called_once()
         assert array_fcoeffs is not None
         assert bool(np.any(np.isnan(array_fcoeffs))) is False
+
+
+def test_regression_nan_captured_in_dynamics_and_hamiltonians():
+    """Test a regression introduced by cpow=True not triggering exceptions on domain error"""
+    # see https://git.ligo.org/waveforms/software/pyseobnr/-/issues/25
+    # the fix is to check the values taken by variables cast to double after exponentiation:
+    # they should not be any NaN (which was the behaviour of python: "python pow" of negative
+    # number yield complex values that cannot be cast to double. The cast to double was triggering
+    # the exception).
+
+    _ = generate_modes_opt(
+        q=1.4731099610683323,
+        chi1=-0.8693840187604053,
+        chi2=-0.510689577500817,
+        omega_start=0.025294844481864975,
+        eccentricity=0.0,
+        rel_anomaly=0.0,
+        approximant="SEOBNRv5EHM",
+    )
