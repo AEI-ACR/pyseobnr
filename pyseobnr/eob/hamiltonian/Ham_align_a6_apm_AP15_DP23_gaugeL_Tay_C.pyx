@@ -56,14 +56,12 @@ cpdef (double, double) evaluate_H(
 
     """
     # Coordinate definitions
-
     cdef double r = q[0]
-    # cdef double phi = q[1]
+    if r <= 0:
+        raise ValueError("Incorrect domain")
 
     cdef double prst = p[0]
     cdef double L = p[1]
-
-    # cdef double pphi = L
 
     cdef double r2 = r*r
     cdef double r3 = r2*r
@@ -95,6 +93,8 @@ cpdef (double, double) evaluate_H(
     cdef double ap2 = ap*ap
 
     cdef double xi = sqrt(Dbpm)*r2*(Apm + ap2/r2)/(ap2 + r2)
+    if xi != xi:
+        raise ValueError("Incorrect domain (xi)")
 
     cdef double pr = prst/xi
 
@@ -139,6 +139,8 @@ cpdef (double, double) evaluate_H(
     cdef double lap = ap
 
     cdef double Heven = sqrt(A*(Bnpa*L2*lap**2/r2 + L2/r2 + Qq + prst2*(Bnp + 1.0)/xi**2 + 1.0))
+    if Heven != Heven:
+      raise ValueError("Incorrect domain (Heven)")
 
     cdef double lam = am
 
@@ -160,6 +162,8 @@ cpdef (double, double) evaluate_H(
 
     # Evaluate H_real/nu
     cdef double H = M * sqrt(1+2*nu*(Heff-1)) / nu
+    if H != H:
+        raise ValueError("Incorrect domain (H)")
 
     return H, xi
 
@@ -222,6 +226,9 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         # Coordinate definitions
         cdef double r = q[0]
+        if r <= 0:
+            raise ValueError("Incorrect domain")
+
         cdef double prst = p[0]
         cdef double L = p[1]
 
@@ -256,6 +263,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double ap2 = ap*ap
 
         cdef double xi = sqrt(Dbpm)*r2*(Apm + ap2/r2)/(ap2 + r2)
+        if xi != xi:
+          raise ValueError("Incorrect domain (xi)")
 
         cdef double pr = prst/xi
 
@@ -300,6 +309,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double lap = ap
 
         cdef double Heven = sqrt(A*(Bnpa*L2*lap**2/r2 + L2/r2 + Qq + prst**2*(Bnp + 1.0)/xi**2 + 1.0))
+        if Heven != Heven:
+            raise ValueError("Incorrect domain (Heven)")
 
         cdef double lam = am
 
@@ -321,6 +332,9 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         # Evaluate H_real/nu
         cdef double H = M * sqrt(1+2*nu*(Heff-1)) / nu
+        if H != H:
+            raise ValueError("Incorrect domain (H)")
+
         return H,xi,A,Bnp,Bnpa,Qq,Heven,Hodd
 
     cpdef Hamiltonian_C_grad_return_t grad(self, qp_param_t q,qp_param_t p,double chi_1,double chi_2,double m_1,double m_2):
@@ -570,6 +584,9 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double dHdphi = M * M * dHeffdphi / (nu*H)
         cdef double dHdpr = M * M * dHeffdpr / (nu*H)
         cdef double dHdpphi = M * M * dHeffdpphi / (nu*H)
+
+        if (dHdr != dHdr) or (dHdphi != dHdphi) or (dHdpr != dHdpr) or (dHdpphi != dHdpphi):
+            raise ValueError("Incorrect domain")
 
         return dHdr, dHdphi, dHdpr, dHdpphi
 
@@ -1303,6 +1320,8 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double ap2 = ap**2
 
         cdef double xi = Dbpm**0.5*r**2*(Apm + ap2/r**2)/(ap2 + r**2)
+        if xi != xi:
+            raise ValueError("Incorrect domain")
 
         return xi
 
@@ -1554,6 +1573,10 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
         cdef double  dHdphi = M2 * dHeffdphi / nuH
         cdef double  dHdpr = M2 * dHeffdpr / nuH
         cdef double  dHdpphi = M2 * dHeffdpphi / nuH
+
+        if (dHdr != dHdr) or (dHdphi != dHdphi) or (dHdpr != dHdpr) or (dHdpphi != dHdpphi):
+            raise ValueError("Incorrect domain")
+
         return dHdr, dHdphi, dHdpr, dHdpphi,H,xi
 
     cpdef double omega(self, qp_param_t q,qp_param_t p,double chi_1,double chi_2,double m_1,double m_2):

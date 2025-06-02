@@ -430,6 +430,8 @@ cdef double compute_flux_ecc(
     cdef double e = Kep[0]
     cdef double z = Kep[1]
     cdef double x = Kep[2]
+    if x < 0:
+        raise ValueError("Domain error")
     cdef double v = x**0.5  # omega**(1./3.)
     cdef double vh3 = H * x**(1.5)  # H*omega
     cdef double vh = vh3**(1./3.)
@@ -594,6 +596,8 @@ cpdef compute_hlms_ecc(
         H = nu*dynamics[i, 7]
         v = dynamics[i, 6]**(0.5)  # omega**(1./3.)
         vh = H**(1./3.) * v  # (H*omega)**(1./3.)
+        if v != v or vh != vh:
+            raise ValueError("Domain error")
 
         # Various powers of v that enter the computation of rholm and deltalm
         for j in range(1, PN_limit):
@@ -793,6 +797,8 @@ cpdef compute_special_coeffs_ecc(
         H = eob_pars.p_params.nu * dynamics_interp[7]
         v = dynamics_interp[6]**(0.5)  # omega**(1./3)
         vh = H**(1./3.) * v  # (H*omega)**(1./3)
+        if v != v or vh != vh:
+            raise ValueError("Domain error")
         vphi = v  # omega/omega_circ**(2./3)
         vphi2 = vphi*vphi
 

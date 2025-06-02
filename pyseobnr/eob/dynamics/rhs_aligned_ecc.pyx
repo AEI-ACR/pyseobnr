@@ -72,6 +72,8 @@ cpdef (double, double, double, double, double, double) get_rhs_ecc(
     cdef BaseCoupledExpressionsCalculation evolution = RR.evolution_equations
     evolution.compute(z=Kep[1], e=Kep[0], omega=omega)
     cdef double x_avg = evolution.get("xavg_omegainst")
+    if x_avg != x_avg:
+        raise ValueError("Domain error")
 
     Kep[2] = x_avg
     params.ecc_params.x_avg = x_avg
