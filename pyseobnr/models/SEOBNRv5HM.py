@@ -1554,6 +1554,10 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     ]
                     idx += current_array.shape[1]
 
+                # Component-wise interpolation does not preserve the unit norm of
+                # L_N. Restore it before using L_N as a quaternion rotation axis.
+                dyn_EOB["L_N"] /= np.linalg.norm(dyn_EOB["L_N"], axis=-1, keepdims=True)
+
                 dyn_EOB["q_copr"] = interpolate_quats(
                     q_copr, self.dynamics[:, 0], t_for_asym
                 )
