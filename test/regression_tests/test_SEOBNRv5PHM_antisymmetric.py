@@ -1333,19 +1333,17 @@ def test_check_quaternions():
 
     assert "L_N" in dyn_EOB
     L_n_norm = [np.linalg.norm(_) for _ in dyn_EOB["L_N"]]
-    assert 1 - min(L_n_norm) < 1e-5
-    assert max(L_n_norm) <= 1 + 1e-7
+    np.testing.assert_allclose(L_n_norm, 1, rtol=1e-14, atol=1e-14)
 
     new_dyn_array = get_all_dynamics(dyn_EOB, t_array, m1, m2)
 
     assert "n_hat" in new_dyn_array
     assert len(dyn_EOB["L_N"]) == len(new_dyn_array["n_hat"])
 
-    # the vectors should be orthogonal, the test on the inner product is a bit loose on
-    # purpose
+    # The vectors form an orthonormal basis of the orbital plane.
     inner_prod = np.sum((dyn_EOB["L_N"] * new_dyn_array["n_hat"]), axis=1)
     assert len(inner_prod) == len(dyn_EOB["L_N"])
-    assert np.max(np.abs(inner_prod)) < 1e-2
+    assert np.max(np.abs(inner_prod)) < 1e-14
 
 
 @pytest.mark.skipif(
@@ -1367,13 +1365,11 @@ def test_fit_values():
     ).predict(X)
     np.testing.assert_almost_equal(predict_habs_22, 0.6615414214584113)
 
-    X = np.array(
-        [0.25, -0.11312589, 0.26166966, 0.78474606, 0.00481153, -0.01093482, 0.01604184]
-    )
+    # omega_peak uses the same parity-symmetric input features as habs.
     predict_22_omega_peak = get_predictor_from_fits(
         nb_dimensions=X.shape[0], ell=2, emm=2, quantity="omega_peak"
     ).predict(X)
-    np.testing.assert_almost_equal(predict_22_omega_peak, 0.19773037345690228)
+    np.testing.assert_almost_equal(predict_22_omega_peak, 0.2116720057138775)
 
     X = np.array(
         [0.25, 0.28507627, 0.0119466, 0.78474606, 0.01604184, -0.67557996, -0.73728673]
