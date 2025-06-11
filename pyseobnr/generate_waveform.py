@@ -1297,7 +1297,7 @@ class GenerateWaveform:
             n = int(np.round(fmax / deltaF))
             if n & (n - 1):
                 chirplen_exp = np.frexp(n)
-                f_nyquist = np.ldexp(1, chirplen_exp[1]) * deltaF
+                f_nyquist = np.ldexp(1, int(chirplen_exp[1])) * deltaF
 
         deltaT = 0.5 / f_nyquist
         self.parameters["deltaT"] = deltaT
