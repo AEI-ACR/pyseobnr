@@ -383,7 +383,7 @@ params_dict = {
     "distance": distance,
     "inclination": inclination,
     "f_max": f_max,
-    "return_modes": [
+    "mode_array": [
         (2, 2),
         (2, 1),
         (3, 2),
