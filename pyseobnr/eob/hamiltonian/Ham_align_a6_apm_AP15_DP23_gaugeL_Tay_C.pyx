@@ -1282,8 +1282,7 @@ cdef class Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C(Hamiltonian_C):
 
         return np.array([d2Hdr2, d2Hdrdphi, d2Hdrdpr, d2Hdrdpphi, d2Hdrdphi, d2Hdphi2, d2Hdphidpr, d2Hdphidpphi, d2Hdrdpr, d2Hdphidpr, d2Hdpr2, d2Hdprdpphi, d2Hdrdpphi, d2Hdphidpphi, d2Hdprdpphi, d2Hdpphi2]).reshape(4, 4)
 
-    cdef double xi(self, qp_param_t q,qp_param_t p,double chi_1,double chi_2,double m_1,double m_2):
-
+    cpdef double csi(self, qp_param_t q, qp_param_t p, double chi_1, double chi_2, double m_1, double m_2):
         """
         Compute the tortoise factor :math:`\\xi` to convert between :math:`p_r` and :math:`p_{r_*}`.
 

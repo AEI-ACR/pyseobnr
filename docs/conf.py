@@ -12,13 +12,15 @@
 #
 
 # -- Project information -----------------------------------------------------
+from importlib.metadata import version as get_version
 
 project = "pyseobnr"
 copyright = "2022, pyseobnr authors"
 author = "pyseobnr authors"
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.1"
+release: str = get_version("pyseobnr")
+version: str = ".".join(release.split(".")[:2])
 
 
 # -- General configuration ---------------------------------------------------
