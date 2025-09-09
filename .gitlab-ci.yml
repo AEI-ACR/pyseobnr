@@ -7,6 +7,7 @@ include:
       # https://computing.docs.ligo.org/gitlab-ci-templates/python/
       - python.yml
 
+
 stages:
   - build
   - docs
@@ -34,6 +35,25 @@ linting:
     - |
       tox -e lint
 
+
+.conda_prepare_before_script: &conda_prepare_before_script
+    # configure conda
+    # before_scripts uses mamba which does not work anymore, we copy the relevant commands
+    # here.
+    # - !reference [".conda:base", before_script]
+    - if [ -z "${CONDA_ROOT}" ]; then
+        if command -v conda &> /dev/null; then
+          CONDA_ROOT=$(conda info --base);
+        else
+          CONDA_ROOT="/opt/conda";
+        fi;
+      fi
+    - . ${CONDA_ROOT}/etc/profile.d/conda.sh
+    - conda config --file ${CONDARC} --set always_yes yes
+    - if [ "${CONDA_FORGE}" = "true" ]; then conda config --file ${CONDARC} --add channels conda-forge; fi
+    - conda info --all
+    - conda config --show-sources
+
 # -- documentation
 docs:
   extends:
@@ -48,11 +68,10 @@ docs:
     # location of the conf.py
     SOURCEDIR: "docs"
   before_script:
-    # configure conda
-    - !reference [".conda:base", before_script]
     # use pip2conda to parse the requirements and then populate the run
     # environment, mainly so that we get a pre-built version of gwsurrogate
-    - mamba create -n docs
+    - *conda_prepare_before_script
+    - conda create -n docs
           python=3.9
           gcc
           gxx
@@ -93,9 +112,11 @@ test:
   variables:
     SRCDIR: "./"
   before_script:
-   # configure conda
-    - !reference [".conda:base", before_script]
-    - mamba create -n tests
+    # configure conda
+    # see comments in conda_prepare_before_script
+    # - !reference [".conda:base", before_script]
+    - *conda_prepare_before_script
+    - conda create -n tests
           python=3.9
           gcc
           gxx
