@@ -234,9 +234,7 @@ def compute_IMR_modes(
 
     # For the antisymmetric modes we use dtau_22_asym only to get the same
     # ringdown time array as the symmetric mode
-    damping_time = (
-        1 / np.imag(omega_complex) * (1 + dtau_dict["2,2"])
-    )
+    damping_time = 1 / np.imag(omega_complex) * (1 + dtau_dict["2,2"])
 
     # The length of the ringdown rounded to closest M
     ringdown_time = int(30 * damping_time)
