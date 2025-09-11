@@ -47,7 +47,7 @@ from ..eob.waveform.waveform_ecc import (
 )
 from .common import VALID_MODES_ECC
 from .model import Model
-from .SEOBNRv5Base import SEOBNRv5ModelBase
+from .SEOBNRv5Base import SEOBNRv5ModelBaseWithpSEOBSupport
 
 logger = logging.getLogger(__name__)
 
