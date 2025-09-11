@@ -52,7 +52,7 @@ from .SEOBNRv5Base import SEOBNRv5ModelBase
 logger = logging.getLogger(__name__)
 
 
-class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
+class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
     """
     Represents an aligned-spin eccentric waveform model, whose
     eccentricity-zero limit is the SEOBNRv5HM model.
@@ -392,7 +392,10 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
         to quasicircular NR waveforms.
         """
 
-        dc = {"a6": a6_NS(self.nu), "dSO": dSO(self.nu, self.ap, self.am)}
+        dc = {
+            "a6": a6_NS(self.nu) + self.da6,
+            "dSO": dSO(self.nu, self.ap, self.am) + self.ddSO,
+        }
         self.H.calibration_coeffs.a6 = dc["a6"]
         self.H.calibration_coeffs.dSO = dc["dSO"]
         assert self.H.eob_params.c_coeffs.a6 == dc["a6"]
@@ -798,6 +801,8 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                     self.m_2,
                     self.chi_1,
                     self.chi_2,
+                    dA_dict=self.dA_dict,
+                    dw_dict=self.dw_dict,
                 )
                 self.nqc_coeffs = nqc_coeffs
                 # Apply NQC corrections to high sampling eccentric modes
@@ -875,6 +880,9 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                 self.lmax_nyquist,
                 mixed_modes=self.mixed_modes,
                 align=False,
+                dw_dict=self.dw_dict,
+                domega_dict=self.domega_dict,
+                dtau_dict=self.dtau_dict,
             )
 
             # Shift the time so that t = 0 corresponds to the last peak
