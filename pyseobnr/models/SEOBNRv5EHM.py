@@ -361,7 +361,7 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
         # Compute the shift from reference point to peak of (2,2) mode
         NR_deltaT_fit = NR_deltaT_NS(self.nu) + NR_deltaT(self.nu, self.ap, self.am)
-        self.NR_deltaT = NR_deltaT_fit
+        self.NR_deltaT = NR_deltaT_fit + self.dTpeak
 
         # Set the Hamiltonian coefficients
         self._set_H_coeffs()
@@ -684,7 +684,13 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 self.t_attach_ecc = self.t_ISCO_ecc - self.NR_deltaT
 
             if self.t_attach_ecc > dynamics_fine[-1, 0]:
-                self.t_attach_ecc = dynamics_fine[-1, 0]
+                if self.deltaT_sampling is True:
+                    raise ValueError(
+                        "Error: NR_deltaT too negative, attaching the MR at the last point of the dynamics "
+                        "is not allowed if deltaT_sampling is set to True."
+                    )
+                else:
+                    self.t_attach_ecc = dynamics_fine[-1, 0]
 
             if self.t_attach_ecc < dynamics_fine[0, 0]:
                 self.t_attach_ecc = dynamics_fine[0, 0]
