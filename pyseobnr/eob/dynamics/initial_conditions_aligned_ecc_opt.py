@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def IC_cons_ecc(
-    u: tuple[float, float] | list[float] | np.array,
+    u: tuple[float, float] | list[float] | np.ndarray,
     omega_inst: float,
     pr_star: float,
     dot_prstar: float,
@@ -36,7 +36,7 @@ def IC_cons_ecc(
     chi_1: float,
     chi_2: float,
     H: Hamiltonian,
-) -> np.array:
+) -> np.ndarray:
     """
     Equations defining the "conservative" part of the initial conditions.
     See Eqs. (110a, 110b) in [Gamboa2024a]_ .
@@ -361,7 +361,7 @@ def compute_roots_cons(
 
 
 def find_root_cons(
-    z: tuple[float, float] | list[float] | np.array,
+    z: tuple[float, float] | list[float] | np.ndarray,
     pr_star: float,
     dot_prstar: float,
     m_1: float,

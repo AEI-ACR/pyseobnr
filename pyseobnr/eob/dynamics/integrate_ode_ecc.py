@@ -524,7 +524,7 @@ def compute_background_qc_dynamics(
     RR,
     params: EOBParams,
     r_stop: None | float = None,
-) -> tuple[np.array, np.array]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Computation of the background QC dynamics given a certain time length.
 
