@@ -30,7 +30,7 @@ def generate_prec_hpc_opt(
     omega_ref: float | None = None,
     settings: Dict[Any, Any] | None = None,
     debug: bool = False,
-) -> tuple[np.array, np.array] | tuple[np.array, np.array, Model]:
+) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, Model]:
     """
     Generate the GW wave polarizations for precessing model in an optimised way.
     In particular, do not compute the inertial frame modes, instead write the
@@ -178,7 +178,7 @@ def generate_modes_opt(
     approximant: SupportedApproximants = "SEOBNRv5HM",
     settings: Dict[Any, Any] = None,
     debug: bool = False,
-) -> tuple[np.array, np.array] | tuple[np.array, np.array, Model]:
+) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, Model]:
     """
     Compute the GW waveform modes for the given configuration and approximant.
 
