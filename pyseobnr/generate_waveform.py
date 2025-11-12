@@ -15,6 +15,7 @@ from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
 )
 from .eob.waveform.waveform import SEOBNRv5RRForce
 from .eob.waveform.waveform_ecc import SEOBNRv5RRForceEcc
+from .eob.utils.utils_eccentric import rel_anomaly_from_mean_anomaly
 from .models import SEOBNRv5EHM, SEOBNRv5HM
 from .models.model import Model
 
@@ -495,7 +496,7 @@ class GenerateWaveform:
             "spin2y": 0.0,
             "spin2z": 0.0,
             "eccentricity": 0.0,
-            "rel_anomaly": 0.0,
+            "anomaly_approximant": "Newtonian",
             "distance": 100.0,
             "inclination": 0.0,
             "phi_ref": 0.0,
@@ -615,6 +616,7 @@ class GenerateWaveform:
             "f_min",
             "deltaF",
             "rel_anomaly",
+            "meanPerAno",
             "eccentricity",
         ]:
             if param in parameters and (
@@ -734,6 +736,24 @@ class GenerateWaveform:
     @staticmethod
     def _validate_eccentricity_parameters(parameters):
         if parameters["approximant"] == "SEOBNRv5EHM":
+            # Determine if the input anomaly is the relativistic anomaly
+            # or mean anomaly, in which case transform to relativistic anomaly
+            if "rel_anomaly" in parameters and "meanPerAno" in parameters:
+                raise ValueError(
+                    "Only one parameter can be specified between "
+                    "'rel_anomaly' and 'meanPerAno'."
+                )
+            elif "rel_anomaly" not in parameters and "meanPerAno" not in parameters:
+                # If no anomaly is given, set 'rel_anomaly' to zero
+                parameters["rel_anomaly"] = 0.0
+            elif "meanPerAno" in parameters:
+                # Transform input mean anomaly to relativistic anomaly
+                parameters["rel_anomaly"] = rel_anomaly_from_mean_anomaly(
+                    parameters["meanPerAno"],
+                    parameters["eccentricity"],
+                    anomaly_approximant=parameters["anomaly_approximant"],
+                )
+
             # - EccIC: Parameter determining the type of initial frequency.
             # EccIC = 0 for instantaneous initial orbital frequency,
             # and EccIC = 1 for orbit-averaged initial orbital frequency.
