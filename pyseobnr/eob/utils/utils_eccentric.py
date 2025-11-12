@@ -10,7 +10,7 @@ import logging
 import numpy as np
 from pygsl_lite import spline
 from scipy.interpolate import CubicSpline
-from scipy.optimize import root_scalar
+from scipy.optimize import root_scalar, fsolve
 
 from ..utils.containers import EOBParams
 
@@ -392,6 +392,63 @@ def compute_starting_values(
         omega_avg = float(x_interp**1.5)
 
     return t_start, eccentricity, rel_anomaly, omega_avg
+
+
+def eccentric_anomaly_from_mean_anomaly(mean_anomaly, eccentricity):
+    """
+    Determine the eccentric anomaly from the mean anomaly by 
+    numerically solving Kepler's equation.
+    """
+
+    func = lambda E : E - eccentricity * np.sin(E) - mean_anomaly
+
+    return float(fsolve(func, x0=mean_anomaly)[0])
+
+
+def true_anomaly_from_eccentric_anomaly(eccentric_anomaly, eccentricity):
+    """
+    Determine the true anomaly from the mean anomaly employing
+    Newtonian relations. In particular, using Eq. (1) of
+    https://link.springer.com/article/10.1007/BF01227859
+    to avoid numerical issues.
+    """
+
+    beta = eccentricity / (1 + np.sqrt(1 - eccentricity**2))
+
+    true_anomaly = (
+        eccentric_anomaly
+        + 2 * np.arctan2(
+            beta * np.sin(eccentric_anomaly),
+            1 - beta * np.cos(eccentric_anomaly)
+        )
+    )
+
+    return float(true_anomaly)
+
+
+def rel_anomaly_from_mean_anomaly(
+    mean_anomaly, eccentricity, anomaly_approximant="Newtonian"
+):
+    """
+    Transform the given mean anomaly value to the corresponding relativistic
+    anomaly (or true anomaly) for a given eccentricity and for a selected
+    approximant.
+    """
+
+    if anomaly_approximant == "Newtonian":
+        eccentric_anomaly = eccentric_anomaly_from_mean_anomaly(
+            mean_anomaly, eccentricity,
+        )
+        rel_anomaly = true_anomaly_from_eccentric_anomaly(
+            eccentric_anomaly,
+            eccentricity
+        )
+    else:
+        raise NotImplementedError(
+            "Select a valid approximant for the relativistic anomaly."
+        )
+
+    return rel_anomaly
 
 
 def dot_phi_omega_avg_e_z(
