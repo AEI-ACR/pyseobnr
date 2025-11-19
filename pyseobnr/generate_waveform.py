@@ -739,10 +739,22 @@ class GenerateWaveform:
             # Determine if the input anomaly is the relativistic anomaly
             # or mean anomaly, in which case transform to relativistic anomaly
             if "rel_anomaly" in parameters and "meanPerAno" in parameters:
-                raise ValueError(
-                    "Only one parameter can be specified between "
-                    "'rel_anomaly' and 'meanPerAno'."
+                # TODO: Ideally, giving both parameters should raise an error.
+                # Here, "meanPerAno" is prefered over "rel_anomaly", to avoid
+                # problems with the current version of GWsignal.
+                # Once the psyeobnr-GWsignal code is changed, this can be
+                # turned into an error.
+                # This is a temporal fix for the studies in the Eccentricity
+                # Parameter Estimation Task Force
+                parameters["rel_anomaly"] = rel_anomaly_from_mean_anomaly(
+                    parameters["meanPerAno"],
+                    parameters["eccentricity"],
+                    anomaly_approximant=parameters["anomaly_approximant"],
                 )
+                # raise ValueError(
+                #     "Only one parameter can be specified between "
+                #     "'rel_anomaly' and 'meanPerAno'."
+                # )
             elif "rel_anomaly" not in parameters and "meanPerAno" not in parameters:
                 # If no anomaly is given, set 'rel_anomaly' to zero
                 parameters["rel_anomaly"] = 0.0
