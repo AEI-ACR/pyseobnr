@@ -91,9 +91,7 @@ def test_generate_waveform_mode_arrays_settings(basic_settings):
 
     # works with list and tuples
     for enable_anti_symmetric in (None, False, True):
-
         for approximant in get_args(SupportedApproximants):
-
             additional = (
                 {}
                 if enable_anti_symmetric is None
@@ -194,7 +192,6 @@ def test_default_settings_EHM():
 
 
 def test_mode_arrays_settings_with_lmax_HM(basic_settings):
-
     approximant: SupportedApproximants = "SEOBNRv5HM"
 
     # this should work as lmax overrides the modes
@@ -296,7 +293,6 @@ def test_mode_arrays_settings_with_lmax_HM(basic_settings):
 
 
 def test_mode_arrays_settings_with_lmax_PHM(basic_settings):
-
     approximant: SupportedApproximants = "SEOBNRv5PHM"
 
     # this should work as lmax overrides the modes
@@ -421,7 +417,6 @@ def test_mode_arrays_settings_with_lmax_EHM(basic_settings):
                 self.model = None
 
             def __call__(self, other_self, *args, **kwargs):
-
                 self.model = other_self
                 raise LocalException
 
@@ -469,7 +464,6 @@ def test_mode_arrays_settings_with_lmax_EHM(basic_settings):
         p_model_call.reset_mock()
         instance_fake_call.model = None
         with pytest.raises(LocalException):
-
             # this will extend the default modes array to l = 5 modes
             generate_modes_opt(
                 q=1.1,
@@ -772,7 +766,6 @@ def test_generate_modes_opt_settings_can_be_none():
         "__call__",
         autospec=True,
     ) as p_model_call:
-
         p_model_call.side_effect = MyException
 
         with pytest.raises(
@@ -787,7 +780,6 @@ def test_generate_modes_opt_settings_can_be_none():
         "__call__",
         autospec=True,
     ) as p_model_call:
-
         p_model_call.side_effect = MyException
 
         with pytest.raises(
@@ -926,7 +918,6 @@ def test_generate_waveform_params_cannot_be_booleans():
     }
 
     for param_to_test in ["mass1", "mass2"]:
-
         for wrong_value in [
             True,
             False,
@@ -971,7 +962,6 @@ def test_generate_waveform_params_cannot_be_booleans():
         "conditioning",
         "postadiabatic",
     }:
-
         # catches errors
         for wrong_value in [
             True,
@@ -1001,7 +991,6 @@ def test_generate_waveform_params_cannot_be_booleans():
             10,
             fractions.Fraction(200, 23),
         ]:
-
             new_params = params | {
                 param_to_test: correct_value,
                 "approximant": "SEOBNRv5EHM",
@@ -1021,7 +1010,6 @@ def test_generate_waveform_params_cannot_be_booleans():
 
     # only integer parameters
     for param_to_test in params.keys() & {"conditioning"}:
-
         for wrong_value in [
             True,
             False,
@@ -1054,7 +1042,6 @@ def test_generate_waveform_params_cannot_be_booleans():
 
     # only boolean parameters
     for param_to_test in params.keys() & {"postadiabatic"}:
-
         for wrong_value in [0, 3, 0.3]:
             new_params = params | {
                 param_to_test: wrong_value,
@@ -1259,7 +1246,6 @@ def test_generate_modes_opt_precessing_chi_array_float_int():
 
         approx: SupportedApproximants
         for approx in get_args(SupportedApproximants):
-
             # we prevent the execution of the waveform generation by mocking
             with mock.patch.object(
                 class_map[approx],
@@ -1290,7 +1276,6 @@ def test_generate_modes_opt_precessing_chi_array_float_int():
 
         approx: SupportedApproximants
         for approx in get_args(SupportedApproximants):
-
             # we prevent the execution of the waveform generation by mocking
             with mock.patch.object(
                 class_map[approx],
@@ -1345,7 +1330,6 @@ def test_generate_modes_opt_settings_ehm(basic_settings):
         "__call__",
         autospec=True,
     ) as p_model_call:
-
         approximant: SupportedApproximants
         for approximant in ["SEOBNRv5HM", "SEOBNRv5PHM"]:
             with pytest.raises(
@@ -1570,3 +1554,107 @@ def test_post_adiabatic_settings(get_exit_stack):
 
         for current_mock in all_mocks:
             current_mock.reset_mock()
+
+
+def test_interfaces_accepts_convention_settings(basic_settings):
+    """Checks that settings associated to conventions are properly passed to generate_modes_opt and GenerateWaveform interfaces"""
+
+    settings = {
+        "set_coprec_phase22_0": True,
+        "set_coprec_phase22_0_only_polarizations": False,
+        "set_t0_peak_coprec_22": True,
+    }
+    _, modes = generate_modes_opt(
+        q=1.1,
+        chi1=[0.2, 0.0, -0.3],
+        chi2=[0.0, 0.7, 0.3],
+        omega_start=0.1,
+        debug=False,
+        approximant="SEOBNRv5PHM",
+        settings=settings,
+    )
+    assert "2,2" in modes.keys()
+
+    basic_settings.update(settings)
+    gen = GenerateWaveform(basic_settings)
+    hp, hc = gen.generate_td_polarizations()
+    assert hp is not None and hc is not None
+
+    settings = {
+        "set_coprec_phase22_0": False,
+        "set_coprec_phase22_0_only_polarizations": True,
+        "set_t0_peak_coprec_22": True,
+        "approximant": "SEOBNRv5PHM",
+    }
+
+    basic_settings.update(settings)
+    gen = GenerateWaveform(basic_settings)
+    hp, hc = gen.generate_td_polarizations()
+    assert hp is not None and hc is not None
+
+
+def test_incompatible_convention_settings(basic_settings):
+    """Checks that set_coprec_phase22_0_polarizations raises an error if polarizations_from_coprec=False."""
+    basic_settings.update(
+        {
+            "set_coprec_phase22_0_only_polarizations": True,
+            "polarizations_from_coprec": False,
+            "approximant": "SEOBNRv5PHM",
+        }
+    )
+    with pytest.raises(
+        ValueError,
+        match="set_coprec_phase22_0_only_polarizations=True can only be used with polarizations_from_coprec=True. Use instead set_coprec_phase22_0_only=True.",
+    ):
+        _ = GenerateWaveform(basic_settings).generate_td_polarizations()
+
+
+def test_convention_settings_affect_waveform(basic_settings):
+    """Checks that non-default convention settings actually modify the waveforms."""
+    settings_true = {
+        "set_coprec_phase22_0": True,
+        "set_t0_peak_coprec_22": True,
+    }
+
+    settings_false = {
+        "set_coprec_phase22_0": False,
+        "set_t0_peak_coprec_22": False,
+    }
+
+    _, modes_true = generate_modes_opt(
+        q=1.1,
+        chi1=[0.2, 0.0, -0.3],
+        chi2=[0.0, 0.7, 0.3],
+        omega_start=0.1,
+        debug=False,
+        approximant="SEOBNRv5PHM",
+        settings=settings_true,
+    )
+
+    _, modes_false = generate_modes_opt(
+        q=1.1,
+        chi1=[0.2, 0.0, -0.3],
+        chi2=[0.0, 0.7, 0.3],
+        omega_start=0.1,
+        debug=False,
+        approximant="SEOBNRv5PHM",
+        settings=settings_false,
+    )
+
+    assert not np.allclose(modes_true["2,2"], modes_false["2,2"], rtol=1e-6, atol=1e-10)
+
+    basic_settings_true = basic_settings.copy()
+    basic_settings_true.update(settings_true)
+    basic_settings_true.update({"approximant": "SEOBNRv5PHM"})
+
+    basic_settings_false = basic_settings.copy()
+    basic_settings_false.update(settings_false)
+    basic_settings_false.update({"approximant": "SEOBNRv5PHM"})
+
+    hp_true, hc_true = GenerateWaveform(basic_settings_true).generate_td_polarizations()
+    hp_false, hc_false = GenerateWaveform(
+        basic_settings_false
+    ).generate_td_polarizations()
+
+    assert np.any(hp_true.data.data != hp_false.data.data)
+    assert np.any(hc_true.data.data != hc_false.data.data)

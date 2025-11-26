@@ -918,6 +918,21 @@ class GenerateWaveform:
         if "lmax" in self.parameters:
             settings.update(lmax=self.parameters["lmax"])
 
+        if "set_coprec_phase22_0" in self.parameters:
+            settings.update(
+                set_coprec_phase22_0=self.parameters["set_coprec_phase22_0"]
+            )
+        if "set_coprec_phase22_0_only_polarizations" in self.parameters:
+            settings.update(
+                set_coprec_phase22_0_only_polarizations=self.parameters[
+                    "set_coprec_phase22_0_only_polarizations"
+                ]
+            )
+        if "set_t0_peak_coprec_22" in self.parameters:
+            settings.update(
+                set_t0_peak_coprec_22=self.parameters["set_t0_peak_coprec_22"]
+            )
+
         enable_antisymmetric_modes = False
         if "enable_antisymmetric_modes" in self.parameters:
             settings.update(
@@ -1093,6 +1108,21 @@ class GenerateWaveform:
 
             if "lmax" in self.parameters:
                 settings.update(lmax=self.parameters["lmax"])
+
+            if "set_coprec_phase22_0" in self.parameters:
+                settings.update(
+                    set_coprec_phase22_0=self.parameters["set_coprec_phase22_0"]
+                )
+            if "set_coprec_phase22_0_only_polarizations" in self.parameters:
+                settings.update(
+                    set_coprec_phase22_0_only_polarizations=self.parameters[
+                        "set_coprec_phase22_0_only_polarizations"
+                    ]
+                )
+            if "set_t0_peak_coprec_22" in self.parameters:
+                settings.update(
+                    set_t0_peak_coprec_22=self.parameters["set_t0_peak_coprec_22"]
+                )
 
             enable_antisymmetric_modes = False
             if "enable_antisymmetric_modes" in self.parameters:
