@@ -296,8 +296,6 @@ def gwsignal_eccentric_binary_black_hole(
     return dict(plus=h_plus, cross=h_cross)
 
 
-
-
 def gwsignal_parametrized_eccentric_binary_black_hole(
     frequency_array,
     mass_1,
@@ -313,10 +311,39 @@ def gwsignal_parametrized_eccentric_binary_black_hole(
     phase,
     eccentricity,
     mean_per_ano,
-    domega220, dtau220, domega330, dtau330, domega210, dtau210, domega440,
-    dtau440, domega550, dtau550, domega320, dtau320, domega430, dtau430,
-    dA22, dw22, dA33, dw33, dA21, dw21, dA44, dw44, dA55, dw55, dA32, dw32, dA43, dw43,
-    dTpeak, da6, ddSO, **kwargs):
+    domega220,
+    dtau220,
+    domega330,
+    dtau330,
+    domega210,
+    dtau210,
+    domega440,
+    dtau440,
+    domega550,
+    dtau550,
+    domega320,
+    dtau320,
+    domega430,
+    dtau430,
+    dA22,
+    dw22,
+    dA33,
+    dw33,
+    dA21,
+    dw21,
+    dA44,
+    dw44,
+    dA55,
+    dw55,
+    dA32,
+    dw32,
+    dA43,
+    dw43,
+    dTpeak,
+    da6,
+    ddSO,
+    **kwargs,
+):
     """
     A binary black hole waveform model using GWsignal
 
@@ -514,14 +541,15 @@ def gwsignal_parametrized_eccentric_binary_black_hole(
         or domega320 != 0.0
         or domega430 != 0.0
     ):
-        domega_dict = {'2,2': domega220,
-                       '2,1': domega210,
-                       '3,3': domega330,
-                       '3,2': domega320,
-                       '4,4': domega440,
-                       '4,3': domega430,
-                       '5,5': domega550,
-                       }
+        domega_dict = {
+            "2,2": domega220,
+            "2,1": domega210,
+            "3,3": domega330,
+            "3,2": domega320,
+            "4,4": domega440,
+            "4,3": domega430,
+            "5,5": domega550,
+        }
         gwsignal_dict.update(domega_dict=domega_dict)
 
     if (
@@ -533,14 +561,15 @@ def gwsignal_parametrized_eccentric_binary_black_hole(
         or dtau320 != 0.0
         or dtau430 != 0.0
     ):
-        dtau_dict = {'2,2': dtau220,
-                     '2,1': dtau210,
-                     '3,3': dtau330,
-                     '3,2': dtau320,
-                     '4,4': dtau440,
-                     '4,3': dtau430,
-                     '5,5': dtau550,
-                     }
+        dtau_dict = {
+            "2,2": dtau220,
+            "2,1": dtau210,
+            "3,3": dtau330,
+            "3,2": dtau320,
+            "4,4": dtau440,
+            "4,3": dtau430,
+            "5,5": dtau550,
+        }
         gwsignal_dict.update(dtau_dict=dtau_dict)
     if (
         dA22 != 0.0
@@ -551,14 +580,15 @@ def gwsignal_parametrized_eccentric_binary_black_hole(
         or dA32 != 0.0
         or dA43 != 0.0
     ):
-        dA_dict = {'2,2': dA22,
-                   '2,1': dA21,
-                   '3,3': dA33,
-                   '3,2': dA32,
-                   '4,4': dA44,
-                   '4,3': dA43,
-                   '5,5': dA55,
-                   }
+        dA_dict = {
+            "2,2": dA22,
+            "2,1": dA21,
+            "3,3": dA33,
+            "3,2": dA32,
+            "4,4": dA44,
+            "4,3": dA43,
+            "5,5": dA55,
+        }
         gwsignal_dict.update(dA_dict=dA_dict)
 
     if (
@@ -570,14 +600,15 @@ def gwsignal_parametrized_eccentric_binary_black_hole(
         or dw32 != 0.0
         or dw43 != 0.0
     ):
-        dw_dict = {'2,2': dw22,
-                   '2,1': dw21,
-                   '3,3': dw33,
-                   '3,2': dw32,
-                   '4,4': dw44,
-                   '4,3': dw43,
-                   '5,5': dw55,
-                   }
+        dw_dict = {
+            "2,2": dw22,
+            "2,1": dw21,
+            "3,3": dw33,
+            "3,2": dw32,
+            "4,4": dw44,
+            "4,3": dw43,
+            "5,5": dw55,
+        }
         gwsignal_dict.update(dw_dict=dw_dict)
 
     if dTpeak != 0.0:
