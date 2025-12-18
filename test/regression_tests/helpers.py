@@ -1,11 +1,12 @@
 import re
+from importlib.metadata import version
+from typing import Literal
 
 import lal
 import numpy as np
 import pandas as pd
 from pycbc.filter import make_frequency_series
 from pycbc.types import TimeSeries
-from pycbc.waveform import taper_timeseries
 
 from pyseobnr.eob.fits import GSF_amplitude_fits, a6_NS, dSO
 from pyseobnr.eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
@@ -13,6 +14,24 @@ from pyseobnr.eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
 )
 from pyseobnr.eob.utils.containers import CalibCoeffs, EOBParams
 from pyseobnr.eob.waveform.waveform import compute_newtonian_prefixes
+
+if tuple(int(_) for _ in version("pycbc").split(".")) >= (2, 10):
+    # note: we cannot compare the strings directly as "2.9.0" >= "2.10.0" is not True.
+    # version of 2.10 of pycbc removed the taper_timeseries function.
+    # However, 2.10+ is only available on python3.11+
+
+    def pycbc_taper_compatibility(
+        ts: TimeSeries, location: Literal["startend", "start", "end"]
+    ):
+        return ts.taper_timeseries(location=location)
+
+else:
+    from pycbc.waveform.utils import taper_timeseries
+
+    def pycbc_taper_compatibility(
+        ts: TimeSeries, location: Literal["startend", "start", "end"]
+    ):
+        return taper_timeseries(ts, tapermethod=location)
 
 
 def compare_frames(
@@ -158,8 +177,8 @@ def get_hp_hc(
     # Taper
     hp_td = TimeSeries(hp, delta_t=delta_t)
     hc_td = TimeSeries(hc, delta_t=delta_t)
-    hp_td = taper_timeseries(hp_td, tapermethod="startend")
-    hc_td = taper_timeseries(hc_td, tapermethod="startend")
+    hp_td = pycbc_taper_compatibility(hp_td, location="startend")
+    hc_td = pycbc_taper_compatibility(hc_td, location="startend")
 
     N = max(len(hp_td), len(hc_td))
     pad = int(2 ** (np.floor(np.log2(N)) + 2))

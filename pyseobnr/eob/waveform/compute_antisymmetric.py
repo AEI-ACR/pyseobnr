@@ -418,7 +418,7 @@ def compute_asymmetric_PN(
 def apply_nqc_phase_antisymmetric(
     inspiral_modes: dict[tuple[int, int], np.ndarray],
     t_modes: np.ndarray,
-    polar_dynamics: np.ndarray | tuple[float, float, float],
+    polar_dynamics: np.ndarray | tuple[np.ndarray, np.ndarray, np.ndarray],
     t_attach: float,
     ivs: IVSAntisymmetric,
     nqc_flags: dict,
@@ -452,8 +452,29 @@ def apply_nqc_phase_antisymmetric(
     omega_orb = polar_dynamics[2]
     fits_dict = ivs
 
-    # Loop over every mode
+    # Eq (4) in LIGO DCC document T1100433v2
+    rOmega = r * omega_orb
+    p1 = pr / rOmega
 
+    nrTimePeak = t_attach
+    if nrTimePeak > t_modes[-1]:
+        # If the predicted time is after the end of the dynamics
+        # use the end of the dynamics
+        nrTimePeak = t_modes[-1]
+
+    idx = np.argmin(np.abs(t_modes - nrTimePeak))
+    N = 5
+    left = max(0, idx - N)
+    right = min(idx + N, len(t_modes))
+
+    # Now we (should) have calculated the a values.
+    # We now compute the frequency NQCs (b1,b2) by solving Eq.(11) of T1100433v2
+    # Populate the P matrix in LHS of Eq.(11) of T1100433v2
+    intrp_p1 = InterpolatedUnivariateSpline(t_modes[left:right], p1[left:right])
+
+    P = -intrp_p1.derivatives(nrTimePeak)[1]
+
+    # Loop over every mode
     for ell_m, mode in inspiral_modes.items():
         if nqc_flags[ell_m]:
 
@@ -462,27 +483,6 @@ def apply_nqc_phase_antisymmetric(
 
             # Compute coefficient
 
-            # Eq (4) in LIGO DCC document T1100433v2
-            rOmega = r * omega_orb
-            p1 = pr / rOmega
-
-            nrTimePeak = t_attach
-            if nrTimePeak > t_modes[-1]:
-                # If the predicted time is after the end of the dynamics
-                # use the end of the dynamics
-                nrTimePeak = t_modes[-1]
-
-            idx = np.argmin(np.abs(t_modes - nrTimePeak))
-            N = 5
-            left = np.max((0, idx - N))
-            right = np.min((idx + N, len(t_modes)))
-
-            # Now we (should) have calculated the a values.
-            # We now compute the frequency NQCs (b1,b2) by solving Eq.(11) of T1100433v2
-            # Populate the P matrix in LHS of Eq.(11) of T1100433v2
-            intrp_p1 = InterpolatedUnivariateSpline(t_modes[left:right], p1[left:right])
-
-            P = -intrp_p1.derivatives(nrTimePeak)[1]
             # Build the RHS of Eq.(11)
             # Compute frequency and derivative at the right time
             intrp_phase = InterpolatedUnivariateSpline(
@@ -502,7 +502,7 @@ def apply_nqc_phase_antisymmetric(
             b1 = omegas / P
 
             # Phase correction
-            phase_corr = b1 * pr / rOmega
+            phase_corr = b1 * p1
             nqc = np.cos(phase_corr) + 1j * np.sin(phase_corr)
 
             # Apply correction to mode
