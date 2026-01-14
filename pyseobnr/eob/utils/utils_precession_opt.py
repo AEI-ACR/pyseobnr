@@ -2,6 +2,8 @@
 Additional utility functions to manipulate various aspects of precession dynamics.
 """
 
+from __future__ import annotations
+
 from math import cos, sqrt
 from typing import Any, Dict
 
@@ -430,7 +432,7 @@ def inspiral_merger_quaternion_angles(
     Lvec_hat_attach: np.ndarray,
     Jfhat_attach: np.ndarray,
     splines: Dict[Any, Any],
-    t_ref: float = None,
+    t_ref: float | None = None,
 ):
     """
     Wrapper function to compute the angles/quaternions necessary to perform the rotations
@@ -502,7 +504,9 @@ def inspiral_merger_quaternion_angles(
     else:
         # igammaJ2P_dyn = CubicSpline(t_dynamics, gammaJ2P_dyn)
         # gamma_ref = igammaJ2P_dyn(t_ref)
-        q2JP_ref = quaternion.squad(quatJ2P_dyn, t_dynamics, t_ref)
+        q2JP_ref = quaternion.squad(
+            quatJ2P_dyn, t_dynamics, np.array(t_ref) if t_ref is not None else None
+        )
 
     # We need to shift things so that gamma_J2P = gamma_J2I at reference time
     # The following is a rotation around final J

@@ -8,7 +8,7 @@
         "wheel",
         "cython>=3.0.11",
         "numpy>=1.23.0",
-        "scipy>=1.8.0",
+        "scipy>=1.8.0,<1.17.0",
         "importlib_resources ; python_version < '3.10'",
     ]
 
@@ -49,7 +49,7 @@
     # requirements:
     dependencies = [
         "numpy>=1.23.0",
-        "scipy>=1.8.0",
+        "scipy>=1.8.0,<1.17.0",
         "h5py",
         "numexpr",
         "numba",
@@ -116,7 +116,7 @@
         'matplotlib',
     ]
 
-    tests = ['pytest', 'pytest-sugar', 'pandas', 'pyarrow', 'pycbc']
+    tests = ['pytest', 'pytest-sugar', 'pandas', 'pyarrow', 'pycbc', 'gwpy']
 
 [tool.pytest.ini_options]
     minversion = "6.0"

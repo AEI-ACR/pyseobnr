@@ -102,6 +102,15 @@ class SEOBNRv5ModelBase:
             if (m, m) not in self.computed_modes:
                 self.computed_modes.append((m, m))
 
+    def _validate_convention_parameters(self) -> None:
+        """Check conventions consistency.
+
+        Raises:
+            ValueError: when inconsistencies are detected.
+        """
+
+        return
+
     def _initialize_params(
         self, *, phys_pars: dict | None, eob_pars: EOBParams | None = None
     ):

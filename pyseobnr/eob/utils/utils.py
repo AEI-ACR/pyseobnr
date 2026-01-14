@@ -82,11 +82,11 @@ def interpolate_dynamics(dyn_fine, dt=0.1, peak_omega=None, step_back=250.0):
 
 
 def estimate_time_max_amplitude(
-    time: np.array,
-    amplitude: np.array,
+    time: np.ndarray,
+    amplitude: np.ndarray,
     delta_t: float,
     precision=0.001,
-    peak_time_method: Callable[[np.array], int] | None = None,
+    peak_time_method: Callable[[np.ndarray], int] | None = None,
 ) -> float:
     assert time.shape == amplitude.shape
     # the knots are calculated globally, but we may consider a local one around
@@ -105,3 +105,25 @@ def estimate_time_max_amplitude(
     amplitude_interpolated_eval = amplitude_interpolated(t_fine_peak)
     idx_max_fine = np.argmax(amplitude_interpolated_eval)
     return cast(float, t_fine_peak[idx_max_fine])
+
+
+def rotate_modes_to_waveform_based_convention(
+    hlms: dict[tuple[int, int], np.ndarray],
+    ph22_ref: float,
+) -> None:
+    """
+    Rotate waveform modes by minus the value of (2,2)-coprecessing phase at
+    reference time to set this phase to 0 in the rotated waveform.
+
+    Args:
+        hlms: dict[tuple[int, int], np.ndarray]: coprecessing waveform modes
+        ph22_ref (float): Value of (2,2)-coprecessing phase at reference time
+
+    Returns:
+        None
+
+    """
+
+    # Rotate each mode with corresponding phase
+    for ellm, hlm in hlms.items():
+        hlm *= np.exp(-1j * (ellm[1] / 2) * ph22_ref)
