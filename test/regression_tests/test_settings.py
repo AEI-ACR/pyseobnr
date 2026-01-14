@@ -91,9 +91,7 @@ def test_generate_waveform_mode_arrays_settings(basic_settings):
 
     # works with list and tuples
     for enable_anti_symmetric in (None, False, True):
-
         for approximant in get_args(SupportedApproximants):
-
             additional = (
                 {}
                 if enable_anti_symmetric is None
@@ -194,7 +192,6 @@ def test_default_settings_EHM():
 
 
 def test_mode_arrays_settings_with_lmax_HM(basic_settings):
-
     approximant: SupportedApproximants = "SEOBNRv5HM"
 
     # this should work as lmax overrides the modes
@@ -296,7 +293,6 @@ def test_mode_arrays_settings_with_lmax_HM(basic_settings):
 
 
 def test_mode_arrays_settings_with_lmax_PHM(basic_settings):
-
     approximant: SupportedApproximants = "SEOBNRv5PHM"
 
     # this should work as lmax overrides the modes
@@ -421,7 +417,6 @@ def test_mode_arrays_settings_with_lmax_EHM(basic_settings):
                 self.model = None
 
             def __call__(self, other_self, *args, **kwargs):
-
                 self.model = other_self
                 raise LocalException
 
@@ -469,7 +464,6 @@ def test_mode_arrays_settings_with_lmax_EHM(basic_settings):
         p_model_call.reset_mock()
         instance_fake_call.model = None
         with pytest.raises(LocalException):
-
             # this will extend the default modes array to l = 5 modes
             generate_modes_opt(
                 q=1.1,
@@ -772,7 +766,6 @@ def test_generate_modes_opt_settings_can_be_none():
         "__call__",
         autospec=True,
     ) as p_model_call:
-
         p_model_call.side_effect = MyException
 
         with pytest.raises(
@@ -787,7 +780,6 @@ def test_generate_modes_opt_settings_can_be_none():
         "__call__",
         autospec=True,
     ) as p_model_call:
-
         p_model_call.side_effect = MyException
 
         with pytest.raises(
@@ -926,7 +918,6 @@ def test_generate_waveform_params_cannot_be_booleans():
     }
 
     for param_to_test in ["mass1", "mass2"]:
-
         for wrong_value in [
             True,
             False,
@@ -971,7 +962,6 @@ def test_generate_waveform_params_cannot_be_booleans():
         "conditioning",
         "postadiabatic",
     }:
-
         # catches errors
         for wrong_value in [
             True,
@@ -1001,7 +991,6 @@ def test_generate_waveform_params_cannot_be_booleans():
             10,
             fractions.Fraction(200, 23),
         ]:
-
             new_params = params | {
                 param_to_test: correct_value,
                 "approximant": "SEOBNRv5EHM",
@@ -1021,7 +1010,6 @@ def test_generate_waveform_params_cannot_be_booleans():
 
     # only integer parameters
     for param_to_test in params.keys() & {"conditioning"}:
-
         for wrong_value in [
             True,
             False,
@@ -1054,7 +1042,6 @@ def test_generate_waveform_params_cannot_be_booleans():
 
     # only boolean parameters
     for param_to_test in params.keys() & {"postadiabatic"}:
-
         for wrong_value in [0, 3, 0.3]:
             new_params = params | {
                 param_to_test: wrong_value,
@@ -1259,7 +1246,6 @@ def test_generate_modes_opt_precessing_chi_array_float_int():
 
         approx: SupportedApproximants
         for approx in get_args(SupportedApproximants):
-
             # we prevent the execution of the waveform generation by mocking
             with mock.patch.object(
                 class_map[approx],
@@ -1290,7 +1276,6 @@ def test_generate_modes_opt_precessing_chi_array_float_int():
 
         approx: SupportedApproximants
         for approx in get_args(SupportedApproximants):
-
             # we prevent the execution of the waveform generation by mocking
             with mock.patch.object(
                 class_map[approx],
@@ -1345,7 +1330,6 @@ def test_generate_modes_opt_settings_ehm(basic_settings):
         "__call__",
         autospec=True,
     ) as p_model_call:
-
         approximant: SupportedApproximants
         for approximant in ["SEOBNRv5HM", "SEOBNRv5PHM"]:
             with pytest.raises(
