@@ -17,6 +17,8 @@ stages:
 # specific common configurations for builders
 .conda_build_default: &conda_build_default
   image: containers.ligo.org/docker/base:conda
+  variables:
+    conda_python_version: "3.11"
   before_script:
     - |
       if [ -z "${CONDA_ROOT}" ]; then
@@ -30,7 +32,7 @@ stages:
     - conda update -n base -c defaults conda
     - conda install libarchive
 
-    - conda create --yes --name python311 python=3.11
+    - conda create --yes --name conda_test python=${conda_python_version}
     # we need gcc+gxx because we will be compiling pyseobnr
     # pygsl_lite will pull gsl
     - |
@@ -38,7 +40,7 @@ stages:
         --yes \
         --channel conda-forge \
         --channel bioconda \
-        --name python311 \
+        --name conda_test \
           lalsuite \
           gcc \
           gxx \
@@ -58,7 +60,7 @@ conda-test:
   <<: *conda_build_default
   stage: test
   script:
-    - conda activate python311
+    - conda activate conda_test
     - pip install ".[tests]"
     - mkdir .temp-tests
     - export CI_TEST_DYNAMIC_REGRESSIONS=1
@@ -77,6 +79,8 @@ conda-docs:
   stage: docs
   variables:
     SOURCEDIR: "docs"
+    # warning: the "variables" section from <<:* is being overridden by the "variables" here
+    conda_python_version: "3.11"
 
   script:
     - |
@@ -84,10 +88,10 @@ conda-docs:
         --yes \
         --channel conda-forge \
         --channel bioconda \
-        --name python311 \
+        --name conda_test \
           make \
           pandoc
-    - conda activate python311
+    - conda activate conda_test
     - pip install .[docs]
     - cd ${SOURCEDIR} && make html
 
@@ -145,6 +149,9 @@ tox-build-test:
         - image: ubuntu:22.04
           tox_target: py311
           packages: libgsl27 python3.11 libpython3.11-dev
+        - image: ubuntu:24.04
+          tox_target: py312
+          packages: libgsl27 python3.12 libpython3.12-dev
   image: $image
   <<: *build_default
   script:
@@ -152,6 +159,74 @@ tox-build-test:
     - *build_package_default_cmds
     - export CI_TEST_DYNAMIC_REGRESSIONS=1
     - tox -vvv -e $tox_target
+
+
+conda-test-with-tox:
+  image: containers.ligo.org/docker/base:conda
+  parallel:
+      matrix:
+        - tox_target: py313
+          conda_python_version: "3.13"
+          # overrides pygsl_lite requirement from the before_script
+          conda_additional_parameters: "-c conda-forge/label/pygsl_lite_rc pygsl_lite=0.1.8rc2"
+  stage: test
+  before_script:
+    - |
+      if [ -z "${CONDA_ROOT}" ]; then
+        if command -v conda &> /dev/null; then
+          CONDA_ROOT=$(conda info --base);
+        else
+          CONDA_ROOT="/opt/conda";
+        fi;
+      fi
+
+    - conda update -n base -c defaults conda
+    - conda install libarchive
+
+    - conda create --yes --name conda_test python=${conda_python_version}
+    # we need gcc+gxx because we will be compiling pyseobnr
+    # pygsl_lite will pull gsl
+    - |
+      conda install \
+        --yes \
+        --name conda_test \
+        --channel conda-forge \
+        --channel bioconda \
+        ${conda_additional_parameters} \
+          lalsuite \
+          gcc \
+          gxx \
+          fftw \
+          pygsl_lite \
+          scipy \
+          pycbc \
+          pandas \
+          pyarrow
+
+    - pip install --upgrade pip
+    - pip install --upgrade setuptools coverage-badge parameterized
+
+    - . ${CONDA_ROOT}/etc/profile.d/conda.sh
+
+  script:
+    - conda activate conda_test
+    - pip install tox
+    - export CI_TEST_DYNAMIC_REGRESSIONS=1
+    # we want tox to use the python packages that were installed with conda
+    # and pass --system-site-packages to the virtual environment creation
+    # option in tox.
+    - export VIRTUALENV_SYSTEM_SITE_PACKAGES=true
+    - export JUNIT_NAME_PREFIX=conda-tox
+    - tox -vvv -e $tox_target
+
+  artifacts:
+    paths:
+      - .tox/**/junit-*.xml
+    reports:
+      junit: .tox/**/junit-*.xml
+
+    expire_in: 1 month
+
 
 # running the linting only
 tox-lint:
