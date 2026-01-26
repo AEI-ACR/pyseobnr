@@ -20,9 +20,9 @@ import numpy as np
 cimport numpy as cnp
 from scipy.special.cython_special cimport loggamma
 
-try:
-    from scipy.special import sph_harm_y as sph_harm
-except ImportError:
+IF SCIPY_VERSION >= "1.17.0":
+    from scipy.special import sph_harm_y
+ELSE:
     from scipy.special.cython_special cimport sph_harm
 
 from scipy.interpolate import CubicSpline
@@ -2247,29 +2247,55 @@ cdef class SEOBNRv5RRForce(RadiationReactionForce):
         return RR_force(q, p, omega, omega_circ, H, eob_pars)
 
 
-@cython.cpow(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
-@cython.cdivision(True)
-cdef double complex EOBFluxCalculateNewtonianMultipole(
-    double x,
-    double phi,
-    int l,
-    int m,
-    double complex[:, :] params
-):
-    """
-    Compute the Newtonian multipole
-    """
-    cdef double complex param = params[l, m]
-    cdef int epsilon = (l + m) % 2
+IF SCIPY_VERSION >= "1.17.0":
+    @cython.cpow(True)
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
+    @cython.cdivision(True)
+    cdef double complex EOBFluxCalculateNewtonianMultipole(
+        double x,
+        double phi,
+        int l,
+        int m,
+        double complex[:, :] params
+    ):
+        """
+        Compute the Newtonian multipole
+        """
+        cdef double complex param = params[l, m]
+        cdef int epsilon = (l + m) % 2
 
-    # Calculate the necessary Ylm
-    cdef double complex ylm = sph_harm(-m, l - epsilon, phi, pi / 2)
+        # Calculate the necessary Ylm
+        cdef double complex ylm = sph_harm_y(l - epsilon, -m, pi / 2, phi)
 
-    cdef double complex multipole = param * x ** ((l + epsilon) / 2.0)
-    multipole *= ylm
-    return multipole
+        cdef double complex multipole = param * x ** ((l + epsilon) / 2.0)
+        multipole *= ylm
+        return multipole
+
+ELSE:
+    @cython.cpow(True)
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
+    @cython.cdivision(True)
+    cdef double complex EOBFluxCalculateNewtonianMultipole(
+        double x,
+        double phi,
+        int l,
+        int m,
+        double complex[:, :] params
+    ):
+        """
+        Compute the Newtonian multipole
+        """
+        cdef double complex param = params[l, m]
+        cdef int epsilon = (l + m) % 2
+
+        # Calculate the necessary Ylm
+        cdef double complex ylm = sph_harm(-m, l - epsilon, phi, pi / 2)
+
+        cdef double complex multipole = param * x ** ((l + epsilon) / 2.0)
+        multipole *= ylm
+        return multipole
 
 
 @cython.cpow(True)
