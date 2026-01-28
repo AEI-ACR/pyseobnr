@@ -79,10 +79,12 @@
 [project.entry-points."pycbc.waveform.td"]
     SEOBNRv5HM  = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_td"
     SEOBNRv5PHM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5PHM.gen_td"
+    SEOBNRv5EHM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5EHM.gen_td"
 
 [project.entry-points."pycbc.waveform.fd"]
     SEOBNRv5HM  = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5HM.gen_fd"
     SEOBNRv5PHM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5PHM.gen_fd"
+    SEOBNRv5EHM = "pyseobnr.plugins.pycbc_plugin:PySEOBNRv5PyCBCPlugin_v5EHM.gen_fd"
 
 [tool.setuptools_scm]
     write_to = "pyseobnr/_version.py"

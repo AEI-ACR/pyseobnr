@@ -250,6 +250,133 @@ def test_pycbc_plugin_fd_v5phm(basic_settings):
         ]
 
 
+def test_pycbc_plugin_td_v5ehm(basic_settings):
+    import pycbc.waveform
+
+    hp, hc = pycbc.waveform.get_td_waveform(
+        approximant="SEOBNRv5EHM",
+        **(basic_settings | {"eccentricity": 0.1, "f_ref": basic_settings["f_lower"]}),
+    )
+
+    assert hp is not None
+    assert hc is not None
+
+    with pytest.raises(
+        ValueError,
+        match=r"In-plane spin components must be zero for calling the non-precessing approximant\.",
+    ):
+        _ = pycbc.waveform.get_td_waveform(
+            approximant="SEOBNRv5EHM",
+            **(basic_settings | {"spin1y": 0.1} | {"eccentricity": 0.1}),
+        )
+
+    with pytest.raises(
+        ValueError,
+        match=r"The approximant 'SEOBNRv5EHM' does not support the choice "
+        r"for a reference frequency. Please, set 'f_ref' = 'f22_start'\.",
+    ):
+        _ = pycbc.waveform.get_td_waveform(
+            approximant="SEOBNRv5EHM",
+            **(basic_settings | {"eccentricity": 0.1}),
+        )
+
+    with patch(
+        "pyseobnr.generate_waveform.GenerateWaveform.generate_td_polarizations",
+        autospec=True,
+    ) as p_generate_td_polarizations:
+
+        class MyException(Exception):
+            pass
+
+        p_generate_td_polarizations.side_effect = MyException
+        with pytest.raises(MyException):
+            _ = pycbc.waveform.get_td_waveform(
+                approximant="SEOBNRv5EHM",
+                **(
+                    basic_settings
+                    | {"eccentricity": 0.1, "f_ref": basic_settings["f_lower"]}
+                ),
+            )
+
+    with patch(
+        "pyseobnr.generate_waveform.generate_modes_opt",
+        autospec=True,
+    ) as p_generate_modes_opt:
+
+        class MyException(Exception):
+            pass
+
+        p_generate_modes_opt.side_effect = MyException
+        with pytest.raises(MyException):
+            _ = pycbc.waveform.get_td_waveform(
+                approximant="SEOBNRv5EHM",
+                **(
+                    basic_settings
+                    | {"eccentricity": 0.1, "f_ref": basic_settings["f_lower"]}
+                ),
+            )
+
+        p_generate_modes_opt.assert_called_once()
+        assert "approximant" in p_generate_modes_opt.call_args.kwargs
+        assert p_generate_modes_opt.call_args.kwargs["approximant"] == "SEOBNRv5EHM"
+
+
+def test_pycbc_plugin_fd_v5ehm(basic_settings):
+    import pycbc.waveform
+
+    basic_settings |= {
+        "delta_f": 0,  # required for fd
+    }
+
+    hp, hc = pycbc.waveform.get_fd_waveform(
+        approximant="SEOBNRv5EHM",
+        **(basic_settings | {"eccentricity": 0.1, "f_ref": basic_settings["f_lower"]}),
+    )
+
+    assert hp is not None
+    assert hc is not None
+
+    with patch(
+        "pyseobnr.generate_waveform.GenerateWaveform.generate_fd_polarizations",
+        autospec=True,
+    ) as p_generate_fd_polarizations:
+
+        class MyException(Exception):
+            pass
+
+        p_generate_fd_polarizations.side_effect = MyException
+        with pytest.raises(MyException):
+            _ = pycbc.waveform.get_fd_waveform(
+                approximant="SEOBNRv5EHM",
+                **(
+                    basic_settings
+                    | {"eccentricity": 0.1, "f_ref": basic_settings["f_lower"]}
+                ),
+            )
+
+    with patch(
+        "pyseobnr.generate_waveform.generate_modes_opt",
+        autospec=True,
+    ) as p_generate_modes_opt:
+
+        class MyException(Exception):
+            pass
+
+        p_generate_modes_opt.side_effect = MyException
+        with pytest.raises(MyException):
+            _ = pycbc.waveform.get_fd_waveform(
+                approximant="SEOBNRv5EHM",
+                **(
+                    basic_settings
+                    | {"eccentricity": 0.1, "f_ref": basic_settings["f_lower"]}
+                ),
+            )
+
+        p_generate_modes_opt.assert_called_once()
+        assert "approximant" in p_generate_modes_opt.call_args.kwargs
+        assert p_generate_modes_opt.call_args.kwargs["approximant"] == "SEOBNRv5EHM"
+
+
 def test_pycbc_f_ref_eq_0_convention(basic_settings):
     import pycbc.waveform
 
