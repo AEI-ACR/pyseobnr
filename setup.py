@@ -8,7 +8,6 @@ from setuptools import Extension, find_packages, setup
 # for the NPY_NO_DEPRECATED_API macro definition.
 
 _numpy_no_deprecated_api = ("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")
-_new_sph_harm_call = {"SCIPY_VERSION": version("scipy")}
 
 # raise RuntimeError(f"fuck {version('scipy')} {_new_sph_harm_call}")
 extensions = [
@@ -146,6 +145,6 @@ extensions = [
 
 setup(
     packages=find_packages(),
-    ext_modules=cythonize(extensions, compile_time_env=_new_sph_harm_call),
+    ext_modules=cythonize(extensions),
     zip_safe=False,
 )

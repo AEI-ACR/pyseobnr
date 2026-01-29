@@ -90,7 +90,8 @@ conda-docs:
         --channel bioconda \
         --name conda_test \
           make \
-          pandoc
+          pandoc \
+          pytest  # needed for gwpy
     - conda activate conda_test
     - pip install .[docs]
     - cd ${SOURCEDIR} && make html
@@ -129,11 +130,12 @@ conda-docs:
 
 .build_package_default_cmds: &build_package_default_cmds
   - |
+    rm -rf ../.venv_test
     python3 -m venv ../.venv_test
     . ../.venv_test/bin/activate
     pip install -U wheel pip setuptools
     pip install tox
-    tox -l
+  - tox -l
 
 # building pyseobnr and running the tests using tox
 tox-build-test:
@@ -146,19 +148,29 @@ tox-build-test:
         - image: ubuntu:22.04
           tox_target: py310
           packages: libgsl27 python3.10 libpython3.10-dev
-        - image: ubuntu:22.04
+        - image: ubuntu:24.04
           tox_target: py311
           packages: libgsl27 python3.11 libpython3.11-dev
+          python_version: "deadsnakes"
         - image: ubuntu:24.04
           tox_target: py312
           packages: libgsl27 python3.12 libpython3.12-dev
   image: $image
   <<: *build_default
   script:
+    - |
+      if [[ "$python_version" == "deadsnakes" ]]; then
+        apt-get install --yes software-properties-common
+        add-apt-repository --yes ppa:deadsnakes/ppa
+      fi
     - DEBIAN_FRONTEND=noninteractive apt-get install -y $packages python3-pip python3-venv
     - *build_package_default_cmds
     - export CI_TEST_DYNAMIC_REGRESSIONS=1
     - tox -vvv -e $tox_target
+
+
+
+# apt-get install --yes python3.11 python3.11-venv libpython3.11-dev
 
 
 conda-test-with-tox:

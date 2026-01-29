@@ -19,12 +19,6 @@ from libc.math cimport (
 import numpy as np
 cimport numpy as cnp
 from scipy.special.cython_special cimport loggamma
-
-IF SCIPY_VERSION >= "1.17.0":
-    from scipy.special import sph_harm_y
-ELSE:
-    from scipy.special.cython_special cimport sph_harm
-
 from scipy.interpolate import CubicSpline
 from scipy.special import factorial2
 
@@ -43,7 +37,7 @@ cdef complex I
 I.real = 0
 I.imag = 1
 
-# Lookup table of fast spin-weighted spherical harmonics
+# Lookup table of fast spin-weighted spherical harmonics (absolute values)
 # Used to compute Newtonian prefactors in factorized waveform
 # Follows the scipy convention: ylms[m][ell]
 cdef double ylms[9][9]
@@ -107,6 +101,72 @@ ylms[:] = [
     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.48308411358006625, 0.0, 0.3764161087284946],
     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5000395635705508, 0.0],
     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5154289843972844],
+]
+
+# Signed lookup table for Y_l^{-m}(pi/2, 0) - precomputed from scipy.special.sph_harm_y
+# Used in EOBFluxCalculateNewtonianMultipole for complex mode calculations
+# Indexed as ylms_signed[m][l]
+cdef double ylms_signed[9][9]
+ylms_signed[:] = [
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [
+        0.0,
+        +0.3454941494713355,   # Y_1^{-1}
+        0.0,
+        -0.3231801841141506,   # Y_3^{-1} (negative)
+        0.0,
+        +0.32028164857621516,  # Y_5^{-1}
+        0.0,
+        -0.31937046138540076,  # Y_7^{-1} (negative)
+        0.0,
+    ],
+    [
+        0.0,
+        0.0,
+        +0.3862742020231896,   # Y_2^{-2}
+        0.0,
+        -0.33452327177864466,  # Y_4^{-2} (negative)
+        0.0,
+        +0.32569524293385776,  # Y_6^{-2}
+        0.0,
+        -0.32254835519288305,  # Y_8^{-2} (negative)
+    ],
+    [
+        0.0,
+        0.0,
+        0.0,
+        +0.4172238236327842,   # Y_3^{-3}
+        0.0,
+        -0.34594371914684025,  # Y_5^{-3} (negative)
+        0.0,
+        +0.331899519333737,    # Y_7^{-3}
+        0.0,
+    ],
+    [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        +0.4425326924449826,   # Y_4^{-4}
+        0.0,
+        -0.3567812628539981,   # Y_6^{-4} (negative)
+        0.0,
+        +0.3382915688890245,   # Y_8^{-4}
+    ],
+    [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        +0.46413220344085826,  # Y_5^{-5}
+        0.0,
+        -0.3669287245764378,   # Y_7^{-5} (negative)
+        0.0,
+    ],
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, +0.48308411358006625, 0.0, -0.3764161087284946],  # Y_6^{-6}, Y_8^{-6}(neg)
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, +0.5000395635705508, 0.0],  # Y_7^{-7}
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, +0.5154289843972844],  # Y_8^{-8}
 ]
 
 
@@ -2247,55 +2307,34 @@ cdef class SEOBNRv5RRForce(RadiationReactionForce):
         return RR_force(q, p, omega, omega_circ, H, eob_pars)
 
 
-IF SCIPY_VERSION >= "1.17.0":
-    @cython.cpow(True)
-    @cython.wraparound(False)
-    @cython.boundscheck(False)
-    @cython.cdivision(True)
-    cdef double complex EOBFluxCalculateNewtonianMultipole(
-        double x,
-        double phi,
-        int l,
-        int m,
-        double complex[:, :] params
-    ):
-        """
-        Compute the Newtonian multipole
-        """
-        cdef double complex param = params[l, m]
-        cdef int epsilon = (l + m) % 2
+@cython.cpow(True)
+@cython.wraparound(False)
+@cython.boundscheck(False)
+@cython.cdivision(True)
+cdef double complex EOBFluxCalculateNewtonianMultipole(
+    double x,
+    double phi,
+    int l,
+    int m,
+    double complex[:, :] params
+):
+    """
+    Compute the Newtonian multipole using precomputed signed lookup table.
 
-        # Calculate the necessary Ylm
-        cdef double complex ylm = sph_harm_y(l - epsilon, -m, pi / 2, phi)
+    Uses Y_l^{-m}(pi/2, phi) = ylms_signed[m][l-epsilon] * exp(-i*m*phi)
+    where ylms_signed contains the precomputed Y_l^{-m}(pi/2, 0) values with correct sign.
+    """
+    cdef double complex param = params[l, m]
+    cdef int epsilon = (l + m) % 2
 
-        cdef double complex multipole = param * x ** ((l + epsilon) / 2.0)
-        multipole *= ylm
-        return multipole
+    # Use precomputed signed lookup table for Y_l^{-m}(pi/2, 0)
+    # Y_l^{-m}(pi/2, phi) = Y_l^{-m}(pi/2, 0) * exp(-i*m*phi)
+    cdef double y_signed = ylms_signed[m][l - epsilon]
+    cdef double complex ylm = y_signed * cexp(-I * m * phi)
 
-ELSE:
-    @cython.cpow(True)
-    @cython.wraparound(False)
-    @cython.boundscheck(False)
-    @cython.cdivision(True)
-    cdef double complex EOBFluxCalculateNewtonianMultipole(
-        double x,
-        double phi,
-        int l,
-        int m,
-        double complex[:, :] params
-    ):
-        """
-        Compute the Newtonian multipole
-        """
-        cdef double complex param = params[l, m]
-        cdef int epsilon = (l + m) % 2
-
-        # Calculate the necessary Ylm
-        cdef double complex ylm = sph_harm(-m, l - epsilon, phi, pi / 2)
-
-        cdef double complex multipole = param * x ** ((l + epsilon) / 2.0)
-        multipole *= ylm
-        return multipole
+    cdef double complex multipole = param * x ** ((l + epsilon) / 2.0)
+    multipole *= ylm
+    return multipole
 
 
 @cython.cpow(True)
