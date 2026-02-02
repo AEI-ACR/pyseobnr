@@ -600,14 +600,13 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
                 rotate_modes_to_waveform_based_convention(hlms_full, ph22_ref)
 
-            amp_inv = frame_inv_amp(hlms_full, ell_max=self.max_ell_returned)
-
             # Set t=0
             if self.settings.get(
                 "convention_t0_set_to_0_at_coprecessing_amplitude22_peak", False
             ):
                 self.t = t_full - t_full[0] - t_attach
             else:
+                amp_inv = frame_inv_amp(hlms_full, ell_max=self.max_ell_returned)
                 # Store the time array and shift it with an interpolated
                 # guess of the max of the frame invariant amplitude
                 self.t = t_full - estimate_time_max_amplitude(
@@ -1505,6 +1504,16 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             qt[idx] = interpolate_quats(quatJ2P_dyn, t_dyn, t_full[idx])
             qt[idx[-1] + 1 :] = quat_postMerger
 
+            # conveniance
+            convention_t0_set_to_0_at_coprecessing_amplitude22_peak: Final[bool] = (
+                self.settings.get(
+                    "convention_t0_set_to_0_at_coprecessing_amplitude22_peak", False
+                )
+            )
+
+            # the computation of the frame invariant amplitude depends on the options on conventions
+            amp_inv = None
+
             # Routine to compute and include  spin-precessing anti-symmetric modes
             if self.settings.get("enable_antisymmetric_modes", False):
                 # First compute needed quantities to evaluate the PN modes
@@ -1670,36 +1679,35 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     ell, m = key
                     imr_full[(ell, m)] += imr_asym[(ell, m)]
 
-                # Compute frame-invariant amplitude to set t=0
+                # Compute frame-invariant amplitude to set t=0 (for LVK/default convention)
                 # With asymmetries, we want to employ positive and negative-m modes
-                amp_inv = frame_inv_amp(
-                    imr_full, ell_max=self.max_ell_returned, use_symm=False
-                )
+                if not convention_t0_set_to_0_at_coprecessing_amplitude22_peak:
+                    amp_inv = frame_inv_amp(
+                        imr_full, ell_max=self.max_ell_returned, use_symm=False
+                    )
 
             else:  # if enable_antisymmetric_modes
 
-                # Compute frame-invariant amplitude to set t=0
+                # Compute frame-invariant amplitude to set t=0 (for LVK/default convention)
                 # Without asymmetries, we want to employ only positive-m modes
-                amp_inv = frame_inv_amp(
-                    imr_full, ell_max=self.max_ell_returned, use_symm=True
-                )
+                if not convention_t0_set_to_0_at_coprecessing_amplitude22_peak:
+                    amp_inv = frame_inv_amp(
+                        imr_full, ell_max=self.max_ell_returned, use_symm=True
+                    )
 
                 # Add negative-m modes to mode dict
                 imr_full = self._add_negative_m_modes(imr_full)
 
             # end "if enable_antisymmetric_modes"
 
-            # Compute t=0 from peak of frame-invariant amplitude
-            # Store the time array and shift it with an interpolated
-            # guess of the max of the frame invariant amplitude
-
-            if self.settings.get(
-                "convention_t0_set_to_0_at_coprecessing_amplitude22_peak", False
-            ):
+            if convention_t0_set_to_0_at_coprecessing_amplitude22_peak:
+                # Compute t=0 from peak of the 22 in the coprecessing
                 self.t = t_full - t_attach
             else:
+                # Compute t=0 from peak of frame-invariant amplitude
                 # Store the time array and shift it with an interpolated
                 # guess of the max of the frame invariant amplitude
+                assert amp_inv is not None
                 self.t = t_full - estimate_time_max_amplitude(
                     time=t_full,
                     amplitude=amp_inv,
