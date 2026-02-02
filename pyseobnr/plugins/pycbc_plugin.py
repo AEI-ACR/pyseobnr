@@ -76,6 +76,10 @@ class PySEOBNRv5PyCBCPlugin:
         return hp, hc
 
 
+class PySEOBNRv5PyCBCPlugin_v5EHM(PySEOBNRv5PyCBCPlugin):
+    approximant = "SEOBNRv5EHM"
+
+
 class PySEOBNRv5PyCBCPlugin_v5HM(PySEOBNRv5PyCBCPlugin):
     approximant = "SEOBNRv5HM"
 

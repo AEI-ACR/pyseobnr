@@ -1,6 +1,3 @@
-All notable changes will be noted in this file, whenever a tagged
-version is made
-
 Changelog has moved to the releases on [GitLab](https://git.ligo.org/waveforms/software/pyseobnr/-/releases).
 
 ## [0.2.6] 16/08/2023
