@@ -76,8 +76,8 @@ References
 
 We request that any academic report, publication, or other academic disclosure of results derived from the use of ``pyseobnr`` acknowledge the use of the software by an appropriate acknowledgment or citation.
 
-The code can be cited by citing the `code repository <https://git.ligo.org/waveforms/software>`_  and the associated publication: Mihaylov et al., "pySEOBNR: a software package for the next generation of
-effective-one-body multipolar waveform models", 2023, `arXiv:2303.18203 <https://arxiv.org/abs/2303.18203>`_. A bibtex entry is provided::
+The code can be cited by citing the `code repository <https://git.ligo.org/waveforms/software/pyseobnr>`_  and the associated publication: Mihaylov et al., "pySEOBNR: a software package for the next generation of
+effective-one-body multipolar waveform models", 2023, `arXiv:2303.18203 <https://inspirehep.net/literature/2647812>`_. A bibtex entry is provided::
 
     @article{Mihaylov:2023bkc,
         author = {Mihaylov, Deyan P. and Ossokine, Serguei and Buonanno, Alessandra and Estelles, Hector and Pompili, Lorenzo and P\"urrer, Michael and Ramos-Buades, Antoni},
@@ -95,123 +95,24 @@ effective-one-body multipolar waveform models", 2023, `arXiv:2303.18203 <https:/
 
 In addition, if released models are used, the model papers should be cited:
 
-* For ``SEOBNRv5PHM``, Ramos-Buades et al., "SEOBNRv5PHM: Next generation of accurate and efficient multipolar precessing-spin effective-one-body waveforms for binary black holes", 2023, `arXiv:2303.18046 <https://arxiv.org/abs/2303.18046>`_::
+* For ``SEOBNRv5PHM``, Ramos-Buades et al., "SEOBNRv5PHM: Next generation of accurate and efficient multipolar precessing-spin effective-one-body waveforms for binary black holes", 2023, `arXiv:2303.18046 <https://inspirehep.net/literature/2647783>`_. If using the version of the model including equatorial multipole asymmetries, please also cite Estellés et al., "Adding equatorial-asymmetric effects for spin-precessing binaries into the SEOBNRv5PHM waveform model", `arXiv:2506.19911 <https://inspirehep.net/literature/2938778>`_.
 
-    @article{Ramos-Buades:2023ehm,
-        author = "Ramos-Buades, Antoni and Buonanno, Alessandra and Estell\'es, H\'ector and Khalil, Mohammed and Mihaylov, Deyan P. and Ossokine, Serguei and Pompili, Lorenzo and Shiferaw, Mahlet",
-        title = "{Next generation of accurate and efficient multipolar precessing-spin effective-one-body waveforms for binary black holes}",
-        eprint = "2303.18046",
-        archivePrefix = "arXiv",
-        primaryClass = "gr-qc",
-        doi = "10.1103/PhysRevD.108.124037",
-        journal = "Phys. Rev. D",
-        volume = "108",
-        number = "12",
-        pages = "124037",
-        year = "2023"
-    }
+* For ``SEOBNRv5HM``, Pompili et al., "Laying the foundation of the effective-one-body waveform models SEOBNRv5: improved accuracy and efficiency for spinning non-precessing binary black holes", 2023, `arXiv:2303.18039 <https://inspirehep.net/literature/2647776>`_.
 
-* For ``SEOBNRv5HM``, Pompili et al., "Laying the foundation of the effective-one-body waveform models SEOBNRv5: improved accuracy and efficiency for spinning non-precessing binary black holes", 2023, `arXiv:2303.18039 <https://arxiv.org/abs/2303.18039>`_::
+* For ``SEOBNRv5EHM``, Gamboa et al., "Accurate waveforms for eccentric, aligned-spin binary black holes: The multipolar effective-one-body model SEOBNRv5EHM", 2024, `arXiv:2412.12823 <https://inspirehep.net/literature/2860452>`_.
 
-    @article{Pompili:2023tna,
-        author = "Pompili, Lorenzo and others",
-        title = "{Laying the foundation of the effective-one-body waveform models SEOBNRv5: Improved accuracy and efficiency for spinning nonprecessing binary black holes}",
-        eprint = "2303.18039",
-        archivePrefix = "arXiv",
-        primaryClass = "gr-qc",
-        doi = "10.1103/PhysRevD.108.124035",
-        journal = "Phys. Rev. D",
-        volume = "108",
-        number = "12",
-        pages = "124035",
-        year = "2023"
-    }
-
-* For ``SEOBNRv5EHM``, Gamboa et al., "Accurate waveforms for eccentric, aligned-spin binary black holes: The multipolar effective-one-body model SEOBNRv5EHM", 2024, `arXiv:2412.12823 <https://arxiv.org/abs/2412.12823>`_::
-
-    @article{Gamboa:2024,
-        author={Aldo Gamboa and Alessandra Buonanno and Raffi Enficiaud and Mohammed Khalil and Antoni Ramos-Buades and Lorenzo Pompili and Héctor Estellés and Michael Boyle and Lawrence E. Kidder and Harald P. Pfeiffer and Hannes R. Rüter and Mark A. Scheel},
-        title={Accurate waveforms for eccentric, aligned-spin binary black holes: The multipolar effective-one-body model SEOBNRv5EHM},
-        year={2024},
-        eprint={2412.12823},
-        archivePrefix={arXiv},
-        primaryClass={gr-qc},
-    }
-
-* For ``pSEOBNRv5PHM``, Pompili et al., "A parametrized spin-precessing inspiral-merger-ringdown waveform model for tests of general relativity", 2025, `arXiv:2504.10130 <https://arxiv.org/abs/2504.10130>`_::
-
-    @article{Pompili:2025cdc,
-        author = "Pompili, Lorenzo and Maggio, Elisa and Silva, Hector O. and Buonanno, Alessandra",
-        title = "{A parametrized spin-precessing inspiral-merger-ringdown waveform model for tests of general relativity}",
-        eprint = "2504.10130",
-        archivePrefix = "arXiv",
-        primaryClass = "gr-qc",
-        month = "4",
-        year = "2025"
-    }
-
+* For ``pSEOBNRv5PHM``, Pompili et al., "A parametrized spin-precessing inspiral-merger-ringdown waveform model for tests of general relativity", 2025, `arXiv:2504.10130 <https://inspirehep.net/literature/2911709>`_.
 
 If you build on the existing models, please cite:
 
-* Khalil et al., "Theoretical groundwork supporting the precessing-spin two-body dynamics of the effective-one-body waveform models SEOBNRv5", 2023, `arXiv:2303.18143 <https://arxiv.org/abs/2303.18143>`_::
+* Khalil et al., "Theoretical groundwork supporting the precessing-spin two-body dynamics of the effective-one-body waveform models SEOBNRv5", 2023, `arXiv:2303.18143 <https://inspirehep.net/literature/2647760>`_.
 
-    @article{Khalil:2023kep,
-        author = "Khalil, Mohammed and Buonanno, Alessandra and Estelles, Hector and Mihaylov, Deyan P. and Ossokine, Serguei and Pompili, Lorenzo and Ramos-Buades, Antoni",
-        title = "{Theoretical groundwork supporting the precessing-spin two-body dynamics of the effective-one-body waveform models SEOBNRv5}",
-        eprint = "2303.18143",
-        archivePrefix = "arXiv",
-        primaryClass = "gr-qc",
-        doi = "10.1103/PhysRevD.108.124036",
-        journal = "Phys. Rev. D",
-        volume = "108",
-        number = "12",
-        pages = "124036",
-        year = "2023"
-    }
+* Van de Meent et al., "Enhancing the SEOBNRv5 effective-one-body waveform model with second-order gravitational self-force fluxes", 2023, `arXiv:2303.18026 <https://inspirehep.net/literature/2647748>`_.
 
-* Van de Meent et al., "Enhancing the SEOBNRv5 effective-one-body waveform model with second-order gravitational self-force fluxes", 2023, `arXiv:2303.18026 <https://arxiv.org/abs/2303.18026>`_::
+* Toubiana et al., "Measuring source properties and quasinormal mode frequencies of heavy massive black-hole binaries with LISA", 2024, `arXiv:2307.15086 <https://inspirehep.net/literature/2683211>`_.
 
-    @article{vandeMeent:2023ols,
-        author = "van de Meent, Maarten and Buonanno, Alessandra and Mihaylov, Deyan P. and Ossokine, Serguei and Pompili, Lorenzo and Warburton, Niels and Pound, Adam and Wardell, Barry and Durkan, Leanne and Miller, Jeremy",
-        title = "{Enhancing the SEOBNRv5 effective-one-body waveform model with second-order gravitational self-force fluxes}",
-        eprint = "2303.18026",
-        archivePrefix = "arXiv",
-        primaryClass = "gr-qc",
-        doi = "10.1103/PhysRevD.108.124038",
-        journal = "Phys. Rev. D",
-        volume = "108",
-        number = "12",
-        pages = "124038",
-        year = "2023"
-    }
+* Gamboa et al., "Third post-Newtonian dynamics for eccentric orbits and aligned spins in the effective-one-body waveform model SEOBNRv5EHM", 2024, `arXiv:2412.12831 <https://inspirehep.net/literature/2860457>`_.
 
-* Toubiana et al., "Measuring source properties and quasinormal mode frequencies of heavy massive black-hole binaries with LISA", 2024, `arXiv:2307.15086 <https://arxiv.org/abs/2307.15086>`_::
-
-    @article{Toubiana:2023cwr,
-        author = "Toubiana, Alexandre and Pompili, Lorenzo and Buonanno, Alessandra and Gair, Jonathan R. and Katz, Michael L.",
-        title = "{Measuring source properties and quasinormal mode frequencies of heavy massive black-hole binaries with LISA}",
-        eprint = "2307.15086",
-        archivePrefix = "arXiv",
-        primaryClass = "gr-qc",
-        doi = "10.1103/PhysRevD.109.104019",
-        journal = "Phys. Rev. D",
-        volume = "109",
-        number = "10",
-        pages = "104019",
-        year = "2024"
-    }
-
-* Gamboa et al., "Third post-Newtonian dynamics for eccentric orbits and aligned spins in the effective-one-body waveform model SEOBNRv5EHM", 2024, `arXiv:2412.12831 <https://arxiv.org/abs/2412.12831>`_::
-
-    @article{Gamboa:2024imd,
-        author = "Gamboa, Aldo and Khalil, Mohammed and Buonanno, Alessandra",
-        title = "{Third post-Newtonian dynamics for eccentric orbits and aligned spins in the effective-one-body waveform model SEOBNRv5EHM}",
-        eprint = "2412.12831",
-        archivePrefix = "arXiv",
-        primaryClass = "gr-qc",
-        month = "12",
-        year = "2024"
-    }
 
 .. |pipeline status| image:: https://git.ligo.org/waveforms/software/pyseobnr/badges/main/pipeline.svg
    :target: https://git.ligo.org/waveforms/software/pyseobnr/commits/main
