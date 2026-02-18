@@ -173,10 +173,10 @@ the dominant mode,
 
 One can set this second convention in pyseobnr via the following options:
 
-* `convention_coprocessing_phase22_set_to_0_at_reference_time` to `True`
-* `convention_t0_set_to_0_at_coprocessing_amplitude22_peak` to `True`
+* `convention_coprecessing_phase22_set_to_0_at_reference_frequency` to `True`
+* `convention_t0_set_to_0_at_coprecessing_amplitude22_peak` to `True`
 
-Note that when `convention_coprocessing_phase22_set_to_0_at_reference_time` is `True` as well as (for precessing systems) `polarizations_from_coprec` is `True`, the phase rotations will be applied directly to the spin weighted spherical harmonics.
+Note that when `convention_coprecessing_phase22_set_to_0_at_reference_frequency` is `True` as well as (for precessing systems) `polarizations_from_coprec` is `True`, the phase rotations will be applied directly to the spin weighted spherical harmonics.
 
 ```{code-cell} ipython3
 ---
@@ -225,8 +225,8 @@ wfm_gen = GenerateWaveform(params_dict)
 wfm_gen_2 = GenerateWaveform(
     params_dict
     | {
-        "convention_coprocessing_phase22_set_to_0_at_reference_time": True,
-        "convention_t0_set_to_0_at_coprocessing_amplitude22_peak": True,
+        "convention_coprecessing_phase22_set_to_0_at_reference_frequency": True,
+        "convention_t0_set_to_0_at_coprecessing_amplitude22_peak": True,
     }
 )
 
