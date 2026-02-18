@@ -13,6 +13,7 @@ Welcome to pyseobnr's documentation!
    source/installation
    source/basic_usage
    source/expert_mode
+   source/citing
    source/citations
    source/how_to_contribute
 
