@@ -118,12 +118,13 @@
         'pyarrow',
         'seaborn',
         'pycbc',
+        'setuptools<82.0.0',  # for pkg_resource needed by pycbc, see https://stackoverflow.com/a/79888812/1617295
         'astropy',
         'gwpy',
         'matplotlib',
     ]
 
-    tests = ['pytest', 'pytest-sugar', 'pandas', 'pyarrow', 'pycbc', 'gwpy']
+    tests = ['pytest', 'pytest-sugar', 'pandas', 'pyarrow', 'pycbc', 'setuptools<82.0.0', 'gwpy']
 
 [tool.pytest.ini_options]
     minversion = "6.0"
