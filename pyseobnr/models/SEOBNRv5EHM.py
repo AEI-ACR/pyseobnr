@@ -627,8 +627,16 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                     # If e = 0, use omega to compute the shift
                     phi_arr = dynamics[:, 2]
                     omega_avg_arr = dynamics[:, -1]
-                    if self.omega_avg_ref <= dynamics[-1, -1]:
-                        phi_interp = CubicSpline(omega_avg_arr, phi_arr)
+                    # Find the peak in omega_orbital. If there is no peak,
+                    # select the last point
+                    try:
+                        idx_peak = find_peaks(omega_avg_arr)[0][-1]
+                    except:
+                        idx_peak = -1
+                    if self.omega_avg_ref <= dynamics[idx_peak, -1]:
+                        phi_interp = CubicSpline(
+                            omega_avg_arr[:idx_peak], phi_arr[:idx_peak]
+                        )
                         self.phi_shift_secular = phi_interp(self.omega_avg_ref)
                     else:
                         error_message = (
