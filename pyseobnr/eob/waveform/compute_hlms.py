@@ -410,7 +410,7 @@ def compute_mixed_mode(
     final_spin,
     t_match,
     t_ringdown,
-    fits_dict,
+    fits_dict: MRAnzatze,
     f_nyquist,
     lmax_nyquist,
     qnm_rotation=0.0,
@@ -436,7 +436,7 @@ def compute_mixed_mode(
         final_spin (float): dimensionless spin of the remnant
         t_match (float): inspiral time at which the merger-ringdown waveform is attached
         t_ringdown (np.ndarray): ringdown time array
-        fits_dict (dict): dictionary of fit coefficients in the ringdown anzatz
+        fits_dict (MRAnzatze): dictionary of fit coefficients in the ringdown anzatz
         f_nyquist (float): Nyquist frequency, needed for checking that RD frequency is resolved
         lmax_nyquist (int): Determines for which modes the nyquist test is applied for
         qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing
@@ -535,7 +535,7 @@ def compute_mixed_mode(
         chi1,
         chi2,
         attach_params,
-        m,
+        m,  # "m" is intentional here, for 32 mode we need to use the 22, etc
         m,
         fits_dict,
         f_nyquist,

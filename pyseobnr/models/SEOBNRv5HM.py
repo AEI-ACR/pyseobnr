@@ -409,7 +409,7 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                         "Failed to find the time corresponding to requested f_ref."
                     )
 
-                self.t_ref = float(res.x)
+                self.t_ref = float(np.asarray(res.x).item())
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
                 phase_shift = intrp_phase(self.t_ref)
@@ -1105,7 +1105,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     raise ValueError(
                         "Failed to find the time corresponding to requested f_ref."
                     )
-                self.t_ref = float(res.x)
+                self.t_ref = float(np.asarray(res.x).item())
 
                 phase = dynamics[:, 2]
                 intrp_phase = CubicSpline(t_d, phase)
