@@ -1,4 +1,5 @@
 import re
+from importlib.metadata import version
 
 import numpy as np
 
@@ -118,7 +119,12 @@ def test_calibration_parameters():
         )
 
     with pytest.raises(
-        TypeError, match="only length-1 arrays can be converted to Python scalars"
+        TypeError,
+        match=(
+            "only 0-dimensional arrays can be converted to Python scalars"
+            if version("numpy") > "2.4.0"
+            else "only length-1 arrays can be converted to Python scalars"
+        ),
     ):
         CalibCoeffs(
             {
