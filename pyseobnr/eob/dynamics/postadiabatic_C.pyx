@@ -294,7 +294,7 @@ cpdef Newtonian_j0(cnp.ndarray[double, ndim=1] r):
 
 
 cpdef double j0_eqn(
-    double j0_sol,
+    double[::1] j0_sol,  # "double" incompatible with new versions of numpy
     double r,
     Hamiltonian_C H,
     double chi_1,
@@ -305,7 +305,7 @@ cpdef double j0_eqn(
     qp_param_t p
 ):
     q[0] = r
-    p[1] = j0_sol
+    p[1] = j0_sol[0]
 
     cdef Hamiltonian_C_grad_return_t dH_dq = H.grad(q, p, chi_1, chi_2, m_1, m_2)
     cdef double dH_dr = dH_dq[0]
@@ -345,7 +345,7 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] compute_adiabatic_solution(
                 p),
             tol=tol,
         )
-        j0[i] = j0_solution.x
+        j0[i] = np.asarray(j0_solution.x).item()
 
     return j0
 

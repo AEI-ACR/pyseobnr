@@ -124,7 +124,7 @@ cpdef precessing_final_spin(
 
 
 cpdef double j0_eqn(
-    double j0_sol,
+    double[::1] j0_sol,
     double r,
     Hamiltonian_v5PHM_C H,
     chiv_param_t chi1_v,
@@ -165,7 +165,7 @@ cpdef double j0_eqn(
     """
 
     q[0] = r
-    p[1] = j0_sol
+    p[1] = j0_sol[0]
     cdef double X1 = params.p_params.X_1
     cdef double X2 = params.p_params.X_2
 
@@ -268,7 +268,7 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] compute_adiabatic_solution(
             ),
             tol=tol,
         )
-        j0[i] = j0_solution.x
+        j0[i] = np.asarray(j0_solution.x).item()
 
     return j0
 
@@ -279,7 +279,7 @@ cpdef cnp.ndarray[double, ndim=1, mode="c"] compute_adiabatic_solution(
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
 cpdef double pr_eqn(
-    pr_sol,
+    double[::1] pr_sol,
     double r,
     double pphi,
     double dpphi_dr,
@@ -672,7 +672,7 @@ cpdef compute_pr(
                 ),
                 tol=tol,
             )
-            pr[i] = pr_solution.x
+            pr[i] = np.asarray(pr_solution.x).item()
             omega[i] = params.p_params.omega
 
             if omega[i] < 0.9*omega_start:
@@ -1142,7 +1142,7 @@ cpdef compute_pphi(
                 ),
                 tol=tol,
             )
-            pphi_val = pphi_solution.x
+            pphi_val = np.asarray(pphi_solution.x).item()
 
             omega[i] = params.p_params.omega
             pphi[i] = pphi_val
