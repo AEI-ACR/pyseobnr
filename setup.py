@@ -1,5 +1,3 @@
-from importlib.metadata import version
-
 import numpy as np
 from Cython.Build import cythonize
 from setuptools import Extension, find_packages, setup
@@ -9,7 +7,6 @@ from setuptools import Extension, find_packages, setup
 
 _numpy_no_deprecated_api = ("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")
 
-# raise RuntimeError(f"fuck {version('scipy')} {_new_sph_harm_call}")
 extensions = [
     Extension(
         "pyseobnr.eob.utils.containers",
