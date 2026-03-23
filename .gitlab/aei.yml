@@ -250,6 +250,8 @@ tox-lint:
     - |
       tox -e lint
 
+  artifacts: {}
+
 # generating the documentation after installation of the package
 tox-docs:
   stage: docs
