@@ -93,7 +93,8 @@
     include-package-data = false
 
 [tool.setuptools.package-data]
-    "*" = ["*.npz"]
+    "*" = ["*.npz", "*.pxd"]
+    "pyseobnr.eob.utils" = ["eob_parameters.h"]
 
 [tool.setuptools.packages.find]
     where = ["."]
@@ -126,7 +127,6 @@
 
     tests = [
         'pytest',
-        'pytest-sugar',
         'pandas',
         'pyarrow',
         'pycbc',
