@@ -146,7 +146,7 @@ def SEOBEulerJ2PFromDynamics(
 def SEOBRotatehIlmFromhJlm_opt_v1(
     w_hJlm: WaveformModes,
     modes_lmax: int,
-    quatI2J: quaternion,
+    quatI2J: quaternion.quaternion,
 ) -> WaveformModes:
     """
     This function computes the hIlm Re/Im timeseries (fixed sampling) from hJlm
@@ -207,7 +207,7 @@ def seobnrv4P_quaternionJ2P_postmerger_extension(
             the Euler angles in the J-frame
     """
     alphaAttach, betaAttach, gammaAttach = euler_angles_attach
-    t_RD = t_full[idx[-1] + 1 :]
+    # t_RD = t_full[idx[-1] + 1 :]
 
     # Approximate the Euler angles assuming simple precession
     if rd_approx:

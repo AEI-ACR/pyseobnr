@@ -4,6 +4,230 @@ from bilby.core.utils import logger
 from bilby.gw.conversion import bilby_to_lalsimulation_spins
 from bilby.gw.utils import safe_cast_mode_to_int
 
+from pyseobnr.generate_waveform import GenerateWaveform
+
+
+def normalize_mode_array(mode_array):
+    out = []
+    for x in mode_array:
+        if isinstance(x, str):
+            a, b = x.strip("[]()").split(",")
+            out.append((int(a), int(b)))
+        else:
+            out.append((int(x[0]), int(x[1])))
+    return out
+
+
+def SEOBNRv5_binary_neutron_star(
+    frequency_array,
+    mass_1,
+    mass_2,
+    luminosity_distance,
+    a_1,
+    tilt_1,
+    phi_12,
+    a_2,
+    tilt_2,
+    phi_jl,
+    theta_jn,
+    phase,
+    lambda_1,
+    lambda_2,
+    **kwargs,
+):
+    """
+    A binary neutron star waveform model wrapping pyseobnr's SEOBNRv5THM
+    (aligned-spin, tidal) approximant.
+
+    Parameters
+    ==========
+    frequency_array: array_like
+        The frequencies at which we want to calculate the strain
+    mass_1: float
+        The mass of the heavier object in solar masses
+    mass_2: float
+        The mass of the lighter object in solar masses
+    luminosity_distance: float
+        The luminosity distance in megaparsec
+    a_1: float
+        Dimensionless primary spin magnitude
+    tilt_1: float
+        Primary tilt angle
+    phi_12: float
+        Azimuthal angle between the two component spins
+    a_2: float
+        Dimensionless secondary spin magnitude
+    tilt_2: float
+        Secondary tilt angle
+    phi_jl: float
+        Azimuthal angle between the total binary angular momentum and the
+        orbital angular momentum
+    theta_jn: float
+        Angle between the total binary angular momentum and the line of sight
+    phase: float
+        The phase at coalescence
+    lambda_1: float
+        Dimensionless quadrupolar tidal deformability of the primary (heavier)
+        object, Lambda_1 = (2/3) k2_1 / C_1^5
+    lambda_2: float
+        Dimensionless quadrupolar tidal deformability of the secondary (lighter)
+        object, Lambda_2 = (2/3) k2_2 / C_2^5
+    kwargs: dict
+        Optional keyword arguments
+        Supported arguments:
+
+        - waveform_approximant
+        - reference_frequency
+        - minimum_frequency
+        - maximum_frequency
+        - catch_waveform_errors
+        - pn_amplitude_order
+        - mode_array:
+          Activate a specific mode array and evaluate the model using those
+          modes only.  e.g. waveform_arguments =
+          dict(waveform_approximant='IMRPhenomHM', mode_array=[[2,2],[2,-2]])
+          returns the 22 and 2-2 modes only of IMRPhenomHM.  You can only
+          specify modes that are included in that particular model.  e.g.
+          waveform_arguments = dict(waveform_approximant='IMRPhenomHM',
+          mode_array=[[2,2],[2,-2],[5,5],[5,-5]]) is not allowed because the
+          55 modes are not included in this model.  Be aware that some models
+          only take positive modes and return the positive and the negative
+          mode together, while others need to call both.  e.g.
+          waveform_arguments = dict(waveform_approximant='IMRPhenomHM',
+          mode_array=[[2,2],[4,-4]]) returns the 22 and 2-2 of IMRPhenomHM.
+          However, waveform_arguments =
+          dict(waveform_approximant='IMRPhenomXHM', mode_array=[[2,2],[4,-4]])
+          returns the 22 and 4-4 of IMRPhenomXHM.
+
+    Returns
+    =======
+    dict: A dictionary with the plus and cross polarisation strain modes
+
+    Notes
+    =====
+    This function is a temporary wrapper to the interface that will
+    likely be significantly changed or removed in a future release.
+    It calls pyseobnr's ``GenerateWaveform`` directly (not GWsignal) and targets
+    the aligned-spin tidal approximant ``SEOBNRv5THM``; in-plane spin components
+    (from nonzero tilt_1/tilt_2) are not supported by that model.
+    """
+
+    # print(f"{frequency_array=}, {mass_1=}, {mass_2=}, {luminosity_distance=}, {a_1=}, {tilt_1=}, {phi_12=}, {a_2=}, {tilt_2=}, {phi_jl=}, {theta_jn=}, {phase=}, {lambda_1=}, {lambda_2=}, {kwargs=}")
+
+    iota, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y, spin_2z = (
+        bilby_to_lalsimulation_spins(
+            theta_jn=theta_jn,
+            phi_jl=phi_jl,
+            tilt_1=tilt_1,
+            tilt_2=tilt_2,
+            phi_12=phi_12,
+            a_1=a_1,
+            a_2=a_2,
+            mass_1=mass_1 * utils.solar_mass,
+            mass_2=mass_2 * utils.solar_mass,
+            reference_frequency=kwargs.get("reference_frequency", 50.0),
+            phase=phase,
+        )
+    )
+
+    # The MB likelihood just writes 'frequencies' into the waveform_parameters
+    if "frequencies" in kwargs:
+        frequency_array = kwargs["frequencies"]
+
+    # The Relative binning likelihood just writes 'frequency_bin_edges' into the
+    # waveform_parameters
+    if "frequency_bin_edges" in kwargs:
+        if "fiducial" in kwargs and kwargs["fiducial"] == 1:
+            frequency_array = frequency_array
+        else:
+            frequency_array = kwargs["frequency_bin_edges"]
+
+    waveform_kwargs = dict(
+        approximant="SEOBNRv5THM",
+        mass1=mass_1,
+        mass2=mass_2,
+        lambda2Tidal1=lambda_1,
+        lambda2Tidal2=lambda_2,
+        spin1x=spin_1x,
+        spin1y=spin_1y,
+        spin1z=spin_1z,
+        spin2x=spin_2x,
+        spin2y=spin_2y,
+        spin2z=spin_2z,
+        f22_start=kwargs.get("minimum_frequency", 20.0),
+        f_ref=kwargs.get("reference_frequency", 50.0),
+        deltaF=1.0
+        / kwargs.get("duration", 1.0 / (frequency_array[1] - frequency_array[0])),
+        deltaT=1.0 / kwargs.get("sampling_frequency", 2 * frequency_array[-1]),
+        mode_array=normalize_mode_array(kwargs.get("mode_array", [(2, 2)])),
+        f_max=frequency_array[-1],
+        pn_amplitude_order=0,
+        phi_ref=phase,
+        distance=luminosity_distance,
+        inclination=iota,
+        eccentricity=0.0,
+        longAscNodes=0.0,
+        meanPerAno=0.0,
+        frequency_array=frequency_array,
+    )
+
+    catch_waveform_errors = kwargs.get("catch_waveform_errors", False)
+
+    try:
+        if kwargs.get("FFT", False):  # One can also add fiducial support
+            v5T = GenerateWaveform(waveform_kwargs)
+            hplus_data, hcross_data = v5T.generate_fd_polarizations()
+            hplus = hplus_data.data.data
+            hcross = hcross_data.data.data
+
+            # This is to have t=0 the merger time
+            freqs = np.arange(hplus_data.data.length) * hplus_data.deltaF
+            time_shift = np.exp(-1j * 2 * np.pi * freqs * np.float64(hplus_data.epoch))
+            hplus *= time_shift
+            hcross *= time_shift
+            assert len(freqs) == len(
+                frequency_array
+            ), f"pyseobnr returned {len(freqs)} frequencies but expected to return {len(frequency_array)}"
+        else:
+            v5T = GenerateWaveform(waveform_kwargs)
+            hplus, hcross, freqs = (
+                v5T.generate_fd_polarizations_stationary_phase_approximation()
+            )
+            assert len(freqs) == len(
+                frequency_array
+            ), f"pyseobnr returned {len(freqs)} frequencies but expected to return {len(frequency_array)}"
+    except Exception as e:
+        if not catch_waveform_errors:
+            raise
+        else:
+            EDOM = (
+                "Internal function call failed: Input domain error" in e.args[0]
+            ) or "Input domain error" in e.args[0]
+            if EDOM:
+                failed_parameters = dict(
+                    mass_1=mass_1,
+                    mass_2=mass_2,
+                    spin_1=(spin_1x, spin_1y, spin_1z),
+                    spin_2=(spin_2x, spin_2y, spin_2z),
+                    Lambda2_1=lambda_1,
+                    lambda2_2=lambda_2,
+                    luminosity_distance=luminosity_distance,
+                    iota=iota,
+                    phase=phase,
+                    eccentricity=0.0,
+                    start_frequency=waveform_kwargs["f22_start"],
+                )
+                logger.warning(
+                    "Evaluating the waveform failed with error: {}\n".format(e)
+                    + "The parameters were {}\n".format(failed_parameters)
+                    + "Likelihood will be set to -inf."
+                )
+                return None
+            else:
+                raise
+
+    return dict(plus=hplus, cross=hcross)
+
 
 def gwsignal_eccentric_binary_black_hole(
     frequency_array,
@@ -275,8 +499,8 @@ def gwsignal_eccentric_binary_black_hole(
         logger.debug(
             "GWsignal waveform longer than bilby's `frequency_array`"
             + "({} vs {}), ".format(len(hplus), len(frequency_array))
-            + "probably because padded with zeros up to the next power of two length."
-            + " Truncating GWsignal array."
+            + "probably because padded with zeros up to the next"
+            + "power of two length. Truncating GWsignal array."
         )
         h_plus = hplus[: len(h_plus)]
         h_cross = hcross[: len(h_cross)]

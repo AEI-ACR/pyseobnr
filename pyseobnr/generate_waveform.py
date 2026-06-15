@@ -10,16 +10,22 @@ import numpy as np
 from .eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
     Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C as Ham_aligned_opt,
 )
+from .eob.hamiltonian.Ham_align_v5T import Ham_align_DT_C as HamTidalAlignedSpin
 from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
     Ham_AvgS2precess_simple_cython_PA_AD as Ham_prec_pa_cy,
 )
 from .eob.waveform.waveform import SEOBNRv5RRForce
 from .eob.waveform.waveform_ecc import SEOBNRv5RRForceEcc
-from .models import SEOBNRv5EHM, SEOBNRv5HM
+from .models import SEOBNRv5EHM, SEOBNRv5HM, SEOBNRv5THM
 from .models.model import Model
 
 #: Supported approximants
-SupportedApproximants = Literal["SEOBNRv5HM", "SEOBNRv5PHM", "SEOBNRv5EHM"]
+SupportedApproximants = Literal[
+    "SEOBNRv5HM",
+    "SEOBNRv5PHM",
+    "SEOBNRv5EHM",
+    "SEOBNRv5THM",  # "SEOBNRv5TPHM"
+]
 
 
 def generate_prec_hpc_opt(
@@ -151,7 +157,7 @@ def _check_spins(
     ):  # chi2 is correct here
         raise ValueError("Boolean spin values unsupported")
 
-    if approximant in ["SEOBNRv5HM", "SEOBNRv5EHM"] and (
+    if approximant in ["SEOBNRv5HM", "SEOBNRv5EHM", "SEOBNRv5THM"] and (
         (np.abs(chi1_[:2]).max() > 1e-10) or (np.abs(chi2_[:2]).max() > 1e-10)
     ):
         raise ValueError(
@@ -167,6 +173,29 @@ def _check_spins(
     )
 
 
+# Tidal parameters (beyond the quadrupolar deformabilities ``lambda2Tidal*``)
+# that are fixed by quasi-universal relations by default but may be overridden
+# through the ``settings`` dictionary for the ``SEOBNRv5THM`` model.
+_EXTRA_TIDAL_SETTINGS: tuple[str, ...] = (
+    "omega02Tidal1",
+    "omega02Tidal2",
+    "spinshiftomega02Tidal1",
+    "spinshiftomega02Tidal2",
+    "lambda3Tidal1",
+    "lambda3Tidal2",
+    "omega03Tidal1",
+    "omega03Tidal2",
+    "spinshiftomega03Tidal1",
+    "spinshiftomega03Tidal2",
+    "CES21",
+    "CES22",
+    "CBS31",
+    "CBS32",
+    "CES41",
+    "CES42",
+)
+
+
 def generate_modes_opt(
     q: float,
     chi1: Union[float, np.ndarray],
@@ -175,12 +204,13 @@ def generate_modes_opt(
     omega_ref: float | None = None,
     eccentricity: float | None = None,
     rel_anomaly: float | None = None,
+    lambda2Tidal1: float = 0.0,
+    lambda2Tidal2: float = 0.0,
     approximant: SupportedApproximants = "SEOBNRv5HM",
     settings: Dict[Any, Any] = None,
     debug: bool = False,
 ) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, Model]:
-    """
-    Compute the GW waveform modes for the given configuration and approximant.
+    """Compute the GW waveform modes for the given configuration and approximant.
 
     Args:
         q (float): Mass ratio >=1
@@ -197,10 +227,41 @@ def generate_modes_opt(
         rel_anomaly (float, optional): Relativistic anomaly. Radial phase
             which parametrizes the orbit within the Keplerian (relativistic)
             parametrization. Defaults to 0 (periastron)
+        lambda2Tidal1 (float, optional):
+            Quadrupolar adiabatic tidal deformability of primary
+            = (2/3 k2/C^5) in units of m1 for ``SEOBNRv5THM``.
+            Defaults to 0 (BH case)
+        lambda2Tidal2 (float, optional):
+            Quadrupolar adiabatic tidal deformability of secondary
+            = (2/3 k2/C^5) in units of m2 for ``SEOBNRv5THM``.
+            Defaults to 0 (BH case)
         approximant (SupportedApproximants, optional): The approximant to use.
             Defaults to "SEOBNRv5HM"
-        settings (Dict[Any,Any], optional): Additional settings to pass to
-            model. Defaults to ``None``
+        settings (Dict[Any,Any], optional): Additional settings to pass to the
+            model. Defaults to ``None``.
+
+            For the tidal approximant ``SEOBNRv5THM`` this dictionary is also
+            where all tidal parameters *other than the quadrupolar deformabilities* live.
+            By default (if set to ``None``) they are determined from ``lambda2Tidal1`` /
+            ``lambda2Tidal2`` via quasi-universal relations, but each may be
+            overridden by adding it to ``settings``. All are in units of individual masses
+
+            * ``omega02Tidal{1,2}`` -- quadrupolar f-mode resonance frequency
+              (units of m_i); ``0.`` for adiabatic tides.
+            * ``spinshiftomega02Tidal{1,2}`` -- spin-induced shift of the
+              quadrupolar f-mode resonance; ``0.`` to ignore this effect.
+            * ``lambda3Tidal{1,2}`` -- octupolar adiabatic tidal deformability;
+              ``0.`` to switch off octupolar adiabatic tides.
+            * ``omega03Tidal{1,2}`` -- octupolar f-mode resonance frequency;
+              ``0.`` for adiabatic tides.
+            * ``spinshiftomega03Tidal{1,2}`` -- spin-induced shift of the
+              octupolar f-mode resonance; ``0.`` to ignore this effect.
+            * ``CES2{1,2}`` -- spin-induced quadrupole-monopole coefficient
+              (kappa_i); ``1.`` for the black-hole value.
+            * ``CBS3{1,2}`` -- spin-induced octupole coefficient; ``1.`` for
+              the black-hole value.
+            * ``CES4{1,2}`` -- spin-induced hexadecapole coefficient; ``1.``
+              for the black-hole value.
         debug (bool, optional): Run in debug mode. Defaults to False
 
     Raises:
@@ -265,6 +326,45 @@ def generate_modes_opt(
             RR=RR_f,
             omega_ref=omega_ref,
             settings=settings,
+        )
+        model()
+
+    elif approximant == "SEOBNRv5THM":
+        # Non-spinning Hamiltonian
+        # For testing now, we just call SEOBNRv5HM as well to get the NQCs
+        # _, _, BBH_model = generate_modes_opt(q,chi1,chi2,
+        #                                     0.0155, approximant='SEOBNRv5HM',
+        #                                     settings={'return_modes':[(2,2)]},
+        #                                     debug=True,)
+
+        RR_f = SEOBNRv5RRForce()
+        # Extra tidal parameters default to None (-> quasi-universal relations)
+        # and are overridden by anything the user set in ``settings`` (cf. the
+        # ``default_params | parameters`` merge used elsewhere). The remaining,
+        # non-tidal settings are forwarded to the model unchanged.
+        settings_in = settings or {}
+        extra_tidal = dict.fromkeys(_EXTRA_TIDAL_SETTINGS)  # all None
+        model_settings = {}
+
+        for name, value in settings_in.items():
+            if name in _EXTRA_TIDAL_SETTINGS:
+                extra_tidal[name] = value
+            else:
+                model_settings[name] = value
+
+        model_settings = model_settings or None  # pass None, not {}, when empty
+        model = SEOBNRv5THM.SEOBNRv5THM_opt(
+            q,
+            chi1_z,
+            chi2_z,
+            omega_start,
+            HamTidalAlignedSpin,
+            RR_f,
+            settings=model_settings,
+            lambda2Tidal1=lambda2Tidal1,
+            lambda2Tidal2=lambda2Tidal2,
+            BBH_model=None,
+            **extra_tidal,
         )
         model()
 
@@ -415,6 +515,7 @@ class GenerateWaveform:
             * ``SEOBNRv5HM`` (default)
             * ``SEOBNRv5PHM``
             * ``SEOBNRv5EHM``
+            * ``SEOBNRv5THM``
 
         float rtol_ode:
             Relative tolerance of the ODE integrators. Defaults to 1e-11.
@@ -434,6 +535,61 @@ class GenerateWaveform:
             if set and evaluates to ``True``, indicates that we are using the convention
             where the 0 of the time array is set to when the amplitude of the 2,2 mode
             is at its peak.
+
+        lambda2Tidal1=0. :
+            Quadrupolar adiabatic tidal deformability of primary in units of m1 = (2/3 k2/C^5)
+        lambda2Tidal2=0. :
+            Quadrupolar adiabatic tidal deformability of secondary in units of m2 = (2/3 k2/C^5)
+        omega02Tidal1=None :
+            Quadrupolar f-mode resonance of primary in units of m1, None for
+            determination via quasi-universal relation, 0. for adiabatic tides
+        omega02Tidal2=None :
+            Quadrupolar f-mode resonance of secondary in units of m2, None for
+            determination via quasi-universal relation, 0. for adiabatic tides
+        spinshiftomega02Tidal1=None :
+            Spin-induced shift of the quadrupolar f-mode resonance of primary in units of m1,
+            None for determination via quasi-universal relation, 0. for ignorance of this effect
+        spinshiftomega02Tidal2=None :
+            Spin-induced shift of the quadrupolar f-mode resonance of secondary in units of m2,
+            None for determination via quasi-universal relation, 0. for ignorance of this effect
+        lambda3Tidal1=None :
+            Octupolar adiabatic tidal deformability of primary in units of m1, None for
+            determination from lambda2Tidal1 via quasi-universal relation, 0. to switch off
+            octupolar adiabatic tides
+        lambda3Tidal2=None :
+            Octupolar adiabatic tidal deformability of secondary in units of m2, None for
+            determination from lambda2Tidal2 via quasi-universal relation, 0. to switch off
+            octupolar adiabatic tides
+        omega03Tidal1=None :
+            Octupolar f-mode resonance of primary in units of m1, None for
+            determination via quasi-universal relation, 0. for adiabatic tides
+        omega03Tidal2=None :
+            Octupolar f-mode resonance of secondary in units of m2, None for
+            determination via quasi-universal relation, 0. for adiabatic tides
+        spinshiftomega03Tidal1=None :
+            Spin-induced shift of the octupolar f-mode resonance of primary in units of m1,
+            None for determination via quasi-universal relation, 0. for ignorance of this effect
+        spinshiftomega03Tidal2=None :
+            Spin-induced shift of the octupolar f-mode resonance of secondary in units of m2,
+            None for determination via quasi-universal relation, 0. for ignorance of this effect
+        CES21=None :
+            Spin-induced quadrupole-monopole coefficient (C_ES2, kappa_1) of the primary,
+            None for determination via quasi-universal relation, 1. for the black-hole value
+        CES22=None :
+            Spin-induced quadrupole-monopole coefficient (C_ES2, kappa_2) of the secondary,
+            None for determination via quasi-universal relation, 1. for the black-hole value
+        CBS31=None :
+            Spin-induced octupole coefficient (C_BS3) of the primary,
+            None for determination via quasi-universal relation, 1. for the black-hole value
+        CBS32=None :
+            Spin-induced octupole coefficient (C_BS3) of the secondary,
+            None for determination via quasi-universal relation, 1. for the black-hole value
+        CES41=None :
+            Spin-induced hexadecapole coefficient (C_ES4) of the primary,
+            None for determination via quasi-universal relation, 1. for the black-hole value
+        CES42=None :
+            Spin-induced hexadecapole coefficient (C_ES4) of the secondary,
+            None for determination via quasi-universal relation, 1. for the black-hole value
 
         Note
         ----
@@ -508,6 +664,24 @@ class GenerateWaveform:
             "spin2z": 0.0,
             "eccentricity": 0.0,
             "rel_anomaly": 0.0,
+            "lambda2Tidal1": 0.0,
+            "lambda2Tidal2": 0.0,
+            "omega02Tidal1": None,
+            "omega02Tidal2": None,
+            "spinshiftomega02Tidal1": None,
+            "spinshiftomega02Tidal2": None,
+            "lambda3Tidal1": None,
+            "lambda3Tidal2": None,
+            "omega03Tidal1": None,
+            "omega03Tidal2": None,
+            "spinshiftomega03Tidal1": None,
+            "spinshiftomega03Tidal2": None,
+            "CES21": None,
+            "CES22": None,
+            "CBS31": None,
+            "CBS32": None,
+            "CES41": None,
+            "CES42": None,
             "distance": 100.0,
             "inclination": 0.0,
             "phi_ref": 0.0,
@@ -576,6 +750,7 @@ class GenerateWaveform:
             "gwsignal_environment": False,
             "convention_coprecessing_phase22_set_to_0_at_reference_frequency": False,
             "convention_t0_set_to_0_at_coprecessing_amplitude22_peak": False,
+            "stationary_phase_approximation": False,
         }
 
         if "approximant" in parameters and parameters["approximant"] == "SEOBNRv5EHM":
@@ -594,7 +769,7 @@ class GenerateWaveform:
             raise ValueError("Approximant not implemented!")
 
         # Disable direct polarizations for aligned-spin model
-        if parameters["approximant"] in ["SEOBNRv5HM", "SEOBNRv5EHM"]:
+        if parameters["approximant"] in ["SEOBNRv5HM", "SEOBNRv5EHM", "SEOBNRv5THM"]:
             parameters["polarizations_from_coprec"] = False
 
         (
@@ -710,6 +885,52 @@ class GenerateWaveform:
             aux_mass1 = parameters["mass1"]
             parameters["mass1"] = parameters["mass2"]
             parameters["mass2"] = aux_mass1
+
+            # Swap the tidal parameters
+            aux_lambda = parameters["lambda2Tidal1"]
+            parameters["lambda2Tidal1"] = parameters["lambda2Tidal2"]
+            parameters["lambda2Tidal2"] = aux_lambda
+
+            aux_lambda = parameters["omega02Tidal1"]
+            parameters["omega02Tidal1"] = parameters["omega02Tidal2"]
+            parameters["omega02Tidal2"] = aux_lambda
+
+            aux_lambda = parameters["spinshiftomega02Tidal1"]
+            parameters["spinshiftomega02Tidal1"] = parameters["spinshiftomega02Tidal2"]
+            parameters["spinshiftomega02Tidal2"] = aux_lambda
+
+            aux_lambda = parameters["lambda3Tidal1"]
+            parameters["lambda3Tidal1"] = parameters["lambda3Tidal2"]
+            parameters["lambda3Tidal2"] = aux_lambda
+
+            aux_lambda = parameters["omega03Tidal1"]
+            parameters["omega03Tidal1"] = parameters["omega03Tidal2"]
+            parameters["omega03Tidal2"] = aux_lambda
+
+            aux_lambda = parameters["spinshiftomega03Tidal1"]
+            parameters["spinshiftomega03Tidal1"] = parameters["spinshiftomega03Tidal2"]
+            parameters["spinshiftomega03Tidal2"] = aux_lambda
+
+            aux_lambda = parameters["CES21"]
+            parameters["CES21"] = parameters["CES22"]
+            parameters["CES22"] = aux_lambda
+
+            aux_lambda = parameters["CBS31"]
+            parameters["CBS31"] = parameters["CBS32"]
+            parameters["CBS32"] = aux_lambda
+
+            aux_lambda = parameters["CES41"]
+            parameters["CES41"] = parameters["CES42"]
+            parameters["CES42"] = aux_lambda
+            # end swap the tidal parameters
+
+            if parameters["stationary_phase_approximation"]:
+                # For the SPA+FFT model we just add pi to phi_ref
+                # for the swap of the masses, so we don't need to compute all
+                # negative m-modes
+                self.parameters["phi_ref"] += np.pi
+        else:
+            self.swap_masses = False
 
         if parameters["initial_conditions"] not in ["adiabatic", "postadiabatic"]:
             raise ValueError("Unrecognised setting for initial conditions.")
@@ -835,7 +1056,6 @@ class GenerateWaveform:
         """
         Generate dictionary of positive and negative m modes in physical units.
         """
-
         fmin, dt = self.parameters["f22_start"], self.parameters["deltaT"]
         f_ref = self.parameters.get("f_ref")
         m1, m2 = self.parameters["mass1"], self.parameters["mass2"]
@@ -847,11 +1067,10 @@ class GenerateWaveform:
             SupportedApproximants, self.parameters["approximant"]
         )
 
-        if approx in ["SEOBNRv5HM", "SEOBNRv5EHM"]:
+        if approx in ["SEOBNRv5HM", "SEOBNRv5EHM", "SEOBNRv5THM"]:
             chi1 = self.parameters["spin1z"]
             chi2 = self.parameters["spin2z"]
-
-        elif approx == "SEOBNRv5PHM":
+        elif approx in ["SEOBNRv5PHM"]:
             chi1 = np.array(
                 [
                     self.parameters["spin1x"],
@@ -995,7 +1214,28 @@ class GenerateWaveform:
                     ]
                 )
 
+        if "stationary_phase_approximation" in self.parameters:
+            settings.update(
+                stationary_phase_approximation=self.parameters[
+                    "stationary_phase_approximation"
+                ]
+            )
+
+            if settings["stationary_phase_approximation"]:
+                # Updating the frequency content to be in geometric units
+                settings.update(
+                    frequency_array=self.parameters["frequency_array"]
+                    * (Mtot * lal.MTSUN_SI)
+                )
+
         settings.update(f_ref=self.parameters["f_ref"])
+
+        # The additional tidal parameters are forwarded to the THM model
+        # through ``settings``; only the deformabilities are passed explicitly.
+        if approx == "SEOBNRv5THM":
+            for _key in _EXTRA_TIDAL_SETTINGS:
+                settings[_key] = self.parameters[_key]
+
         times, h, self._model = generate_modes_opt(
             q,
             chi1,
@@ -1005,6 +1245,8 @@ class GenerateWaveform:
             omega_ref=omega_ref,
             eccentricity=eccentricity,
             rel_anomaly=rel_anomaly,
+            lambda2Tidal1=self.parameters["lambda2Tidal1"],
+            lambda2Tidal2=self.parameters["lambda2Tidal2"],
             settings=settings,
             debug=True,
         )
@@ -1015,6 +1257,12 @@ class GenerateWaveform:
         fac = (
             -1 * Mtot * lal.MRSUN_SI / (dist * Mpc_to_meters)
         )  # Minus sign to satisfy LAL convention
+        if settings.get("stationary_phase_approximation", False):
+            # The SPA+FFT path returns h(f) semi-analytically (it does *not* FFT a
+            # time-domain waveform), so we additionally apply the
+            # geometric -> SI time unit of the Fourier transform:
+            # a frequency-domain strain h(f) has units of strain * second.
+            fac *= Mtot * lal.MTSUN_SI
 
         hlm_dict = {}
         for ellm, mode in h.items():
@@ -1026,18 +1274,23 @@ class GenerateWaveform:
             hlm_dict[(ell, emm)] = fac * mode
 
         # If aligned-spin model, compute negative modes using equatorial symmetry
-        if approx in ["SEOBNRv5HM", "SEOBNRv5EHM"]:
-            for ellm, mode in h.items():
-                ell = int(ellm[0])
-                emm = int(ellm[2])
-                hlm_dict[(ell, -emm)] = pow(-1, ell) * fac * np.conj(mode)
+        if approx in ["SEOBNRv5HM", "SEOBNRv5EHM", "SEOBNRv5THM"]:
+            if not settings.get("stationary_phase_approximation", False):
+                for ellm, mode in h.items():
+                    ell = int(ellm[0])
+                    emm = int(ellm[2])
+                    hlm_dict[(ell, -emm)] = pow(-1, ell) * fac * np.conj(mode)
 
         # If masses are swapped to satisfy the m1/m2>=1 convention, this implies a
         # pi rotation on the orbital plane, which translates into a minus sign for the odd modes.
         if self.swap_masses:
-            for ell, emm in hlm_dict.keys():
-                if np.abs(emm) % 2 != 0:
-                    hlm_dict[(ell, emm)] *= -1.0
+            # For the SPA+FFT model we just add pi to phi_ref in _validate_parameters,
+            # for the swap of the masses, so we don't need to compute all
+            # negative m-modes
+            if not settings.get("stationary_phase_approximation", False):
+                for ell, emm in hlm_dict.keys():
+                    if np.abs(emm) % 2 != 0:
+                        hlm_dict[(ell, emm)] *= -1.0
 
         return times, hlm_dict
 
@@ -1420,3 +1673,239 @@ class GenerateWaveform:
         lal.REAL8TimeFreqFFT(hptilde, hp, plan)
 
         return hptilde, hctilde
+
+    def generate_fd_polarizations_stationary_phase_approximation(self):
+        """
+        Generate Fourier-domain polarizations by combining the stationary phase
+        approximation (SPA) and an interpolated FFT of the end of the
+        waveform, where the SPA is no longer fully accurate.
+
+        Unlike :meth:`generate_fd_polarizations`, this does **not** FFT the
+        time-domain waveform on an equidistant frequency-array.
+        The model evaluates each mode ``h_lm(f)`` semi-analytically on a frequency grid,
+        and those are combined into ``h_+(f)`` and ``h_x(f)`` here.
+
+        Frequency grid:
+
+        * If ``frequency_array`` is present in the parameters, the waveform is
+          evaluated directly on it.
+        * Otherwise an equidistant grid on ``[0, f_max]`` with spacing
+          ``deltaF`` is built (``deltaF`` defaults to ``1/512`` Hz when unset or
+          ``0``); the waveform occupies the band ``[f22_start, f_max]`` and is
+          zero-padded elsewhere. ``deltaF`` may be adjusted so ``f_max / deltaF``
+          is an integer.
+
+        Following the ``SimInspiralFD`` procedure, ``f22_start`` is internally
+        lowered (extra inspiral) so the SPA is clean near the requested start
+        frequency.
+
+        Returns
+        -------
+        (h_plus, h_cross, frequencies)
+            A 3-tuple. NOTE: the element type currently depends on the path --
+            for an auto-generated equidistant grid ``h_plus``/``h_cross`` are LAL
+            ``COMPLEX16FrequencySeries``; for a user-supplied ``frequency_array``
+            they are plain ``numpy`` arrays. (This inconsistency is a known wart
+            kept for now -- see review.)
+
+        .. warning::
+
+            ``deltaF`` must be small enough to contain the full signal
+            (time-series duration ``= 1 / deltaF``); if it is too large the signal
+            is abruptly truncated. If ``f_max`` is below the ringdown frequency the
+            frequency-domain signal may be aliased.
+        """
+        if self.parameters["approximant"] not in ["SEOBNRv5THM"]:
+            raise ValueError(
+                "Currently only SEOBNRv5THM supports the SPA + FFT method. Please choose this approximant."
+            )
+        self.parameters["stationary_phase_approximation"] = True
+
+        # Adjust deltaT depending on sampling rate
+        fmax = self.parameters["f_max"]
+        f_nyquist = fmax
+        deltaF = 0
+        if "deltaF" in self.parameters.keys():
+            deltaF = self.parameters["deltaF"]
+
+        if deltaF != 0:
+            n = int(np.round(fmax / deltaF))
+            if n & (n - 1):
+                chirplen_exp = np.frexp(n)
+                f_nyquist = np.ldexp(1, int(chirplen_exp[1])) * deltaF
+
+        # Should be checked
+        deltaT = min((self.parameters.get("deltaT", 0.5 / f_nyquist), 0.5 / f_nyquist))
+
+        self.parameters["deltaT"] = deltaT
+        self.parameters["deltaF"] = deltaF
+
+        equidistant_grid = False
+
+        if "frequency_array" not in self.parameters:
+            equidistant_grid = True
+
+            if deltaF == 0:
+                deltaF = 1.0 / 512
+
+            f_start = self.parameters["f22_start"]
+
+            # f_min tells us where the waveform starts to be complete, i.e.
+            # where all modes start to be fully contained in frequency
+
+            # We need to be careful about the start of the higher-order modes
+            f_min = f_start
+            f_max = fmax
+
+            # We potentially change the deltaF here, such that
+            # f_max is contained in the full frequency grid [0, f_max]
+            # we need this to have consistency between the frequency grid and
+            # the full frequency grid later on
+
+            full_size = int(np.round(f_max / deltaF))
+            deltaF = f_max / full_size
+            f_end = f_max  # np.min((f_max, 2048.))
+
+            # This is the index just below f_min in the full frequency grid
+            # (excluding f_min, i.e. start_zeros * deltaF < f_min)
+            start_zeros = int(np.ceil(f_min / deltaF - 1))
+            # This is the index just below f_end in the full frequency grid
+            # (including f_end, i.e. end_zeros * deltaF <= f_min)
+            end_zeros = int(np.floor(f_end / deltaF))
+
+            # The number of frequency points we want to evaluate the
+            # FD waveform on
+            self.parameters["frequency_array"] = np.linspace(
+                (start_zeros + 1) * deltaF,
+                end_zeros * deltaF,
+                end_zeros - start_zeros,
+            )
+
+            # This is to write the FD waveform into a full frequency
+            # grid from [0, fmax]
+            self.parameters["full_frequency_grid"] = np.linspace(
+                0.0, f_max, full_size + 1
+            )
+
+            # This way we have
+            # self.parameters["full_frequency_grid"][start_zeros+1:end_zeros+1]
+            #         ==
+            # self.parameters["frequency_array"]
+        else:
+            f_min = self.parameters["frequency_array"][0]
+            f_start = self.parameters["f22_start"]
+
+            frequency_grid_starts_earlier_than_f22_start = False
+            if f_min < f_start:
+                self.parameters["full_frequency_grid"] = self.parameters[
+                    "frequency_array"
+                ]
+                frequency_grid_starts_earlier_than_f22_start = True
+                start_idx = np.searchsorted(self.parameters["frequency_array"], f_start)
+                if self.parameters["frequency_array"][start_idx] < f_start:
+                    start_idx += 1
+                self.parameters["frequency_array"] = self.parameters[
+                    "full_frequency_grid"
+                ][start_idx:]
+
+            # f_end = self.parameters["f_max"]
+
+        # Generate conditioned TD polarizations
+        # General SimInspiralFD procedure, with extra time at the beginning
+        extra_time_fraction = (
+            0.1  # fraction of waveform duration to add as extra time for tapering
+        )
+        extra_cycles = (
+            3.0  # more extra time measured in cycles at the starting frequency
+        )
+
+        f_min = self.parameters["f22_start"]
+        m1 = self.parameters["mass1"]
+        m2 = self.parameters["mass2"]
+        S1z = self.parameters["spin1z"]
+        S2z = self.parameters["spin2z"]
+        # original_f_min = f_min
+
+        fisco = 1.0 / (pow(9.0, 1.5) * np.pi * (m1 + m2) * lal.MTSUN_SI)
+        if f_min > fisco:
+            f_min = fisco
+
+        # upper bound on the chirp time starting at f_min
+        tchirp = lalsim.SimInspiralChirpTimeBound(
+            f_min, m1 * lal.MSUN_SI, m2 * lal.MSUN_SI, S1z, S2z
+        )
+        # upper bound on the final black hole spin */
+        spinkerr = lalsim.SimInspiralFinalBlackHoleSpinBound(S1z, S2z)
+        # upper bound on the final plunge, merger, and ringdown time */
+        tmerge = lalsim.SimInspiralMergeTimeBound(
+            m1 * lal.MSUN_SI, m2 * lal.MSUN_SI
+        ) + lalsim.SimInspiralRingdownTimeBound((m1 + m2) * lal.MSUN_SI, spinkerr)
+
+        # extra time to include for all waveforms to take care of situations where the
+        # frequency is close to merger (and is sweeping rapidly): this is a few cycles
+        # at the low frequency
+        textra = extra_cycles / f_min
+        # compute a new lower frequency
+        fstart = lalsim.SimInspiralChirpStartFrequencyBound(
+            (1.0 + extra_time_fraction) * tchirp + tmerge + textra,
+            m1 * lal.MSUN_SI,
+            m2 * lal.MSUN_SI,
+        )
+
+        self.parameters["f22_start"] = fstart
+
+        _, hlm_dict = self.generate_td_modes()
+
+        incl = self.parameters["inclination"]
+        phi = self.parameters["phi_ref"]
+
+        n_freqs = len(self.parameters["frequency_array"])
+        hp = np.zeros(n_freqs, dtype=np.complex128)
+        hc = np.zeros(n_freqs, dtype=np.complex128)
+
+        for ell, emm in hlm_dict:
+            hlm = hlm_dict[(ell, emm)]
+            ylm = lal.SpinWeightedSphericalHarmonic(incl, np.pi / 2 - phi, -2, ell, emm)
+            if emm > 0:
+                # This already takes care of the m > 0 and m < 0 modes in the
+                # SPA part
+                ylminusm = lal.SpinWeightedSphericalHarmonic(
+                    incl, np.pi / 2 - phi, -2, ell, -emm
+                )
+                hp += 0.5 * (np.conjugate(ylm) + pow(-1, ell) * ylminusm) * hlm
+                hc += (-0.5j) * (np.conjugate(ylm) + pow(-1, ell + 1) * ylminusm) * hlm
+
+        if equidistant_grid:
+            hptilde = lal.CreateCOMPLEX16FrequencySeries(
+                "FD H_PLUS",
+                0.0,  # epoch
+                0,
+                deltaF,
+                lal.DimensionlessUnit,
+                full_size + 1,
+            )
+
+            hptilde.data.data[:] = 0.0
+
+            hctilde = lal.CreateCOMPLEX16FrequencySeries(
+                "FD H_CROSS",
+                0.0,  # epoch
+                0,
+                deltaF,
+                lal.DimensionlessUnit,
+                full_size + 1,
+            )
+
+            hctilde.data.data[:] = 0.0
+
+            hptilde.data.data[start_zeros + 1 : end_zeros + 1] = hp
+            hctilde.data.data[start_zeros + 1 : end_zeros + 1] = hc
+
+            return hptilde, hctilde, self.parameters["full_frequency_grid"]
+        else:
+            if frequency_grid_starts_earlier_than_f22_start:
+                hp_new = np.concatenate((np.zeros(start_idx, np.complex128), hp))
+                hc_new = np.concatenate((np.zeros(start_idx, np.complex128), hc))
+                return hp_new, hc_new, self.parameters["full_frequency_grid"]
+            else:
+                return hp, hc, self.parameters["frequency_array"]

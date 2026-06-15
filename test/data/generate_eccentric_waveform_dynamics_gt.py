@@ -12,7 +12,6 @@ The files in this same folder will be rewritten.
 import pandas as pd
 from pyseobnr.generate_waveform import generate_modes_opt
 
-
 # Physical parameters of the binary
 
 q = 1.5

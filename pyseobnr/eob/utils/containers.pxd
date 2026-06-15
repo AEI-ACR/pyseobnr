@@ -1,6 +1,7 @@
 # cython: language_level=3
 cdef extern from "eob_parameters.h":
-    int PN_limit
+    int PN_limit_default
+    int PN_limit_max
     int ell_max
 
 # Generic type for either q or p
@@ -91,6 +92,13 @@ cdef class FluxParams:
 
     # Include more PN information than in SEOBNRv4HM
     cdef public bint extra_PN_terms
+    cdef public bint extra_tidal_terms
+    cdef public bint dynamic_mode_flux
+
+    # Number of PN orders actually summed for this model: PN_limit_default for
+    # non-tidal models, PN_limit_max for tidal ones. The coefficient arrays are
+    # always allocated to PN_limit_max; this only bounds the summation loops.
+    cdef public int PN_limit
 
 
 cdef class EccParams:
@@ -124,6 +132,32 @@ cdef class EccParams:
     cdef public str stopping_condition
 
 
+cdef class TidalParams:
+    cdef public:
+        double lambda2Tidal1
+        double lambda2Tidal2
+        double omega02Tidal1
+        double omega02Tidal2
+        double sqrtepsilon2Tidal1
+        double sqrtepsilon2Tidal2
+        double spinshiftomega02Tidal1
+        double spinshiftomega02Tidal2
+        double lambda3Tidal1
+        double lambda3Tidal2
+        double omega03Tidal1
+        double omega03Tidal2
+        double sqrtepsilon3Tidal1
+        double sqrtepsilon3Tidal2
+        double spinshiftomega03Tidal1
+        double spinshiftomega03Tidal2
+        double CES21
+        double CES22
+        double CBS31
+        double CBS32
+        double CES41
+        double CES42
+
+
 cdef class EOBParams:
     cdef public PhysicalParams p_params
     cdef public CalibCoeffs c_coeffs
@@ -138,3 +172,9 @@ cdef class EOBParams:
 
         :type: :py:class:`.EccParams`
     """
+
+    cdef public TidalParams tidal_params
+    """
+    Some documentation to expand
+    """
+

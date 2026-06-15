@@ -289,7 +289,6 @@ def create_eob_params(
             eob_params_call1.flux_params.extra_coeffs_log[l, m, v] = gsf_coeffs[key]
 
     hamiltonian = Ham_aligned_opt(eob_params_call1)
-
     hamiltonian.eob_params.c_coeffs = CalibCoeffs(
         {
             "a6": a6_NS(nu),

@@ -22,8 +22,7 @@ from scipy.special.cython_special cimport loggamma
 from scipy.interpolate import CubicSpline
 from scipy.special import factorial2
 
-from pyseobnr.eob.utils.containers cimport EOBParams, FluxParams
-
+from pyseobnr.eob.utils.containers cimport EOBParams, FluxParams, TidalParams
 
 cdef extern from "complex.h":
     double cabs(double complex z)
@@ -393,7 +392,11 @@ cpdef void compute_rho_coeffs(
     double[:, :, :] rho_coeffs_log,
     double[:, :, :] f_coeffs,
     double complex[:, :, :] f_coeffs_vh,
-    bint extra_PN_terms
+    bint extra_PN_terms,
+    bint extra_tidal_terms,  # = False,
+    TidalParams tidal_params,  # = None,
+    double X_1,  # = 0,
+    double X_2,  # = 0,
 ):
 
     """
@@ -428,6 +431,16 @@ cpdef void compute_rho_coeffs(
     cdef double m1Plus3nu = -1.0 + 3.0 * nu
     cdef double m1Plus3nu2 = m1Plus3nu * m1Plus3nu
     cdef double m1Plus3nu3 = m1Plus3nu * m1Plus3nu2
+
+    # Tidal quantities used for the fluxes
+    cdef double mut2Tidal1 = 0.
+    cdef double mut2Tidal2 = 0.
+
+    cdef double mut2p = 0.
+    cdef double mut2m = 0.
+
+    cdef double mut3p = 0.
+    cdef double mut3m = 0.
 
     # (2,2) mode begins
     rho_coeffs[2, 2][2] = -43.0 / 42.0 + (55.0 * nu) / 84.0
@@ -1146,6 +1159,479 @@ cpdef void compute_rho_coeffs(
             f_coeffs[4, 3][3] = (nu*(-2661. + 3143.*nu)*chiA)/(132.*(-1. + 2.*nu))
             f_coeffs[4, 3][4] = ((18. - 108.*nu + 137.*nu**2)*chiA*chiS)/(6. - 12.*nu)
 
+    if extra_tidal_terms:
+        # NB: One needs to be careful when adding new terms here.
+        # If terms at the given order already exist then it may be
+        # appropriate to _add_ new terms to values defined above,
+        # i.e with "+="". However, for brand new terms they should
+        # just be defined with "=" since the coefficients are not
+        # reset to 0 at every step.
+        # These terms are taken from Quentin Henry's calculation
+        # derived from https://arxiv.org/pdf/1912.01920.pdf
+        # We also include the spin induced multipole moments as given in the
+        # supplementary material of https://arxiv.org/abs/2209.00374
+        # with the notation as used therein
+        # Note that we put the contributions into the f_coeffs
+        # whenever there is a 1/dm factor in the modes
+
+        mut2Tidal1 = X_2/X_1*tidal_params.lambda2Tidal1
+        mut2Tidal2 = X_1/X_2*tidal_params.lambda2Tidal2
+
+        mut2p = .5*(mut2Tidal1 + mut2Tidal2)
+        mut2m = .5*(mut2Tidal1 - mut2Tidal2)
+
+        mut3p = .5*(X_2/X_1*tidal_params.lambda3Tidal1 + X_1/X_2*tidal_params.lambda3Tidal2)
+        mut3m = .5*(X_2/X_1*tidal_params.lambda3Tidal1 - X_1/X_2*tidal_params.lambda3Tidal2)
+
+        # Our chiA definition is (chi_1 - chi_2)/2
+        chi_1 = chiS + chiA
+        chi_2 = chiS - chiA
+
+        CES2S = .5 * ((tidal_params.CES21 - 1)*chi_1**2 + (tidal_params.CES22 - 1)*chi_2**2)  # \kappa_S
+        CES2A = .5 * ((tidal_params.CES21 - 1)*chi_1**2 - (tidal_params.CES22 - 1)*chi_2**2)  # \kappa_A
+        CBS3S = .5 * ((tidal_params.CBS31 - 1)*chi_1**3 + (tidal_params.CBS32 - 1)*chi_2**3)  # \lambda_S
+        CBS3A = .5 * ((tidal_params.CBS31 - 1)*chi_1**3 - (tidal_params.CBS32 - 1)*chi_2**3)  # \lambda_A
+
+        # (2,2) mode
+        rho_coeffs[2, 2][4] += (
+            + 0.5*CES2S + 0.5*CES2A*dm - 1.*CES2S*nu
+        )
+
+        rho_coeffs[2, 2][6] += (
+            0.7976190476190476*CES2S + 0.7976190476190476*CES2A*dm
+            - 2.422619047619048*CES2S*nu - 0.8273809523809524*CES2A*dm*nu
+            - 0.9642857142857143*CES2S*nu2
+        )
+
+        rho_coeffs[2, 2][7] += (
+            1.333333333333333*CES2A*chiA
+            + 1.333333333333333*CES2S*chiS
+            - 1.*CBS3A*dm + 1.333333333333333*CES2S*chiA*dm
+            + 1.333333333333333*CES2A*chiS*dm + CBS3S*m1Plus3nu
+            - 2.333333333333333*CES2A*chiA*nu
+            - 4.666666666666667*CES2S*chiS*nu
+            + CBS3A*dm*nu + 0.3333333333333333*CES2S*chiA*dm*nu
+            - 2.*CES2A*chiS*dm*nu - 2.*CES2S*chiS*nu2
+        )
+
+        rho_coeffs[2, 2][10] += (
+            + 6.*mut2p + (1.5*dm*mut2m)/nu + (1.5*mut2p)/nu
+        )
+
+        rho_coeffs[2, 2][12] = (
+            7.946428571428571*dm*mut2m
+            - 6.339285714285714*mut2p
+            + (4.535714285714286*dm*mut2m)/nu
+            + (4.535714285714286*mut2p)/nu - 0.7142857142857143*mut2p*nu
+        )
+
+        rho_coeffs[2, 2][14] = (
+            18.76495181405896*dm*mut2m
+            - 31.08935657596372*mut2p
+            + 40.*mut3p
+            + (21.02111678004535*dm*mut2m)/nu
+            + (21.02111678004535*mut2p)/nu
+            - 3.751027494331066*dm*mut2m*nu
+            - 40.33917942176871*mut2p*nu
+            - 8.831490929705215*mut2p*nu2
+        )
+
+        # (2,1) mode
+        if dm2:
+            f_coeffs[2, 1][4] += (
+                -0.5*CES2S - (0.5*CES2A)/dm - 1.*CES2S*nu
+            )
+            f_coeffs[2, 1][5] += (
+                0.75*CES2A*chiA + 0.75*CES2S*chiS
+                + (0.75*CES2S*chiA)/dm + (0.75*CES2A*chiS)/dm
+                - 1.5*CES2S*chiS*nu - (1.5*CES2S*chiA*nu)/dm
+                - (3.*CES2A*chiS*nu)/dm
+            )
+            f_coeffs[2, 1][6] += (
+                0.04761904761904762*CES2S
+                + (0.04761904761904762*CES2A)/dm
+                + 0.4761904761904762*CES2S*nu
+                + (0.380952380952381*CES2A*nu)/dm
+                + 0.3571428571428571*CES2S*nu2
+                + (5.630952380952381*CES2A*nu2)/dm
+            )
+            f_coeffs[2, 1][10] = (
+                + (-9.*mut2m)/dm + 6.*mut2p
+            )
+            f_coeffs[2, 1][12] = (
+                (8.535714285714286*mut2m)/dm
+                - 6.464285714285714*mut2p
+                - (27.07142857142857*mut2m*nu)/dm
+                - 10.14285714285714*mut2p*nu
+            )
+            f_coeffs[2, 1][14] = (
+                (-32.98511904761905*mut2m)/dm
+                - 24.89583333333333*mut2p
+                + 40.*mut3p - (91.13095238095238*mut2m*nu)/dm
+                - 58.33928571428571*mut2p*nu
+                + (68.85119047619048*mut2m*nu2)/dm
+                + 3.928571428571429*mut2p*nu2
+            )
+        else:
+            f_coeffs[2, 1][4] += (
+                -0.5*CES2A
+            )
+            f_coeffs[2, 1][5] += (
+                0.375*CES2S*chiA
+            )
+            f_coeffs[2, 1][6] += (
+                0.49479166666667*CES2A
+            )
+            f_coeffs[2, 1][10] = (
+                -9.*mut2m
+            )
+            f_coeffs[2, 1][12] = (
+                1.76785714285714*mut2m
+            )
+            f_coeffs[2, 1][14] = (
+                -51.464657738095*mut2m
+            )
+
+        # (3,3) mode
+        if dm2:
+            f_coeffs[3, 3][4] += (
+                1.5*CES2S + (1.5*CES2A)/dm
+                - 3.*CES2S*nu - (6.*CES2A*nu)/dm
+            )
+            f_coeffs[3, 3][6] += (
+                -1.75*CES2S - (1.75*CES2A)/dm
+                + 2.*CES2S*nu + (5.5*CES2A*nu)/dm
+                - 6.*CES2S*nu2 + (4.*CES2A*nu2)/dm
+            )
+            f_coeffs[3, 3][10] = (
+                (-18.*mut2m)/dm + 18.*mut2p
+            )
+            f_coeffs[3, 3][12] = (
+                (51.*mut2m)/dm - 66.*mut2p
+                - (120.*mut2m*nu)/dm + 15.*mut2p*nu
+            )
+            f_coeffs[3, 3][14] = (
+                (-18.4025974025974*mut2m)/dm
+                - 45.34805194805195*mut2p
+                + 120.*mut3p + (15.*mut3m)/(dm*nu)
+                + (15.*mut3p)/nu + (106.788961038961*mut2m*nu)/dm
+                - 251.5525974025974*mut2p*nu
+                - (65.09090909090909*mut2m*nu2)/dm
+                - 7.109090909090909*mut2p*nu2
+            )
+        else:
+            f_coeffs[3, 3][4] += (
+                0.
+            )
+            f_coeffs[3, 3][6] += (
+                -0.125*CES2A
+            )
+            f_coeffs[3, 3][10] = (
+                -18.*mut2m
+            )
+            f_coeffs[3, 3][12] = (
+                21.*mut2m
+            )
+            f_coeffs[3, 3][14] = (
+                4.22646103896*mut2m + 60.*mut3m
+            )
+
+        # (3,2) mode
+        rho_coeffs[3, 2][4] += (
+            (-0.333333333333333*CES2A*dm*(-1. + nu))/m1Plus3nu2
+            + (1.*CES2A*dm*(-1. + nu)*nu)/m1Plus3nu2
+            + (0.333333333333333*CES2S*(1. - 3.*nu + 6.*nu**2))/m1Plus3nu2
+            - (1.*CES2S*nu*(1. - 3.*nu + 6.*nu2))/m1Plus3nu2
+        )
+        rho_coeffs[3, 2][5] += (
+            (0.888888888888889*CES2A*chiS*dm*(-1. + nu)*nu)/m1Plus3nu2
+            - (0.888888888888889*CES2S*chiS*nu*(1. - 3.*nu + 6.*nu2))/m1Plus3nu2
+        )
+        rho_coeffs[3, 2][10] = (
+            (4.*dm*m1Plus3nu*mut2m
+             + mut2p*(8. - 36.*nu + 36.*nu2))/m1Plus3nu2
+        )
+        rho_coeffs[3, 2][12] = (
+            (dm*mut2m*(8.6148148148148 - 38.796296296296*nu
+             + 41.018518518519*nu2)
+             + mut2p*(3.9481481481481 - 13.4851851851852*nu
+             + 23.7962962962963*nu2 - 63.111111111111*nu3))/m1Plus3nu2
+        )
+
+        # (3,1) mode
+        if dm2:
+            f_coeffs[3, 1][4] = (
+                -2.5*CES2S - (2.5*CES2A)/dm
+                - 3.*CES2S*nu + (2.*CES2A*nu)/dm
+            )
+            f_coeffs[3, 1][6] = (
+                3.583333333333333*CES2S
+                + (3.583333333333333*CES2A)/dm
+                - 0.6666666666666667*CES2S*nu
+                - (7.833333333333333*CES2A*nu)/dm
+                + 7.333333333333333*CES2S*nu2
+                + (25.33333333333333*CES2A*nu2)/dm
+            )
+            f_coeffs[3, 1][10] = (
+                (-18.*mut2m)/dm + 18.*mut2p
+            )
+            f_coeffs[3, 1][12] = (
+                (-1.*mut2m)/dm + 2.*mut2p
+                - (64.*mut2m*nu)/dm - 65.*mut2p*nu
+            )
+            f_coeffs[3, 1][14] = (
+                (15.*mut3m + dm*mut3p*(15. + 120.*nu)
+                 + dm*mut2p*nu*(78.2034632035 - 148.2435064935*nu
+                                + 54.27272727273*nu2)
+                 + mut2m*nu*(-13.49350649351 - 357.5140692641*nu
+                             + 400.7272727273*nu2))/(dm*nu)
+            )
+        else:
+            f_coeffs[3, 1][4] = (
+                -2.*CES2A
+            )
+            f_coeffs[3, 1][6] = (
+                3.20833333333333*CES2A
+            )
+            f_coeffs[3, 1][10] = (
+                -18.*mut2m
+            )
+            f_coeffs[3, 1][12] = (
+                -17.*mut2m
+            )
+            f_coeffs[3, 1][14] = (
+                -77.8265692641*mut2m + 60.*mut3m
+            )
+
+        # (4,4) mode
+        rho_coeffs[4, 4][4] += (
+            0.5*CES2S + 0.5*CES2A*dm - 1.*CES2S*nu
+        )
+        rho_coeffs[4, 4][10] += (
+            (4.5*dm*mut2m)/m1Plus3nu
+            + (10.5 - 49.5*nu + 54.*nu2)*mut2p/m1Plus3nu2
+        )
+        rho_coeffs[4, 4][12] = (
+            (15.09090909090909 - 67.73181818181818*nu
+             + 72.07159090909091*nu2)*dm*mut2m/m1Plus3nu2
+            - (0.85 + 26.5*nu - 63.58977272727273*nu2
+               - 38.86363636363636*nu3)*mut2p/m1Plus3nu2
+        )
+
+        # (4,3) mode
+        if dm2:
+            f_coeffs[4, 3][4] = (
+                -1.5*CES2S*(-1. + 2.*nu)
+                - (1.5*CES2A*(1. - 6.*nu + 4.*nu**2))/(
+                    dm*(-1. + 2.*nu))
+            )
+            f_coeffs[4, 3][10] = (
+                (-22.5*mut2m)/dm + (mut2p*(-20.25 + 18.*nu))/(-0.5 + 1.*nu)
+            )
+            f_coeffs[4, 3][12] = (
+                (mut2m*(-64.9431818181818 + 231.2727272727273*nu
+                        - 116.3863636363636*nu2)
+                 + dm*mut2p*(73.125 - 100.3636363636364*nu - 5.45454545454545*nu2)
+                 )/(dm*(-0.5 + 1.*nu))
+            )
+        else:
+            f_coeffs[4, 3][4] = (
+                -0.75*CES2A
+            )
+            f_coeffs[4, 3][10] = (
+                -22.5*mut2m
+            )
+            f_coeffs[4, 3][12] = (
+                57.5965909091*mut2m
+            )
+
+        # (4,2) mode
+        rho_coeffs[4, 2][4] += (
+            (0.5*CES2A*dm)/(1. - 3.*nu)
+            - (0.5*CES2S*(1. - 2.*nu + 6.*nu**2))/m1Plus3nu
+        )
+        rho_coeffs[4, 2][10] = (
+            (4.5*dm*mut2m)/m1Plus3nu
+            + (10.5 - 49.5*nu + 54.*nu2)*mut2p/m1Plus3nu2
+        )
+        rho_coeffs[4, 2][12] = (
+            (dm*mut2m*(3.02272727272727
+             - 28.7454545454545*nu + 58.939772727273*nu2)
+             + mut2p*(17.6 - 88.25*nu + 151.305681818182*nu2
+             - 134.590909090909*nu3))/m1Plus3nu2
+        )
+
+        # (4,1) mode
+        if dm2:
+            f_coeffs[4, 1][4] = (
+                -1.5*CES2S*(-1. + 2.*nu)
+                + (0.5*CES2A*(-3. + 18.*nu + 4.*nu**2))/(
+                    dm*(-1. + 2.*nu))
+            )
+            f_coeffs[4, 1][10] = (
+                (-22.5*mut2m)/dm
+                + (mut2p*(-20.25 + 18.*nu))/(-0.5 + 1.*nu)
+            )
+            f_coeffs[4, 1][12] = (
+                (mut2m*(-47.2159090909091 + 172.3636363636364*nu
+                        - 92.9318181818182*nu2)
+                 + dm*mut2p*(48.125 - 47.8181818181818*nu
+                             - 27.2727272727273*nu2))/(dm*(-0.5 + 1.*nu))
+            )
+        else:
+            f_coeffs[4, 1][4] = (
+                -1.75*CES2A
+            )
+            f_coeffs[4, 1][10] = (
+                -22.5*mut2m
+            )
+            f_coeffs[4, 1][12] = (
+                39.7329545455*mut2m
+            )
+
+        # (5,5) mode
+        if dm2:
+            f_coeffs[5, 5][4] += (
+                2.5*CES2S + (2.5*CES2A)/dm
+                - 5.*CES2S*nu - (10.*CES2A*nu)/dm
+            )
+            f_coeffs[5, 5][10] = (
+                (-30.*mut2m)/dm
+                + (30.*mut2p*(-1. + nu))/(-0.5 + 1.*nu)
+            )
+            f_coeffs[5, 5][12] = (
+                (mut2m*(-117.9230769230769
+                        + 435.192307692308*nu - 238.8461538461538*nu2)
+                 + dm*mut2p*(158.0384615384615 - 285.807692307692*nu
+                             + 52.8461538461538*nu2))/(dm*(-0.5 + 1.*nu))
+            )
+        else:
+            f_coeffs[5, 5][4] += (
+                0.
+            )
+            f_coeffs[5, 5][10] = (
+                -30.*mut2m
+            )
+            f_coeffs[5, 5][12] = (
+                96.211538462*mut2m
+            )
+
+        # (5,4) mode
+        rho_coeffs[5, 4][10] = (
+            (dm*mut2m*(-1.44 + 1.44*nu)
+             + mut2p*(2.4 - 9.12*nu + 4.8*nu2))/(0.2 - 1.*nu + 1.*nu2)
+        )
+
+        # (5,3) mode
+        if dm2:
+            f_coeffs[5, 3][4] = (
+                -2.5*CES2S*(-1. + 2.*nu)
+                - (0.5*CES2A*(5. - 30.*nu + 8.*nu**2))/(
+                    dm*(-1. + 2.*nu))
+            )
+            f_coeffs[5, 3][10] = (
+                (-30.*mut2m)/dm
+                + (30.*mut2p*(-1. + nu))/(-0.5 + 1.*nu)
+            )
+            f_coeffs[5, 3][12] = (
+                (mut2m*(-68.6923076923077 + 262.269230769231*nu
+                        - 164.3846153846154*nu2)
+                 + dm*mut2p*(78.6538461538462
+                             - 90.7307692307692*nu
+                             - 37.6153846153846*nu2))/(dm*(-0.5 + 1.*nu))
+            )
+        else:
+            f_coeffs[5, 3][4] = (
+                -2.*CES2A
+            )
+            f_coeffs[5, 3][10] = (
+                -30.*mut2m
+            )
+            f_coeffs[5, 3][12] = (
+                53.5961538462*mut2m
+            )
+
+        # (5,2) mode
+        rho_coeffs[5, 2][10] = (
+            (dm*mut2m*(-1.44 + 1.44*nu)
+             + mut2p*(2.4 - 9.12*nu + 4.8*nu2))
+            /(0.2 - 1.*nu + 1.*nu2)
+        )
+
+        # (5,1) mode
+        if dm2:
+            f_coeffs[5, 1][4] = (
+                -2.5*CES2S*(-1. + 2.*nu)
+                + (0.5*CES2A*(-5. + 30.*nu + 8.*nu**2))/(
+                    dm*(-1. + 2.*nu))
+            )
+            f_coeffs[5, 1][10] = (
+                (-30.*mut2m)/dm
+                + (30.*mut2p*(-1. + nu))/(-0.5 + 1.*nu)
+            )
+            f_coeffs[5, 1][12] = (
+                (mut2m*(-44.0769230769231 + 175.8076923076923*nu
+                        - 127.1538461538462*nu2)
+                 + dm*mut2p*(38.9615384615385 + 6.80769230769231*nu
+                             - 82.8461538461538*nu2))/(dm*(-0.5 + 1.*nu))
+            )
+        else:
+            f_coeffs[5, 1][4] = (
+                -3.*CES2A
+            )
+            f_coeffs[5, 1][10] = (
+                -30.*mut2m
+            )
+            f_coeffs[5, 1][12] = (
+                32.2884615385*mut2m
+            )
+
+        # l = 6 modes
+        rho_coeffs[6, 6][10] = (
+            (dm*mut2m*(-1.5 + 1.5*nu)
+             + mut2p*(2.7 - 10.5*nu + 6.*nu2))
+            /(0.2 - nu + nu2)
+        )
+
+        rho_coeffs[6, 4][10] = (
+            (dm*mut2m*(-1.5 + 1.5*nu)
+             + mut2p*(2.7 - 10.5*nu + 6.*nu2))
+            /(0.2 - 1.*nu + nu2)
+        )
+
+        rho_coeffs[6, 2][10] = (
+            (dm*mut2m*(-1.5 + 1.5*nu)
+             + mut2p*(2.7 - 10.5*nu + 6.*nu2))
+            /(0.2 - 1.*nu + 1.*nu2)
+        )
+
+        if dm2:
+            f_coeffs[6, 5][10] = (
+                (mut2m*(-17.5 + 70.*nu - 35.*nu**2)
+                 + dm*mut2p*(27.5 - 75.*nu + 30.*nu**2))
+                /(dm*(0.3333333333333333 - 1.333333333333333*nu + nu2))
+            )
+            f_coeffs[6, 3][10] = (
+                (mut2m*(-17.5 + 70.*nu - 35.*nu2)
+                 + dm*mut2p*(27.5 - 75.*nu + 30.*nu2))
+                /(dm*(0.3333333333333333 - 1.333333333333333*nu + nu2))
+            )
+            f_coeffs[6, 1][10] = (
+                (mut2m*(-17.5 + 70.*nu - 35.*nu2)
+                 + dm*mut2p*(27.5 - 75.*nu + 30.*nu2))
+                /(dm*(0.3333333333333333 - 1.333333333333333*nu + nu2))
+            )
+        else:
+            f_coeffs[6, 5][10] = (
+                -35.*mut2m
+            )
+            f_coeffs[6, 3][10] = (
+                -35.*mut2m
+            )
+            f_coeffs[6, 1][10] = (
+                -35.*mut2m
+            )
+
 
 @cython.cpow(True)
 @cython.wraparound(False)
@@ -1153,20 +1639,25 @@ cpdef void compute_rho_coeffs(
 @cython.cdivision(True)
 @cython.nonecheck(False)
 @cython.initializedcheck(False)
-cdef public void compute_delta_coeffs(
+cdef void compute_delta_coeffs(
     double nu,
     double dm,
     double a,
     double chiS,
     double chiA,
     double complex[:, :, :] delta_coeffs,
-    double complex[:, :, :] delta_coeffs_vh
+    double complex[:, :, :] delta_coeffs_vh,
+    bint extra_tidal_terms,
+    TidalParams tidal_params,
+    double X_1,
+    double X_2,
 ):
     """
     Compute the phase residual coefficients.
 
     See Sec. 2B of [Damour2009]_ and Eq. 59-63 of [SEOBNRv5HM-theory]_ for new terms.
     The rest has been copied from SEOBNRv4HM LAL code.
+    We additionally include the tidal contributions from https://arxiv.org/pdf/2412.14249.
 
     Coefficients can be found in:
 
@@ -1190,10 +1681,17 @@ cdef public void compute_delta_coeffs(
     # cdef double chiS3 = chiS2 * chiS
 
     cdef double m1Plus3nu = -1.0 + 3.0 * nu
-    # cdef double m1Plus3nu2 = m1Plus3nu * m1Plus3nu
+    cdef double m1Plus3nu2 = m1Plus3nu * m1Plus3nu
     # cdef double m1Plus3nu3 = m1Plus3nu * m1Plus3nu2
 
     cdef double aDelta = 0.0
+
+    # Tidal quantities used for the fluxes
+    cdef double mut2Tidal1 = 0.
+    cdef double mut2Tidal2 = 0.
+
+    cdef double mut2p = 0.
+    cdef double mut2m = 0.
 
     # (2,2) mode begins
     delta_coeffs_vh[2, 2][3] = 7.0 / 3.0
@@ -1311,6 +1809,26 @@ cdef public void compute_delta_coeffs(
     delta_coeffs_vh[7, 1][3] = 19.0 / 252.0
     # l=7 modes end
 
+    if extra_tidal_terms:
+        mut2Tidal1 = X_2/X_1*tidal_params.lambda2Tidal1
+        mut2Tidal2 = X_1/X_2*tidal_params.lambda2Tidal2
+
+        mut2p = .5*(mut2Tidal1 + mut2Tidal2)
+        mut2m = .5*(mut2Tidal1 - mut2Tidal2)
+
+        delta_coeffs[2, 2][15] = (
+            (dm*mut2m*(12.8 + 76.*nu) + mut2p*(12.8 + 50.4*nu - 1419.*nu**2))/nu
+        )
+        delta_coeffs[3, 2][13] = (
+            (mut2p*(13.2 - 90.*nu) + dm*mut2m*(13.2 + 10.8*nu))/m1Plus3nu2
+        )
+        delta_coeffs[4, 4][13] = (
+            (27.75*dm*mut2m + 27.75*mut2p - 166.5*mut2p*nu)/m1Plus3nu2
+        )
+        delta_coeffs[4, 2][13] = (
+            (25.2*dm*mut2m + 25.2*mut2p - 151.2*mut2p*nu)/m1Plus3nu2
+        )
+
 
 @cython.cpow(True)
 @cython.wraparound(False)
@@ -1330,7 +1848,7 @@ cdef double complex compute_deltalm_single(
     """
     cdef int j
     cdef double complex delta = 0.0
-    for j in range(PN_limit):
+    for j in range(fl.PN_limit):
         delta += fl.delta_coeffs[l, m, j]*vs[j] + fl.delta_coeffs_vh[l, m, j]*vhs[j]
     return delta
 
@@ -1351,9 +1869,10 @@ cdef void compute_delta(
     Compute the  full :math:`\\delta_{\\ell m}` contribution for all modes
     """
     cdef int i, l, m
-    cdef double vs[PN_limit]
-    cdef double vhs[PN_limit]
-    for i in range(PN_limit):
+    cdef int current_pn_limit = eob_pars.flux_params.PN_limit
+    cdef double vs[PN_limit_max]
+    cdef double vhs[PN_limit_max]
+    for i in range(current_pn_limit):
         vs[i] = v**i
         vhs[i] = vh**i
     cdef FluxParams fl = eob_pars.flux_params
@@ -1398,6 +1917,7 @@ cdef double complex compute_rholm_single(
     Compute the full :math:`\\rho_{\\ell m}` contribution for a given mode
     """
     cdef int j
+    cdef int current_pn_limit = eob_pars.flux_params.PN_limit
     cdef double v = vs[1]
     cdef double nu = eob_pars.p_params.nu
     cdef double complex rho_final = 0.0
@@ -1411,7 +1931,7 @@ cdef double complex compute_rholm_single(
 
     if m % 2:
         # For odd m modes we need to compute f
-        for j in range(1, PN_limit):
+        for j in range(1, current_pn_limit):
             rho+= (
                 eob_pars.flux_params.rho_coeffs[l, m, j]
                 + eob_pars.flux_params.extra_coeffs[l, m, j]
@@ -1422,7 +1942,7 @@ cdef double complex compute_rholm_single(
             f += eob_pars.flux_params.f_coeffs[l, m, j]*vs[j]
     else:
         # For even m modes we only need rho
-        for j in range(1, PN_limit):
+        for j in range(1, current_pn_limit):
             rho+= (eob_pars.flux_params.rho_coeffs[l, m, j]
                    + eob_pars.flux_params.extra_coeffs[l, m, j]
                    + (eob_pars.flux_params.rho_coeffs_log[l, m, j]
@@ -1452,12 +1972,13 @@ cdef double complex compute_rholm_single(
 @cython.initializedcheck(False)
 cdef void compute_rholm(double v, double vh, double nu, EOBParams eob_pars):
     cdef int i, l, m
-    cdef double vs[PN_limit]
+    cdef int current_pn_limit = eob_pars.flux_params.PN_limit
+    cdef double vs[PN_limit_max]
 
     vs[0] = 1
     vs[1] = v
 
-    for i in range(2, PN_limit):
+    for i in range(2, current_pn_limit):
         vs[i] = v*vs[i-1]
 
     for l in range(2, ell_max+1):
@@ -1500,7 +2021,7 @@ cdef void update_rho_coeffs(double[:, :, :] rho_coeffs, double[:, :, :] extra_co
     cdef double temp = 0.0
     for l in range(2, ell_max+1):
         for m in range(1, l+1):
-            for i in range(PN_limit):
+            for i in range(PN_limit_max):
                 temp = extra_coeffs[l, m, i]
                 if fabs(temp)>1e-15:
                     rho_coeffs[l, m, i] += temp
@@ -1563,10 +2084,14 @@ cpdef double compute_flux(
         eob_pars.flux_params.rho_coeffs_log,
         eob_pars.flux_params.f_coeffs,
         eob_pars.flux_params.f_coeffs_vh,
-        eob_pars.flux_params.extra_PN_terms)
+        eob_pars.flux_params.extra_PN_terms,
+        eob_pars.flux_params.extra_tidal_terms,
+        eob_pars.tidal_params,
+        eob_pars.p_params.X_1,
+        eob_pars.p_params.X_2,
+    )
 
     compute_rholm(v, vh, eob_pars.p_params.nu, eob_pars)
-
     cdef double complex hlm
 
     # Deal with NQCs
@@ -2421,8 +2946,8 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
     cdef (int, int) ell_m
     cdef double nu = eob_pars.p_params.nu
 
-    cdef double vs[PN_limit]
-    cdef double vhs[PN_limit]
+    cdef double vs[PN_limit_max]
+    cdef double vhs[PN_limit_max]
 
     compute_rho_coeffs(
         eob_pars.p_params.nu,
@@ -2434,7 +2959,12 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
         eob_pars.flux_params.rho_coeffs_log,
         eob_pars.flux_params.f_coeffs,
         eob_pars.flux_params.f_coeffs_vh,
-        eob_pars.flux_params.extra_PN_terms)
+        eob_pars.flux_params.extra_PN_terms,
+        eob_pars.flux_params.extra_tidal_terms,
+        eob_pars.tidal_params,  # None if extra_tidal_terms is False?
+        eob_pars.p_params.X_1,
+        eob_pars.p_params.X_2
+    )
 
     compute_delta_coeffs(
         eob_pars.p_params.nu,
@@ -2443,7 +2973,14 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
         eob_pars.p_params.chi_S,
         eob_pars.p_params.chi_A,
         eob_pars.flux_params.delta_coeffs,
-        eob_pars.flux_params.delta_coeffs_vh)
+        eob_pars.flux_params.delta_coeffs_vh,
+        eob_pars.flux_params.extra_tidal_terms,
+        eob_pars.tidal_params,  # None if extra_tidal_terms is False?
+        eob_pars.p_params.X_1,
+        eob_pars.p_params.X_2,
+    )
+
+    cdef int current_pn_limit = eob_pars.flux_params.PN_limit
 
     cdef int N = dynamics.shape[0]
     cdef int nb_modes = len(eob_pars.mode_array)
@@ -2476,7 +3013,7 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
         vh = (H*omega)**(1./3)
         # Various powers of v that enter the computation
         # of rholm and deltalm
-        for j in range(1, PN_limit):
+        for j in range(1, current_pn_limit):
             vs[j] = v**j
             vhs[j] = vh**j
 
@@ -2504,7 +3041,11 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
                 eob_pars.flux_params.rho_coeffs_log,
                 eob_pars.flux_params.f_coeffs,
                 eob_pars.flux_params.f_coeffs_vh,
-                eob_pars.flux_params.extra_PN_terms)
+                eob_pars.flux_params.extra_PN_terms,
+                False,
+                None,
+                0,
+                0)
             # Recompute delta coeffs
             compute_delta_coeffs(
                 eob_pars.p_params.nu,
@@ -2513,7 +3054,12 @@ cpdef compute_hlms(double[:, :] dynamics, EOBParams eob_pars):
                 eob_pars.p_params.chi_S,
                 eob_pars.p_params.chi_A,
                 eob_pars.flux_params.delta_coeffs,
-                eob_pars.flux_params.delta_coeffs_vh)
+                eob_pars.flux_params.delta_coeffs_vh,
+                False,
+                None,
+                eob_pars.p_params.X_1,
+                eob_pars.p_params.X_2
+            )
 
         for j in range(nb_modes):
             l = l_modes[j, 0]
@@ -2583,8 +3129,8 @@ cpdef compute_special_coeffs(
     cdef int i, j, l, m, power
     cdef double phi, pphi, omega, omega_circ, H, v, vh, vphi, vphi2, source1, source2, Slm, clm1
     cdef double rholm, hlm, K, amp, min_amp
-    cdef double vs[PN_limit]
-    cdef double vhs[PN_limit]
+    cdef double vs[PN_limit_max]
+    cdef double vhs[PN_limit_max]
 
     cdef cnp.ndarray[DTYPE_T, ndim=1] dynamics_55 = np.zeros(dynamics.shape[1]-1)
     cdef cnp.ndarray[DTYPE_T, ndim=1] dynamics_all = np.zeros(dynamics.shape[1]-1)
@@ -2604,7 +3150,12 @@ cpdef compute_special_coeffs(
         eob_pars.flux_params.rho_coeffs_log,
         eob_pars.flux_params.f_coeffs,
         eob_pars.flux_params.f_coeffs_vh,
-        eob_pars.flux_params.extra_PN_terms)
+        eob_pars.flux_params.extra_PN_terms,
+        False,
+        None,
+        0,
+        0
+    )
 
     compute_delta_coeffs(
         eob_pars.p_params.nu,
@@ -2613,7 +3164,14 @@ cpdef compute_special_coeffs(
         eob_pars.p_params.chi_S,
         eob_pars.p_params.chi_A,
         eob_pars.flux_params.delta_coeffs,
-        eob_pars.flux_params.delta_coeffs_vh)
+        eob_pars.flux_params.delta_coeffs_vh,
+        False,
+        None,
+        eob_pars.p_params.X_1,
+        eob_pars.p_params.X_2,
+    )
+
+    cdef int current_pn_limit = eob_pars.flux_params.PN_limit
 
     # Now, loop over every mode of interest
     for mode in modes.keys():
@@ -2633,7 +3191,7 @@ cpdef compute_special_coeffs(
         vphi = omega/omega_circ**(2./3)
         vphi2 = vphi*vphi
 
-        for j in range(PN_limit):
+        for j in range(current_pn_limit):
             vs[j] = v**j
             vhs[j] = vh**j
         source1 = (H * H - 1.0) / (2.0 * eob_pars.p_params.nu) + 1.0  # H_eff

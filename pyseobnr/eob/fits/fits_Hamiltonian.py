@@ -209,3 +209,30 @@ def NR_deltaT_NS(nu):
     return nu ** (-1.0 / 5 + par[0] * nu) * (
         par[1] + par[2] * nu + par[3] * nu**2 + par[4] * nu**3
     )
+
+
+@jit(nopython=True)
+def NR_deltaT_Tidal(nu, kappa):
+    """
+    Fit for the time difference from reference point to the attachment time for SEOBNRv5T.
+
+    See Eq(89) in [SEOBNRv5HM-notes]_ .
+    The NR_deltaT is done hierarchically, and one needs to add the non-spinning and spinning contributions:
+    NR_deltaT = NR_deltaT_Tidal(nu) +  NR_deltaT(nu, ap, am)
+
+    Args:
+        nu (float): reduced mass ratio.
+
+    Returns:
+        float: The non-spinning value of NR_deltaT.
+    """
+    X = 1 - 4 * nu
+
+    prefactor = 1 + 31.37043241786174 * X + 59.45997414013233 * X**2
+    par = (
+        215.52136772330735
+        - 177.0886696698975
+        * np.exp(-(0.0019321278345423277 * (prefactor * kappa) - 0.5002730316843514))
+        - 892.9964834957964 * X
+    )
+    return par

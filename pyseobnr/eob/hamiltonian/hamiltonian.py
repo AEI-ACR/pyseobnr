@@ -2,6 +2,7 @@
 """
 Abstract Hamiltonian classes
 """
+
 from abc import abstractmethod
 
 

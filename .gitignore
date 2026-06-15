@@ -1,9 +1,10 @@
 *.c
 *.so
 *.cpp
+*.pyc
+*.dat
 pyseobnr/_version.py
 build/
-dist/
 pyseobnr.egg-info
 docs/_build
 __pycache__

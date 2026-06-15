@@ -10,6 +10,7 @@ from typing import Any, Dict, Final
 import numpy as np
 from pygsl_lite import spline
 from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.signal import argrelmax
 
 from ...auxiliary.mode_mixing.auxiliary_functions_modemixing import (
     h_ellm0_nu,
@@ -21,15 +22,17 @@ from ...auxiliary.mode_mixing.auxiliary_functions_modemixing import (
 from ...models.common import VALID_MODES
 from ..fits.EOB_fits import (
     EOBCalculateNQCCoefficients_freeattach,
+    EOBCalculateNQCCoefficients_freeattach_BNS,
     EOBNonQCCorrectionImpl,
     compute_QNM,
 )
-from ..fits.IV_fits import InputValueFits
+from ..fits.IV_fits import BNSInputValueFits, InputValueFits
 from ..fits.MR_fits import MergerRingdownFits
 from ..utils.nr_utils import (
     bbh_final_mass_non_precessing_UIB2016,
     bbh_final_spin_non_precessing_HBR2016,
 )
+from ..utils.universal_relations import SmoothTransitionFunction
 from .compute_MR import MRAnzatze, compute_MR_mode_free
 from .waveform import compute_factors, unrotate_leading_pn
 
@@ -397,6 +400,833 @@ def compute_IMR_modes(
     return t_IMR, hIMR
 
 
+def compute_tidal_tapering_v4T(
+    t,
+    hlms,
+    t_for_compute,
+    hlms_for_compute,
+    m1,
+    m2,
+    chi1,
+    chi2,
+    t_attach,
+    f_nyquist,
+    lmax_nyquist,
+    mixed_modes=[(3, 2), (4, 3)],
+    final_state=None,
+    qnm_rotation=0.0,
+):
+    """This computes the IMR modes given the inspiral modes and the
+    attachment time.
+
+    Args:
+        t (np.ndarray): The interpolated time array of the inspiral modes
+        hlms (np.ndarray): Dictionary containing the inspiral modes
+        t_for_compute (np.ndarray): The fine dynamics time array
+        hlms_for_compute (np.ndarray): The waveform modes on the fine dynamics
+        m_1 (float): Mass of primary
+        m_2 (float): Mass of secondary
+        chi_1 (float): z-component of the primary dimensionless spin
+        chi_2 (float): z-component of the secondary dimensionless spin
+        t_attach (float): Attachment time
+        f_nyquist (float): Nyquist frequency, needed for checking that RD frequency is resolved
+        lmax_nyquist (int): Determines for which modes the nyquist test is applied for
+        mixed_modes (List): List of mixed modes to consider. Defaults to [(3,2),(4,3)]
+        final_state (List): Final mass and spin of the remnant. Default to None. If None,
+                            compute internally.
+        qnm_rotation (float): Factor rotating the QNM mode frequency in the co-precessing frame
+            (Eq. 33 of Hamilton et al.)
+
+    Returns:
+        dict: Dictionary containing the waveform modes
+    """
+
+    # We want to attach the ringdown always at the same time,
+    # regardless of the sampling rate, i.e. all the functions
+    # are evaluated at the true attachment time, not just the
+    # closest grid point, as was done in v4.
+    # This requires one to be somewhat careful in the construction
+
+    # For the tapering we have three distinct regions. We define t_a the
+    # attachment time and tau the damping time of our tapering
+    # [t[0], t_taper = t_a - 15*tau): Here we just use the interpolated
+    # inspiral modes
+    # [t_taper = t_a - 15*tau, t_freq = t_a - 12M):
+    # Here we have to also take the windowing function on the amplitude into
+    # account but use the phase of the inspiral waveform
+    # [t_freq = t_a - 12M, t_a):
+    # Here we are still windowing the amplitude of the inspiral mode, and use
+    # the prescription for the frequency evolution
+    # [t_a, t[-1]]:
+    # Here we extend the amplitude linearly and window it, and use our
+    # prescription for the phase evolution
+
+    # Dictionary that will hold the final modes, which are constructed from the
+    # *interpolated* inspiral modes hlms
+    hIMR = {}
+
+    ell, m = 2, 2
+
+    # The time spacing. This assumes that we have already
+    # interpolated the modes to equal spacing
+    dt = np.diff(t)[0]
+    # N = int(10 / dt) + 1
+
+    # Take out all of the relevant quantities needed for the
+    # construction of the tapering from the *fine* (2,2) mode, as it has
+    # higher resolution
+    mode22_for_compute = hlms_for_compute[(2, 2)]
+    N_interp = 5
+
+    amp_for_compute = np.abs(mode22_for_compute)
+    phase_for_compute = np.unwrap(np.angle(mode22_for_compute))
+
+    # Sometimes, the application of NQCs can introduce amplitude or frequency
+    # peaks. If this happens, we just cut the waveform to discard them
+    idx_amp_peak = np.argmin(-amp_for_compute)
+    idx_freq_peak = np.argmin(np.gradient(phase_for_compute))
+    idx_peak = np.min([idx_amp_peak, idx_freq_peak])
+
+    # First find the closest point on the time grid which is
+    # *before* the attachmnent time.
+    idx = np.argmin(np.abs(t - t_attach))
+    if t[idx] > t_attach:
+        idx -= 1
+        t_attach = t[idx]
+
+    # Acount for the fact that the peak happens possibly before the grid point
+    if t_for_compute[idx_peak] < t[idx] - dt:
+        t_attach = t_for_compute[idx_peak]
+
+        idx = np.argmin(np.abs(t - t_attach))
+        if t[idx] > t_attach:
+            idx -= 1
+            t_attach = t[idx]
+
+    # Get the relevant times for the (2,2) mode
+    t_a = 1 * t_attach
+
+    idx_interp = np.argmin(np.abs(t_for_compute - t_a))
+    idx_interp_freq = np.argmin(np.abs(t_for_compute - t_a + 12))
+
+    left = np.max((0, idx_interp - N_interp))
+    right = np.min((idx_interp + N_interp, len(t_for_compute)))
+
+    left_phase = np.max((0, idx_interp_freq - N_interp))
+
+    intrp_amp = InterpolatedUnivariateSpline(
+        t_for_compute[left:right], amp_for_compute[left:right]
+    )
+    intrp_phase = InterpolatedUnivariateSpline(
+        t_for_compute[left_phase:right], phase_for_compute[left_phase:right]
+    )
+
+    # The necessary quantities for the (2,2) mode tapering
+    amp_max = intrp_amp(t_a)
+    damp_max = intrp_amp.derivative()(t_a)
+    phi_match = intrp_phase(t_a - 12)
+    omega_match = -intrp_phase.derivative()(t_a)
+    omega_freq = -intrp_phase.derivative()(t_a - 12)
+
+    # Computation of the asymptotically reached delta_omega and damping time
+    # tau
+    delta_omega = omega_match - omega_freq
+    tau = 0.5 * np.pi / np.abs(omega_match)
+
+    # Length of the tapering, which we set to 10 damping times,
+    # which roughly corresponds to a 1/(1+exp(10)) ~ 5e-5 amplitude decrease
+    damping_time = 15 * tau
+    # The length of the ringdown rounded to closest M
+    ringdown_time = int(15 * tau)
+
+    idx_freq = np.argmin(np.abs(t - t_a + 12))
+    if t[idx_freq] > t_a - 12 and idx_freq > 0:
+        idx_freq -= 1
+    idx_tapering = np.min([np.argmin(np.abs(t - t_a + 15 * damping_time)), idx_freq])
+    if t[idx_tapering] > t_a - 15 * damping_time and idx_tapering > 0:
+        idx_tapering -= 1
+
+    # Placeholder for the IMR modes. Note that by construction
+    # this is longer than is needed for the (5,5) mode, since idx_55<idx
+    h = np.zeros(idx + 1 + int(ringdown_time // dt) + 10, dtype=np.complex128)
+    t_IMR = np.arange(len(h)) * dt + t[0]
+
+    mode22 = hlms[(2, 2)][idx_tapering:]
+    amp = np.abs(mode22)
+    phase = np.unwrap(np.angle(mode22))
+
+    # The arrays used for the computation of the tapered amplitude and frequency
+    new_amp = np.zeros(
+        idx - idx_tapering + 1 + int(ringdown_time // dt) + 10, dtype=np.float64
+    )
+    new_phase = np.zeros(
+        idx - idx_tapering + 1 + int(ringdown_time // dt) + 10, dtype=np.float64
+    )
+
+    # Keep the original phase up till t_a - 12M
+    new_phase[: idx_freq - idx_tapering] = phase[: idx_freq - idx_tapering]
+
+    # print(idx,idx_tapering,t_a,t[-1],idx_freq,damping_time,t - t_a + 15*damping_time)
+    # Keep the original amplitude times the windowing function up to the end
+    new_amp[: idx - idx_tapering] = (
+        amp[: idx - idx_tapering]
+        * 1.0
+        / (1 + np.exp((t_IMR[idx_tapering:idx] - t_a - 15) / tau))
+    )
+
+    # Transition the phase smoothly with the frequeny reaching it's asymptotal value
+    t_freq = t_IMR[idx_freq:]
+    new_phase[idx_freq - idx_tapering :] = (
+        phi_match
+        - omega_match * (t_freq - t_a + 12)
+        - 12 * delta_omega * (np.exp(-(t_freq - t_a + 12) / 12) - 1)
+    )
+
+    # Taper the amplitude by linear extension of the amplitude
+    t_tapering = t_IMR[idx:]
+    new_amp[idx - idx_tapering :] = (
+        (amp_max + damp_max * (t_tapering - t_a))
+        * 1.0
+        / (1 + np.exp((t_tapering - t_a - 15) / tau))
+    )
+
+    # Construct the array on which the ringdown signal is computed
+    # Note: since we are attaching at the *actual* attachment point
+    # which will fall *between* grid points we need to add an offset
+    # to the ringdown time-series so that ansatze in the ringdown is
+    # correctly evaluated.
+
+    # t_ringdown = np.arange(0, ringdown_time, dt) + (t_match + dt - t_attach)
+
+    # for ell_m, mode in hlms_for_compute.items():
+    # t_a = 1 * t_attach
+    # idx_end = idx
+    # ell, m = ell_m
+
+    # amp = np.abs(mode)
+    # phase = np.unwrap(np.angle(mode))
+
+    # idx_interp = np.argmin(np.abs(t_for_compute - t_a))
+    # left = np.max((0, idx_interp - N_interp))
+    # right = np.min((idx_interp + N_interp, len(t_for_compute)))
+
+    # intrp_amp = InterpolatedUnivariateSpline(
+    #     t_for_compute[left:right], amp[left:right]
+    # )
+    # intrp_phase = InterpolatedUnivariateSpline(
+    #     t_for_compute[left:right], phase[left:right]
+    # )
+    # amp_max = intrp_amp(t_a)
+    # damp_max = intrp_amp.derivative()(t_a)
+    # phi_match = intrp_phase(t_a)
+    # omega_max = intrp_phase.derivative()(t_a)
+
+    # Construct the full IMR waveform
+    hIMR[(ell, m)] = 1 * h
+    hIMR[(ell, m)][:idx_tapering] = hlms[(ell, m)][:idx_tapering]
+    hIMR[(ell, m)][idx_tapering::] = new_amp * (
+        np.cos(new_phase) + 1j * np.sin(new_phase)
+    )
+
+    # idx_end = idx
+
+    # t_IMR = np.arange(len(hIMR[(2, 2)])) * dt
+    peak = np.argmax(np.abs(hIMR[(2, 2)]))
+    t_IMR -= t_IMR[peak]
+    return t_IMR, hIMR
+
+
+def compute_tidal_tapering_v5T(
+    t,
+    hlms,
+    t_for_compute,
+    hlms_for_compute,
+    m1,
+    m2,
+    chi1,
+    chi2,
+    kappaT,
+    t_attach,
+    fits_dict,
+    tau_phase_factor,
+):
+    """This computes the IMR modes given the inspiral modes and the attachment
+    time, using the tidal (v5THM) tapering of the merger-ringdown.
+
+    Args:
+        t (np.ndarray): The interpolated time array of the inspiral modes
+        hlms (dict): Dictionary containing the interpolated inspiral modes
+        t_for_compute (np.ndarray): The fine dynamics time array
+        hlms_for_compute (dict): The waveform modes on the fine dynamics
+        m1 (float): Mass of primary (M=1 units)
+        m2 (float): Mass of secondary (M=1 units)
+        chi1 (float): z-component of the primary dimensionless spin
+        chi2 (float): z-component of the secondary dimensionless spin
+        kappaT (float): Dimensionless tidal coupling parameter kappa^T_2, used to
+            interpolate the merger model between the BNS and BBH limits
+        t_attach (float): Attachment time
+        fits_dict (dict): Dictionary of fitted merger quantities (amplitudes,
+            frequencies, ...) used to model the post-attachment modes
+        tau_phase_factor (float): Factor multiplying the damping time tau used in
+            the phase tapering of the post-attachment region
+
+    Returns:
+        tuple(np.ndarray, dict): the IMR time array and the dictionary of IMR
+        waveform modes
+    """
+
+    # We want to attach the "ringdown" always at the same time,
+    # regardless of the sampling rate, i.e. all the functions
+    # are evaluated at the true attachment time, not just the
+    # closest grid point, as was done in v4.
+    # This requires one to be somewhat careful in the construction of the
+    # merger modeling and tapering
+
+    # For the tapering we have three distinct regions. We define t_a the
+    # attachment time and tau the damping time of our tapering
+    # [t[0], t_taper = t_a - 15*tau): Here we just use the interpolated
+    # inspiral modes. Note that t_match (the last grid point before
+    # attachment) is in here.
+    # [t_a, t[-1]]:
+    # Here we extend the amplitude linearly and window it, and use our
+    # prescription for the phase evolution
+
+    # Dictionary that will hold the final modes, which are constructed from the
+    # *interpolated* inspiral modes hlms
+    hIMR = {}
+
+    ell, m = 2, 2
+
+    # The time spacing. This assumes that we have already
+    # interpolated the modes to equal spacing
+    dt = np.diff(t)[0]
+
+    # Take out all of the relevant quantities needed for the
+    # construction of the tapering from the *fine* (2,2) mode, as it has
+    # higher resolution
+    mode22_for_compute = hlms_for_compute[(2, 2)]
+    N_interp = 5
+
+    # fine wavefom for lowest differencing error
+    amp_for_compute = np.abs(mode22_for_compute)
+    phase_for_compute = np.unwrap(np.angle(mode22_for_compute))
+
+    # First find the closest point on the time grid which is
+    # *before* the attachment time.
+    t_attach = min(t_for_compute[-1], t_attach)
+    idx = np.argmin(np.abs(t - t_attach))
+    if t[idx] > t_attach:
+        idx -= 1
+
+    # t_match is the last grid time before t_a
+    t_match = t[idx]
+
+    # Get the relevant times for the (2,2) mode
+    t_a = t_attach
+
+    idx_interp = np.argmin(np.abs(t_for_compute - t_a))
+
+    # Check for phase peaks:
+    idxs_phase_peak = argrelmax(phase_for_compute)[0]
+    if len(idxs_phase_peak) > 0:
+        idx_phase_peak = idxs_phase_peak[0]
+        if idx_phase_peak < idx_interp:
+            # print('Phase peak detected! Will correct t_a appropriately.')
+            t_attach = t_for_compute[idx_phase_peak]
+            idx = np.argmin(np.abs(t - t_attach))
+            if t[idx] > t_attach:
+                idx -= 1
+            # t_match is the last grid time before t_a
+            t_match = t[idx]
+            t_a = t_attach
+
+    left = np.max((0, idx_interp - N_interp))
+    right = np.min((idx_interp + N_interp, len(t_for_compute)))
+
+    intrp_amp = InterpolatedUnivariateSpline(
+        t_for_compute[left:right], amp_for_compute[left:right]
+    )
+    intrp_phase = InterpolatedUnivariateSpline(
+        t_for_compute[left:right], phase_for_compute[left:right]
+    )
+
+    # The necessary quantities for the (2,2) mode tapering
+    # We will also extract the phase at a later point, as it has to be
+    # handled with care in comparison to the coarse phase
+    amp_max = intrp_amp(t_a)
+    damp_max = intrp_amp.derivative()(t_a)
+    omega_match = -intrp_phase.derivative()(t_a)
+    domega_match = -intrp_phase.derivative(2)(t_a)
+
+    # also recover the IV fits to be reached
+    omega_IV = fits_dict["omega"]
+    if omega_IV <= omega_match:
+        # print(
+        #     "Waveform that has higher omega than IVs at matching time. Skipping boost in tapering."
+        # )
+        omega_IV = omega_match
+    omega_asymp = 1.3 * omega_IV
+
+    # We assume the NQCs to enforce the correct IVs
+    A_IV = amp_max
+
+    # The timescale of the damping
+    tau = 0.5 * np.pi / np.abs(omega_IV)
+
+    # Boosts: We want to give the frequency and amplitude a little boost before
+    # windowing, as NQCs can't reliably model NR. The boost function is
+    # \beta = 1 + B_omega * exp((t - t_a)/tau_phase) for the frequency, and
+    # \beta = 1 + B * exp((t - t_a)/tau_boost) for the amplitude, which we
+    # multiply with the respective waveform quantity up to t_a
+    # Next we determine some of the necessary quantities
+
+    # For the frequency boost:
+    B_omega = omega_IV / omega_match - 1.0
+    delta_omega = omega_asymp - omega_IV
+    tau_phase = tau_phase_factor * tau
+
+    # For the amplitude boost:
+    dlna = damp_max / amp_max
+    tau_amp_ref = 1.5 * tau
+    tau_boost = tau_amp_ref / (1 + (np.sign(dlna) - 1) * dlna * tau_amp_ref)
+    tau_window = tau_amp_ref / (1 + (np.sign(dlna) + 1) * dlna * tau_amp_ref)
+
+    # These are the *boosted* amplitude derivatives at t_a (pre-windowing)
+    boosted_amp_max = A_IV * 2
+    boosted_damp_max = A_IV / tau_boost + 2 * damp_max
+
+    # Length of the tapering, which we set to 15 damping times,
+    # which roughly corresponds to a 1/(1+exp(15)) ~ exp(-15) ~ 3e-7 error
+    damping_time = np.max((tau_phase, tau_boost, tau))
+    # The length of the ringdown rounded to closest M
+    ringdown_time = int(15 * tau)
+
+    # The time where we begin the boosts
+    idx_tapering = np.max([np.argmin(np.abs(t - t_a + 15 * damping_time)), 0])
+    if t[idx_tapering] > t_a - 15 * damping_time and idx_tapering > 0:
+        idx_tapering -= 1
+
+    # Placeholder for the IMR modes
+    h = np.zeros(idx + 1 + int(ringdown_time // dt) + 10, dtype=np.complex128)
+    # t_IMR is going to be our final time array
+    t_IMR = np.arange(idx + 1 + int(ringdown_time // dt) + 10) * dt + t[0]
+
+    # The arrays used for the computation of the tapered amplitude and frequency
+    new_amp = np.zeros(
+        idx - idx_tapering + 1 + int(ringdown_time // dt) + 10, dtype=np.float64
+    )
+    new_phase = np.zeros(
+        idx - idx_tapering + 1 + int(ringdown_time // dt) + 10, dtype=np.float64
+    )
+
+    # Extract the coarse waveform from the actual grid we will use
+    mode22 = hlms[(2, 2)][idx_tapering:]
+    amp = np.abs(mode22)
+    phase = np.unwrap(np.angle(mode22))
+
+    # Helpful redefined time for boosts and windowing
+    t_shift = t_IMR - t_a
+
+    # Compute the *unboosted* phase at t_a, which we will need later
+    # Note that the fine and coarse waveform can desync due to low resolution
+    # So we align in the beginning
+
+    # It can happen that the fine dynamics are between two coarse dynamics points
+    if (t_for_compute[-1] - t_for_compute[0]) < dt:
+
+        t_ref = t_for_compute[3] - t_a
+
+        ref_for_compute = np.searchsorted(t_shift[idx_tapering:], t_ref)
+
+        intrp_phase_sync = InterpolatedUnivariateSpline(
+            t_shift[
+                idx_tapering
+                + ref_for_compute
+                - 4 : min(idx_tapering + ref_for_compute + 3, idx + 1)
+            ],
+            phase[ref_for_compute - 4 : min(ref_for_compute + 3, len(phase))],
+        )
+
+        phase_shift = -intrp_phase_sync(t_ref) + phase_for_compute[3]
+        phi_match = intrp_phase(t_a) + phase_shift
+    else:
+        ref = np.where(t_shift[idx_tapering : idx + 2] > t_for_compute[0] - t_a)[0][0]
+
+        ref_for_compute = np.where(t_for_compute - t_a > t_shift[idx_tapering + ref])[
+            0
+        ][0]
+
+        intrp_phase_sync = InterpolatedUnivariateSpline(
+            t_for_compute[
+                max(ref_for_compute - 3, 0) : min(
+                    ref_for_compute + 3, len(t_for_compute - 1)
+                )
+            ]
+            - t_a,
+            phase_for_compute[
+                max(ref_for_compute - 3, 0) : min(
+                    ref_for_compute + 3, len(t_for_compute - 1)
+                )
+            ],
+        )
+
+        phase_shift = -intrp_phase_sync(t_shift[idx_tapering + ref]) + phase[ref]
+        phi_match = intrp_phase(t_a) + phase_shift
+
+    if omega_IV > omega_match:
+        # This quantity is the residual from the start, to be used in the integration
+        dphi = -B_omega * np.exp(t_shift[idx_tapering] / tau_phase) * phase[0]
+
+        # The following interpolation is needed, such that the dependence on dt
+        # vanishes. 1000 data points proves good enough and reproduces the input
+        # values to the 1% level
+        independent_t = np.linspace(t_shift[idx_tapering], 0.0, 1000)
+        dt_new = independent_t[1] - independent_t[0]
+
+        # We also need to augment the fine dynamics, as otherwise we will get errors for
+        # low sampling frequencies
+        size = max((int(np.round(np.size(t_for_compute) / 1e3)), 1))
+        if t_for_compute[0] - t_a > t_shift[idx_tapering]:
+            ref_idx = np.where(
+                t_shift[idx_tapering : idx + 1] < t_for_compute[0] - t_a
+            )[0][-1]
+            all_times = np.concatenate(
+                (
+                    t_shift[idx_tapering : idx_tapering + ref_idx + 1],
+                    t_for_compute[::size] - t_a,
+                )
+            )
+            all_phase = np.concatenate(
+                (phase[: ref_idx + 1], phase_for_compute[::size] + phase_shift)
+            )
+
+            # It can happen that the second derivatives don't match, so in this
+            # case we do some smoothing
+        else:
+            all_times = t_for_compute[::size] - t_a
+            all_phase = phase_for_compute[::size] + phase_shift
+
+        # equidistant_integrand = InterpolatedUnivariateSpline(
+        #   t_shift[idx_tapering : idx + 1],
+        #   phase[:idx - idx_tapering + 1]*np.exp(t_shift[idx_tapering : idx + 1]/tau_phase))(independent_t)
+        equidistant_integrand_fine = InterpolatedUnivariateSpline(
+            all_times, all_phase * np.exp(all_times / tau_phase)
+        )
+        equidistant_integrand = equidistant_integrand_fine(independent_t)
+        equidistant_integral = dt_new * np.cumsum(equidistant_integrand)
+        phase_integral = InterpolatedUnivariateSpline(
+            independent_t, equidistant_integral
+        )
+
+        # Compute the numerically integrated term
+        phase_integrated = (
+            B_omega / tau_phase * phase_integral(t_shift[idx_tapering : idx + 1])
+        )
+
+        # [t_tapering, t_match]:
+        # Compute the boosted phase
+        new_phase[: idx - idx_tapering + 1] = (
+            phase[: idx - idx_tapering + 1]
+            * (1.0 + B_omega * np.exp(t_shift[idx_tapering : idx + 1] / tau_phase))
+            - phase_integrated
+            + dphi
+        )
+        # if A < 0:
+        #     print('Weird waveform that has higher omega than IVs at matching time. Will try to remedy.')
+        #     new_phase[:idx - idx_tapering + 1] = phase[:idx - idx_tapering + 1]
+
+        # Compute the boosted phase and frequency *at the time t_a*, which might be
+        # after t_match
+        # This is necessary to ensure a smooth frequency throughout the tapering and
+        # independently on the dt chosen
+
+        new_phase_interp = InterpolatedUnivariateSpline(
+            t_IMR[idx - 3 : idx + 1],
+            new_phase[idx - idx_tapering - 3 : idx - idx_tapering + 1],
+        )
+
+        phi_a = new_phase_interp(t_match)
+        omega_a = -new_phase_interp.derivative(1)(t_match)
+        domega_match_boosted = -new_phase_interp.derivative(2)(t_match)
+
+        # phi_a = (phi_match * (1. + B_omega) + dphi - B_omega/tau_phase * equidistant_integral[-1] )
+        # omega_a = - (B_omega/tau_phase*phi_match - (1+B_omega)*omega_match - B_omega/tau_phase *
+        #               equidistant_integrand_fine(0))
+        # # omega_a = omega_IV - A/tau_phase*(phi_match - phase_integral.derivative()(0))
+        # omega_a = - (   intrp_phase = InterpolatedUnivariateSpline(
+        # t_for_compute[left:right], phase_for_compute[left:right]
+        # ))
+        # print(f"Frequency residual = {(omega_a - omega_IV)/omega_IV*1e2} %")
+
+        delta_omega = omega_asymp - omega_a
+
+        # Frequency tapering
+        # domega_match_boosted = (
+        #       (1+A)*domega_match + 2*A/tau_phase*omega_match - A/tau_phase**2*phi_a
+        #       + A/tau_phase*phase_integral.derivative(2)(0)
+        # )
+        # domega_match_boosted = - ( B_omega/tau_phase**2 * phi_match
+        #                          - 2 * B_omega/tau_phase*omega_match
+        #                          + (1+B_omega)*domega_match
+        #                          - B_omega/tau_phase*equidistant_integrand_fine.derivative()(0))
+        # domega_match_boosted = - (new_phase[idx - idx_tapering] + new_phase[idx - idx_tapering - 2]
+        #                          - 2*new_phase[idx - idx_tapering - 1]) / dt
+        tau_freq = delta_omega / domega_match_boosted
+
+    else:
+        # Just continue the phase if the IVs are too low
+        new_phase[: idx - idx_tapering + 1] = phase[: idx - idx_tapering + 1]
+
+        new_phase_interp = InterpolatedUnivariateSpline(
+            t_IMR[idx - 3 : idx + 1],
+            phase[idx - idx_tapering - 3 : idx - idx_tapering + 1],
+        )
+
+        phi_a = new_phase_interp(t_match)
+        omega_match = -new_phase_interp.derivative(1)(t_match)
+        domega_match = -new_phase_interp.derivative(2)(t_match)
+        delta_omega = omega_asymp - omega_match
+        tau_freq = delta_omega / domega_match
+
+    # Keep the boosted amplitude times the windowing function up to t_match
+    new_amp[: idx - idx_tapering + 1] = (
+        amp[: idx - idx_tapering + 1]
+        * 1.0
+        / (1 + np.exp((t_IMR[idx_tapering : idx + 1] - t_a) / tau_window))
+        * (1.0 + np.exp((t_IMR[idx_tapering : idx + 1] - t_a) / tau_boost))
+    )
+
+    # [t_match, t_IMR[-1]]:
+    # Transition the phase smoothly with the frequeny reaching it's asymptotal value
+
+    t_freq = t_IMR[idx + 1 :] - t_match
+    new_phase[idx - idx_tapering + 1 :] = (
+        phi_a
+        - omega_asymp * (t_freq)
+        - tau_freq * delta_omega * (np.exp(-(t_freq) / tau_freq) - 1)
+    )
+
+    # Taper the amplitude by linear extension of the amplitude
+    t_tapering = t_IMR[idx + 1 :]
+
+    new_amp[idx - idx_tapering + 1 :] = (
+        (boosted_amp_max + boosted_damp_max * (t_tapering - t_a))
+        * 1.0
+        / (1 + np.exp((t_tapering - t_a) / tau_window))
+    )
+
+    # Construct the full IMR waveform
+    hIMR[(ell, m)] = 1 * h
+    hIMR[(ell, m)][:idx_tapering] = hlms[(ell, m)][:idx_tapering]
+    hIMR[(ell, m)][idx_tapering::] = new_amp * (
+        np.cos(new_phase) + 1j * np.sin(new_phase)
+    )
+
+    for ell_m, mode in hlms_for_compute.items():
+        if ell_m != (2, 2):
+            t_a = 1 * t_attach
+            ell, m = ell_m
+
+            amp_for_compute = np.abs(mode)
+            phase_for_compute = np.unwrap(np.angle(mode))
+
+            amp = np.abs(hlms[ell_m])
+            phase = np.unwrap(np.angle(hlms[ell_m]))
+
+            idx_interp_freq = np.argmin(np.abs(t_for_compute - t_a + 12))
+
+            left = np.max((0, idx_interp - N_interp))
+            right = np.min((idx_interp + N_interp, len(t_for_compute)))
+
+            left_phase = np.max((0, idx_interp_freq - N_interp))
+
+            intrp_amp = InterpolatedUnivariateSpline(
+                t_for_compute[left:right], amp_for_compute[left:right]
+            )
+            intrp_phase = InterpolatedUnivariateSpline(
+                t_for_compute[left_phase:right], phase_for_compute[left_phase:right]
+            )
+            amp_max = intrp_amp(t_a)
+            damp_max = intrp_amp.derivative()(t_a)
+            phi_match = intrp_phase(t_a - 12)
+            omega_match = -intrp_phase.derivative()(t_a)
+            omega_freq = -intrp_phase.derivative()(t_a - 12)
+
+            # Computation of the asymptotically reached delta_omega and damping time
+            # tau
+            delta_omega = omega_match - omega_freq
+
+            idx_freq = np.argmin(np.abs(t - t_a + 12))
+            if t[idx_freq] > t_a - 12 and idx_freq > 0:
+                idx_freq -= 1
+
+            # The arrays used for the computation of the tapered amplitude and frequency
+            new_amp = np.zeros(
+                idx - idx_tapering + 1 + int(ringdown_time // dt) + 10, dtype=np.float64
+            )
+            new_phase = np.zeros(
+                idx - idx_tapering + 1 + int(ringdown_time // dt) + 10, dtype=np.float64
+            )
+
+            # Keep the original phase up till t_a - 12M
+            new_phase[: idx_freq - idx_tapering] = phase[idx_tapering:idx_freq]
+
+            # Keep the original amplitude times the windowing function up to the end
+            new_amp[: idx - idx_tapering] = (
+                amp[idx_tapering:idx]
+                * 1.0
+                / (1 + np.exp((t_IMR[idx_tapering:idx] - t_a - 15) / tau))
+            )
+
+            # Transition the phase smoothly with the frequeny reaching it's asymptotal value
+            t_freq = t_IMR[idx_freq:]
+            new_phase[idx_freq - idx_tapering :] = (
+                phi_match
+                - omega_match * (t_freq - t_a + 12)
+                - 12 * delta_omega * (np.exp(-(t_freq - t_a + 12) / 12) - 1)
+            )
+
+            # Taper the amplitude by linear extension of the amplitude
+            t_tapering = t_IMR[idx:]
+            new_amp[idx - idx_tapering :] = (
+                (amp_max + damp_max * (t_tapering - t_a))
+                * 1.0
+                / (1 + np.exp((t_tapering - t_a - 15) / tau))
+            )
+
+            # Construct the full IMR waveform
+            hIMR[(ell, m)] = 1 * h
+            hIMR[(ell, m)][:idx_tapering] = hlms[(ell, m)][:idx_tapering]
+            hIMR[(ell, m)][idx_tapering::] = new_amp * (
+                np.cos(new_phase) + 1j * np.sin(new_phase)
+            )
+
+    # peak = np.argmax(np.abs(hIMR[(2, 2)]))
+
+    t_IMR -= t_attach
+    # t_IMR -= t_IMR[peak]
+    return t_IMR, hIMR
+
+
+def compute_non_tapered(
+    t: np.ndarray,
+    hlms: dict[tuple[int, int], np.ndarray],
+    t_for_compute: np.ndarray,
+    hlms_for_compute: dict[tuple[int, int], np.ndarray],
+    m1: float,
+    m2: float,
+    chi1: float,
+    chi2: float,
+    kappaT,
+    t_attach: float,
+    f_nyquist: float,
+    lmax_nyquist: int,
+):
+    """This computes the IMR modes given the inspiral modes and the
+    attachment time.
+
+    Args:
+        t: The interpolated time array of the inspiral modes
+        hlms: Dictionary containing the inspiral modes
+        t_for_compute: The fine dynamics time array
+        hlms_for_compute (np.ndarray): The waveform modes on the fine dynamics
+        m1: Mass of primary
+        m2: Mass of secondary
+        chi1: z-component of the primary dimensionless spin
+        chi2: z-component of the secondary dimensionless spin
+        t_attach: Attachment time
+        f_nyquist: Nyquist frequency, needed for checking that RD frequency is resolved
+        lmax_nyquist: Determines for which modes the nyquist test is applied for
+
+    Returns:
+        dict: Dictionary containing the waveform modes
+    """
+
+    # We want to attach the ringdown always at the same time,
+    # regardless of the sampling rate, i.e. all the functions
+    # are evaluated at the true attachment time, not just the
+    # closest grid point, as was done in v4.
+    # This requires one to be somewhat careful in the construction
+
+    # Dictionary that will hold the final modes
+    hIMR = {}
+
+    # First find the closest point on the time grid which is
+    # *before* the attachmnent time. We do this twice,
+    # because for the (5,5) mode the attachment time is
+    # different from other modes
+
+    not_last_point = True
+
+    ell = 2
+    m = 2
+
+    # First find the closest point on the time grid which is
+    # *before* the attachmnent time.
+    idx = np.argmin(np.abs(t - t_attach))
+    if t[idx] > t_attach:
+        idx -= 1
+
+    if t_attach > t[-1]:
+        not_last_point = False
+
+    if not_last_point:
+        mode22_for_compute = hlms_for_compute[(2, 2)]
+        N_interp = 5
+
+        amp_for_compute = np.abs(mode22_for_compute)
+        phase_for_compute = np.unwrap(np.angle(mode22_for_compute))
+
+        # Get the relevant times for the (2,2) mode
+        t_a = 1 * t_attach
+
+        idx_interp = np.argmin(np.abs(t_for_compute - t_a))
+
+        left = np.max((0, idx_interp - N_interp))
+        right = np.min((idx_interp + N_interp, len(t_for_compute)))
+
+        intrp_amp = InterpolatedUnivariateSpline(
+            t_for_compute[left:right], amp_for_compute[left:right]
+        )
+        intrp_phase = InterpolatedUnivariateSpline(
+            t_for_compute[left:right], phase_for_compute[left:right]
+        )
+
+        # The necessary quantities for the (2,2) mode tapering
+        amp_max = intrp_amp(t_a)
+        phi_match = intrp_phase(t_a)
+
+        # Time at the grid-point just before the attacment point
+        # t_match = t[idx]
+
+        # The time spacing. This assumes that we have already
+        # interpolated the modes to equal spacing
+        dt = np.diff(t)[0]
+
+        # Placeholder for the IMR modes. Note that by construction
+        # this is longer than is needed for the (5,5) mode, since idx_55<idx
+        h = np.zeros(idx + 2, dtype=np.complex128)
+
+        # Construct the full IMR waveform
+        hIMR[(ell, m)] = 1 * h
+        hIMR[(ell, m)][: idx + 1] = hlms[(ell, m)][: idx + 1]
+        hIMR[(ell, m)][idx + 1] = amp_max * (np.cos(phi_match) + 1j * np.sin(phi_match))
+        t_IMR = np.arange(len(hIMR[(2, 2)])) * dt
+        t_IMR[-1] = t_a
+
+    else:
+        dt = np.diff(t)[0]
+
+        h = np.zeros(idx + 1, dtype=np.complex128)
+        hIMR[(ell, m)] = 1 * h
+        hIMR[(ell, m)] = hlms[(ell, m)][: idx + 1]
+        t_IMR = np.arange(len(hIMR[(2, 2)])) * dt
+
+    peak = np.argmax(np.abs(hIMR[(2, 2)]))
+    t_IMR -= t_IMR[peak]
+    return t_IMR, hIMR
+
+
 def compute_mixed_mode(
     m1,
     m2,
@@ -727,6 +1557,114 @@ def NQC_correction(
         nqc_coeffs[(ell, m)] = deepcopy(NQC_coeffs)
 
     return nqc_coeffs
+
+
+def BNS_NQC_correction(
+    inspiral_modes: Dict,
+    t_modes: np.ndarray,
+    polar_dynamics: np.ndarray,
+    t_peak: float,
+    nrDeltaT: float,
+    m_1: float,
+    m_2: float,
+    chi_1: float,
+    chi_2: float,
+    kappaT: float,
+):
+    """Given the inspiral modes and the dynamics this function
+    computes the NQC coefficients at t_peak-nrDeltaT
+
+    Args:
+        inspiral_modes (Dict): Dictionary of inspiral modes (interpolated)
+        t_modes (np.ndarray): Time array for inspiral modes
+        polar_dynamics (np.ndarray): Dynamics array from ODE solver (unequally spaced)
+        t_peak (float): The time of the peak of the orbital frequency
+        nrDeltaT (float): The shift from peak of the orbital frequency to peak of (2,2) mode
+        m_1 (float): Mass of the primary
+        m_2 (float): Mass of the secondary
+        chi_1 (float): z-component of dimensionless spin of the primary
+        chi_2 (float): z-component Dimensionless spin of the secondary
+        kappaT (float): Tidal deformability kappa_2^T = 3*nu*[(m_1/M)^3*Lambda_1 + (1 <-> 2)]
+    """
+
+    # Compute omega
+
+    r = polar_dynamics[0]
+    pr = polar_dynamics[1]
+    omega_orb = polar_dynamics[2]
+    input_value_fits = BNSInputValueFits(
+        m_1, m_2, [0.0, 0.0, chi_1], [0.0, 0.0, chi_2], kappaT
+    )
+    fits_dict = dict(
+        amp=input_value_fits.habs(),
+        damp=input_value_fits.hdot(),
+        ddamp=input_value_fits.hdotdot(),
+        omega=input_value_fits.omega(),
+        domega=input_value_fits.omegadot(),
+    )
+    if kappaT < 20:
+        nu = m_1 * m_2
+        # Transition to v5HM IVs
+        input_value_fits_BBH = InputValueFits(
+            m_1, m_2, [0.0, 0.0, chi_1], [0.0, 0.0, chi_2]
+        )
+        fits_dict_BBH = dict(
+            amp=input_value_fits_BBH.habs()[2, 2] * nu,
+            damp=input_value_fits_BBH.hdot()[2, 2] * nu,
+            ddamp=input_value_fits_BBH.hdotdot()[2, 2] * nu,
+            omega=-input_value_fits_BBH.omega()[2, 2],
+            domega=-input_value_fits_BBH.omegadot()[2, 2],
+        )
+
+        scale = SmoothTransitionFunction(kappaT, a=0.0, b=20.0, flip=True)
+        fits_dict = dict(
+            amp=fits_dict_BBH["amp"] * scale + fits_dict["amp"] * (1 - scale),
+            damp=fits_dict_BBH["damp"] * scale + fits_dict["damp"] * (1 - scale),
+            ddamp=fits_dict_BBH["ddamp"] * scale + fits_dict["ddamp"] * (1 - scale),
+            omega=fits_dict_BBH["omega"] * scale + fits_dict["omega"] * (1 - scale),
+            domega=fits_dict_BBH["domega"] * scale + fits_dict["domega"] * (1 - scale),
+        )
+
+    # We only have a 22 mode approximant
+    nqc_coeffs = {}
+    mode = inspiral_modes[(2, 2)]
+
+    amp = np.abs(mode)
+    phase = np.unwrap(np.angle(mode))
+
+    # NQC_coeffs = EOBCalculateNQCCoefficientsV4(
+    #     amp, phase, r, pr, omega_orb, ell, m, t_peak, t_modes, m1, m2, chi1, chi2
+    # )
+    # For equal mass, non-spinning cases odd m modes vanish, so don't try to compute NQCs
+
+    # Compute the NQC coeffs
+    NQC_coeffs = EOBCalculateNQCCoefficients_freeattach_BNS(
+        amp,
+        phase,
+        r,
+        pr,
+        omega_orb,
+        2,
+        2,
+        t_peak,
+        t_modes,
+        m_1,
+        m_2,
+        chi_1,
+        chi_2,
+        nrDeltaT,
+        fits_dict,
+    )
+
+    NQC_coeffs["a3S"] = 0
+    NQC_coeffs["a4"] = 0
+    NQC_coeffs["a5"] = 0
+    NQC_coeffs["b3"] = 0
+    NQC_coeffs["b4"] = 0
+
+    nqc_coeffs[(2, 2)] = deepcopy(NQC_coeffs)
+
+    return nqc_coeffs, fits_dict
 
 
 def apply_nqc_corrections(

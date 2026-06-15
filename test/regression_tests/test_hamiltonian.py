@@ -628,3 +628,317 @@ def test_hamiltonian_precessing_auxderiv_gt(hamiltonian_precessing):
     np.testing.assert_array_almost_equal(
         hamiltonian_precessing.auxderivs(*call_args), auxderiv_gt
     )
+
+
+# def test_hamiltonian_calls_precessing_tphm(eob_params):
+#     """Checks calls consistency"""
+#     hamiltonian = Ham_precessing_tphm_opt(eob_params)
+#     coefficients = CalibCoeffs({"a6": 10, "dSO": 20, "ddSO": 0})
+#     hamiltonian.calibration_coeffs = coefficients
+
+#     call_args = (
+#         np.array([2.9493765, 131.52477657]),
+#         np.array([0.0, 2.66907957]),
+#         np.array(eob_params.p_params.chi1_v),
+#         np.array(eob_params.p_params.chi2_v),
+#         eob_params.p_params.m_1,
+#         eob_params.p_params.m_2,
+#         eob_params.p_params.chi_1,
+#         eob_params.p_params.chi_2,
+#         eob_params.p_params.chi1_L,
+#         eob_params.p_params.chi2_L,
+#     )
+
+#     assert len(hamiltonian(*call_args)) == 9
+
+#     kwargs = {
+#         k: v
+#         for k, v in zip(
+#             (
+#                 "q",
+#                 "p",
+#                 "chi1_v",
+#                 "chi2_v",
+#                 "m_1",
+#                 "m_2",
+#                 "chi_1",
+#                 "chi_2",
+#                 "chiL1",
+#                 "chiL2",
+#             ),
+#             call_args,
+#         )
+#     }
+
+#     assert len(hamiltonian(**kwargs)) == 9
+#     assert hamiltonian(**kwargs) == hamiltonian(*call_args)
+
+#     # changing the order should not change anything
+#     kwargs_shuffled = {
+#         k: kwargs[k]
+#         for k in (
+#             "chi1_v",
+#             "q",
+#             "p",
+#             "chi_1",
+#             "chiL2",
+#             "chi2_v",
+#             "m_1",
+#             "chi_2",
+#             "chiL1",
+#             "m_2",
+#         )
+#     }
+#     assert hamiltonian(*call_args) == hamiltonian(**kwargs_shuffled)
+
+#     # omega
+#     assert hamiltonian.omega(*call_args) == hamiltonian.omega(**kwargs_shuffled)
+
+#     # dynamics
+#     np.testing.assert_array_equal(
+#         hamiltonian.dynamics(*call_args), hamiltonian.dynamics(**kwargs_shuffled)
+#     )
+
+#     # grad
+#     np.testing.assert_array_equal(
+#         hamiltonian.grad(*call_args), hamiltonian.grad(**kwargs_shuffled)
+#     )
+
+#     # hessian
+#     np.testing.assert_array_equal(
+#         hamiltonian.hessian(*call_args), hamiltonian.hessian(**kwargs_shuffled)
+#     )
+
+#     # csi
+#     # TODO: fix
+#     # assert hamiltonian.csi(*call_args) == hamiltonian.csi(**kwargs_shuffled)
+
+#     # auxderivs
+#     np.testing.assert_array_equal(
+#         hamiltonian.auxderivs(*call_args), hamiltonian.auxderivs(**kwargs_shuffled)
+#     )
+
+
+# @pytest.fixture
+# def hamiltonian_precessing_tphm(eob_params):
+#     eob_params.c_coeffs = CalibCoeffs(
+#         {
+#             "a6": 0,
+#             "dSO": 0,
+#         }
+#     )
+
+#     hamiltonian = Ham_precessing_tphm_opt(eob_params)
+#     hamiltonian.calibration_coeffs = eob_params.c_coeffs
+
+#     hamiltonian.calibration_coeffs["a6"] = -12.69080059597502
+#     hamiltonian.calibration_coeffs["dSO"] = -33.369866493663814
+#     hamiltonian.calibration_coeffs["ddSO"] = 0
+
+#     hamiltonian.EOBpars.p_params.M = 1
+#     hamiltonian.EOBpars.p_params.nu = 0.23437499999999997
+#     hamiltonian.EOBpars.p_params.X_1 = 0.625
+#     hamiltonian.EOBpars.p_params.X_2 = 0.375
+
+#     hamiltonian.EOBpars.p_params.chi1_L = 0.22617092
+#     hamiltonian.EOBpars.p_params.chi_1 = 0.23327279836221107
+#     hamiltonian.EOBpars.p_params.chi1_v = np.array([0.25022559, 0.51326609, 0.23226074])
+#     hamiltonian.EOBpars.p_params.chi2_L = -0.16629132
+#     hamiltonian.EOBpars.p_params.chi_2 = -0.1575542799917961
+#     hamiltonian.EOBpars.p_params.chi2_v = np.array(
+#         [-0.36040643, 0.67769987, -0.02856655]
+#     )
+
+#     hamiltonian.EOBpars.p_params.delta = 0.25000000000000006
+
+#     return hamiltonian
+
+
+# def test_hamiltonian_precessing_tphm_H_gt(hamiltonian_precessing_tphm):
+#     """Checks numerical values returned by H.__call__"""
+
+#     call_args = (
+#         np.array([2.9493765, 131.52477657]),
+#         np.array([0.0, 2.66907957]),
+#         np.array([0.25022559, 0.51326609, 0.23226074]),
+#         np.array([-0.36040643, 0.67769987, -0.02856655]),
+#         0.625,
+#         0.375,
+#         0.23327279836221107,
+#         -0.1575542799917961,
+#         0.22617092,
+#         -0.16629132,
+#     )
+
+#     H_val = (
+#         4.121621685302856,
+#         0.44541165678127637,
+#         0.4017643674822076,
+#         -0.5382888894397937,
+#         -0.18074114147514322,
+#         0.0,
+#         0.8490220671781932,
+#         0.008398347546140267,
+#         0.970872892854496,
+#     )
+#     np.testing.assert_array_almost_equal(
+#         hamiltonian_precessing_tphm(*call_args), np.array(H_val)
+#     )
+
+
+# def test_hamiltonian_precessing_tphm_omega_gt(hamiltonian_precessing_tphm):
+#     """Checks numerical values returned by H.omega"""
+
+#     call_args = (
+#         np.array([2.9493765, 131.52477657]),
+#         np.array([0.0, 2.66907957]),
+#         np.array([0.25022559, 0.51326609, 0.23226074]),
+#         np.array([-0.36040643, 0.67769987, -0.02856655]),
+#         0.625,
+#         0.375,
+#         0.23327279836221107,
+#         -0.1575542799917961,
+#         0.22617092,
+#         -0.16629132,
+#     )
+
+#     omega = 0.147808125558441
+#     assert abs(hamiltonian_precessing_tphm.omega(*call_args) - omega) < 1e-10, (
+#         hamiltonian_precessing_tphm.omega(*call_args),
+#         omega,
+#     )
+
+
+# def test_hamiltonian_precessing_tphm_csi_gt(hamiltonian_precessing_tphm):
+#     """Checks numerical values returned by H.csi"""
+
+#     call_args = (
+#         np.array([2.9493765, 131.52477657]),
+#         np.array([0.0, 2.66907957]),
+#         np.array([0.25022559, 0.51326609, 0.23226074]),
+#         np.array([-0.36040643, 0.67769987, -0.02856655]),
+#         0.625,
+#         0.375,
+#         0.23327279836221107,
+#         -0.1575542799917961,
+#         0.22617092,
+#         -0.16629132,
+#     )
+
+#     csi = 0.0
+#     assert abs(hamiltonian_precessing_tphm.csi(*call_args) - csi) < 1e-10, (
+#         hamiltonian_precessing_tphm.csi(*call_args),
+#         csi,
+#     )
+
+
+# def test_hamiltonian_precessing_tphm_gradient_gt(hamiltonian_precessing_tphm):
+#     """Checks numerical values returned by H.grad"""
+
+#     call_args = (
+#         np.array([2.9493765, 131.52477657]),
+#         np.array([0.0, 2.66907957]),
+#         np.array([0.25022559, 0.51326609, 0.23226074]),
+#         np.array([-0.36040643, 0.67769987, -0.02856655]),
+#         0.625,
+#         0.375,
+#         0.23327279836221107,
+#         -0.1575542799917961,
+#         0.22617092,
+#         -0.16629132,
+#     )
+
+#     grad_gt = (0.02822711163597779, 0.0, 0.0, 0.14780812555844097)
+#     np.testing.assert_array_almost_equal(
+#         hamiltonian_precessing_tphm.grad(*call_args), grad_gt
+#     )
+
+
+# def test_hamiltonian_precessing_tphm_dynamics_gt(hamiltonian_precessing_tphm):
+#     """Checks numerical values returned by H.dynamics"""
+
+#     call_args = (
+#         np.array([2.9493765, 131.52477657]),
+#         np.array([0.0, 2.66907957]),
+#         np.array([0.25022559, 0.51326609, 0.23226074]),
+#         np.array([-0.36040643, 0.67769987, -0.02856655]),
+#         0.625,
+#         0.375,
+#         0.23327279836221107,
+#         -0.1575542799917961,
+#         0.22617092,
+#         -0.16629132,
+#     )
+
+#     dyn_gt = (
+#         0.02822711163597779,
+#         0.0,
+#         0.0,
+#         0.14780812555844097,
+#         4.121621685302856,
+#         0.44541165678127637,
+#     )
+#     np.testing.assert_array_almost_equal(
+#         hamiltonian_precessing_tphm.dynamics(*call_args), dyn_gt
+#     )
+
+
+# def test_hamiltonian_precessing_tphm_hessian_gt(hamiltonian_precessing_tphm):
+#     """Checks numerical values returned by H.hessian"""
+
+#     call_args = (
+#         np.array([2.9493765, 131.52477657]),
+#         np.array([0.0, 2.66907957]),
+#         np.array([0.25022559, 0.51326609, 0.23226074]),
+#         np.array([-0.36040643, 0.67769987, -0.02856655]),
+#         0.625,
+#         0.375,
+#         0.23327279836221107,
+#         -0.1575542799917961,
+#         0.22617092,
+#         -0.16629132,
+#     )
+
+#     hessian_gt = np.array(
+#         [
+#             [-0.0270075, 0.0, 0.0, -0.04951159],
+#             [0.0, 0.0, 0.0, 0.0],
+#             [0.0, 0.0, 1.14004028, -0.0],
+#             [-0.04951159, 0.0, -0.0, 0.02566709],
+#         ]
+#     )
+#     np.testing.assert_array_almost_equal(
+#         hamiltonian_precessing_tphm.hessian(*call_args).ravel(), hessian_gt.ravel()
+#     )
+
+
+# def test_hamiltonian_precessing_tphm_auxderiv_gt(hamiltonian_precessing_tphm):
+#     """Checks numerical values returned by H.dynamics"""
+
+#     call_args = (
+#         np.array([2.9493765, 131.52477657]),
+#         np.array([0.0, 2.66907957]),
+#         np.array([0.25022559, 0.51326609, 0.23226074]),
+#         np.array([-0.36040643, 0.67769987, -0.02856655]),
+#         0.625,
+#         0.375,
+#         0.23327279836221107,
+#         -0.1575542799917961,
+#         0.22617092,
+#         -0.16629132,
+#     )
+
+#     auxderiv_gt = (
+#         0.14528764138411066,
+#         0.22695470398693696,
+#         0.13803046088145557,
+#         0.15132956113633944,
+#         -0.0,
+#         0.0,
+#         -0.0034893716270903916,
+#         0.023213209712333593,
+#         0.030756904931538005,
+#     )
+#     np.testing.assert_array_almost_equal(
+#         hamiltonian_precessing_tphm.auxderivs(*call_args), auxderiv_gt
+#     )
