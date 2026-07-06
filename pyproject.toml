@@ -71,7 +71,7 @@
     issues        = "https://git.ligo.org/waveforms/software/pyseobnr/-/issues"
     changelog     = "https://git.ligo.org/waveforms/software/pyseobnr/-/blob/main/CHANGELOG.md"
 
-[project.entry-points."gwsignal.waveforms_approximant"]
+[project.entry-points.gwsignal_models]
     SEOBNRv5HM = "pyseobnr.plugins.gwsignal_plugin:SEOBNRv5HM"
     SEOBNRv5PHM = "pyseobnr.plugins.gwsignal_plugin:SEOBNRv5PHM"
     SEOBNRv5EHM = "pyseobnr.plugins.gwsignal_plugin:SEOBNRv5EHM"
@@ -93,7 +93,8 @@
     include-package-data = false
 
 [tool.setuptools.package-data]
-    "*" = ["*.npz"]
+    "*" = ["*.npz", "*.pxd"]
+    "pyseobnr.eob.utils" = ["eob_parameters.h"]
 
 [tool.setuptools.packages.find]
     where = ["."]
@@ -126,7 +127,6 @@
 
     tests = [
         'pytest',
-        'pytest-sugar',
         'pandas',
         'pyarrow',
         'pycbc',
