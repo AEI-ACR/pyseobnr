@@ -988,7 +988,7 @@ class BNSInputValueFits:
         return result
 
     def omega(self):
-        """Generate the merger frequency $\omega_{22}$ of a BNS signal
+        """Generate the merger frequency $\\omega_{22}$ of a BNS signal
         as described in https://arxiv.org/pdf/2205.09112.pdf
 
         Args:
@@ -1018,7 +1018,7 @@ class BNSInputValueFits:
         return result * 2 * np.pi * self.nu
 
     def omegadot(self):
-        """Generate the first derivative of the merger frequency $\dot\omega_{22}$ of a BNS signal
+        """Generate the first derivative of the merger frequency $\\dot\\omega_{22}$ of a BNS signal
         as described in http://arxiv.org/abs/2307.15125.
 
         Args:
