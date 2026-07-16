@@ -15,6 +15,7 @@ from .eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
 )
 from .eob.waveform.waveform import SEOBNRv5RRForce
 from .eob.waveform.waveform_ecc import SEOBNRv5RRForceEcc
+from .eob.utils.utils_eccentric import rel_anomaly_from_mean_anomaly
 from .models import SEOBNRv5EHM, SEOBNRv5HM
 from .models.model import Model
 
@@ -334,6 +335,15 @@ class GenerateWaveform:
             Keplerian eccentricity of the orbit - Default: 0
         float rel_anomaly:
             Relativistic anomaly - Default: 0
+        float mean_anomaly:
+            Mean anomaly; it is transformed internally into the
+            relativistic anomaly employed by the model - Default: None
+        str radial_anomaly_type:
+            Type of the input radial anomaly, either ``"rel_anomaly"``
+            or ``"mean_anomaly"`` - Default: ``"rel_anomaly"``
+        str anomaly_approximant:
+            Approximant employed in the transformation from mean anomaly
+            to relativistic anomaly - Default: ``"Newtonian"``
         float distance:
             Distance to the source, in Mpc - Default: 100 Mpc
         float inclination:
@@ -507,7 +517,7 @@ class GenerateWaveform:
             "spin2y": 0.0,
             "spin2z": 0.0,
             "eccentricity": 0.0,
-            "rel_anomaly": 0.0,
+            "anomaly_approximant": "Newtonian",
             "distance": 100.0,
             "inclination": 0.0,
             "phi_ref": 0.0,
@@ -629,6 +639,7 @@ class GenerateWaveform:
             "f_min",
             "deltaF",
             "rel_anomaly",
+            "mean_anomaly",
             "eccentricity",
         ]:
             if param in parameters and (
@@ -747,7 +758,71 @@ class GenerateWaveform:
 
     @staticmethod
     def _validate_eccentricity_parameters(parameters):
+
+        is_anomaly_type_provided = "radial_anomaly_type" in parameters
+
+        parameters = {
+            "rel_anomaly": None,
+            "mean_anomaly": None,
+            "radial_anomaly_type": "rel_anomaly",
+        } | parameters
+
         if parameters["approximant"] == "SEOBNRv5EHM":
+
+            if parameters["radial_anomaly_type"] not in (
+                "rel_anomaly",
+                "mean_anomaly",
+            ):
+                raise NotImplementedError(
+                    "Unsupported option for 'radial_anomaly_type'. "
+                    "Supported options: 'rel_anomaly' and 'mean_anomaly'."
+                )
+
+            if (
+                parameters["rel_anomaly"] is not None
+                and parameters["mean_anomaly"] is not None
+            ):
+                raise ValueError(
+                    "Only one parameter can be specified between "
+                    "'rel_anomaly' and 'mean_anomaly'."
+                )
+
+            if is_anomaly_type_provided:
+                if (
+                    parameters["radial_anomaly_type"] == "rel_anomaly"
+                    and parameters["mean_anomaly"] is not None
+                ):
+                    raise ValueError(
+                        "'radial_anomaly_type' is set to 'rel_anomaly', "
+                        "but the parameter 'mean_anomaly' was provided. "
+                        "Provide 'rel_anomaly' instead, or set "
+                        "'radial_anomaly_type': 'mean_anomaly'."
+                    )
+                if (
+                    parameters["radial_anomaly_type"] == "mean_anomaly"
+                    and parameters["rel_anomaly"] is not None
+                ):
+                    raise ValueError(
+                        "'radial_anomaly_type' is set to 'mean_anomaly', "
+                        "but the parameter 'rel_anomaly' was provided. "
+                        "Provide 'mean_anomaly' instead, or set "
+                        "'radial_anomaly_type': 'rel_anomaly'."
+                    )
+
+            if parameters["mean_anomaly"] is not None:
+                # Transform input mean anomaly to relativistic anomaly,
+                # as this is the input of the model
+                parameters["radial_anomaly_type"] = "mean_anomaly"
+                parameters["rel_anomaly"] = rel_anomaly_from_mean_anomaly(
+                    parameters["mean_anomaly"],
+                    parameters["eccentricity"],
+                    anomaly_approximant=parameters["anomaly_approximant"],
+                )
+
+            elif parameters["rel_anomaly"] is None:
+                # If no anomaly is given, set 'rel_anomaly' to zero
+                parameters["rel_anomaly"] = 0.0
+
             # - EccIC: Parameter determining the type of initial frequency.
             # EccIC = 0 for instantaneous initial orbital frequency,
             # and EccIC = 1 for orbit-averaged initial orbital frequency.
@@ -823,11 +898,26 @@ class GenerateWaveform:
                 )
 
         else:
-            if parameters["eccentricity"] != 0.0 or parameters["rel_anomaly"] != 0.0:
+            rel_anomaly = (
+                parameters["rel_anomaly"]
+                if parameters["rel_anomaly"] is not None
+                else 0.0
+            )
+            mean_anomaly = (
+                parameters["mean_anomaly"]
+                if parameters["mean_anomaly"] is not None
+                else 0.0
+            )
+            if (
+                parameters["eccentricity"] != 0.0
+                or rel_anomaly != 0.0
+                or mean_anomaly != 0.0
+            ):
                 raise ValueError(
                     "Use the approximant 'SEOBNRv5EHM' for a system with "
                     "non-zero eccentricity or relativistic anomaly."
                 )
+            parameters["rel_anomaly"] = rel_anomaly
 
         return parameters
 

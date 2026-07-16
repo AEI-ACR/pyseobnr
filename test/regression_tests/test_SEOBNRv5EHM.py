@@ -5,6 +5,7 @@ Test that the aligned-spin eccentric model SEOBNRv5EHM.
 
 import os
 from pathlib import Path
+from typing import Final
 from unittest import mock
 
 import lal
@@ -24,7 +25,11 @@ from pyseobnr.eob.dynamics.integrate_ode_ecc import (
 )
 from pyseobnr.eob.dynamics.rhs_aligned_ecc import compute_x
 from pyseobnr.eob.utils.utils import estimate_time_max_amplitude
-from pyseobnr.eob.utils.utils_eccentric import dot_phi_omega_avg_e_z
+from pyseobnr.eob.utils.utils_eccentric import (
+    dot_phi_omega_avg_e_z,
+    eccentric_anomaly_from_mean_anomaly,
+    rel_anomaly_from_mean_anomaly,
+)
 from pyseobnr.eob.waveform.waveform_ecc import SEOBNRv5RRForceEcc
 from pyseobnr.eob.waveform.waveform_ecc import (
     compute_special_coeffs_ecc as compute_special_coeffs_ecc_original,
@@ -756,3 +761,99 @@ def test_regression_nan_captured_in_dynamics_and_hamiltonians():
         rel_anomaly=0.0,
         approximant="SEOBNRv5EHM",
     )
+
+
+@pytest.mark.parametrize("eccentricity", [0, 0.1, 0.3, 0.9, 0.9999])
+def test_rel_anomaly_from_mean_anomaly(eccentricity):
+    n_points: Final = 2001
+    ells = np.linspace(0.0, 2.0 * np.pi, n_points)
+
+    zetas = np.array([rel_anomaly_from_mean_anomaly(l_, eccentricity) for l_ in ells])
+
+    # endpoint zeta(0) = 0
+    assert abs(zetas[0]) <= 1e-12, f"|zeta(0)| = {abs(zetas[0]):.2e}"
+
+    # endpoint zeta(2pi) = 2pi
+    assert (
+        abs(zetas[-1] - 2 * np.pi) <= 1e-9
+    ), f"|zeta(2pi) - 2pi| = {abs(zetas[-1] - 2 * np.pi):.2e}"
+
+    # zeta strictly monotonic
+    assert bool(
+        np.all(np.diff(zetas) > 0.0)
+    ), f"min step = {np.min(np.diff(zetas)):.2e}"
+
+    # symmetry check: zeta(2pi - ell) = 2pi - zeta(ell)
+    # Kepler's equation and the E -> zeta map are antisymmetric about ell = pi.
+    # Each side involves an independent fsolve solution; near e -> 1 the solver
+    # error is amplified by dzeta/dE (~45 at e = 0.999), hence the looser tier.
+    ells_half = np.linspace(0.0, np.pi, 501)
+    z_lo = np.array(
+        [rel_anomaly_from_mean_anomaly(l_, eccentricity) for l_ in ells_half]
+    )
+    z_hi = np.array(
+        [
+            rel_anomaly_from_mean_anomaly(2 * np.pi - l_, eccentricity)
+            for l_ in ells_half
+        ]
+    )
+
+    tol = 1e-6 if eccentricity > 0.99 else 1e-9
+    assert np.max(np.abs(z_hi + z_lo - 2 * np.pi)) < tol, (
+        "max asymmetry = "
+        f"{np.max(np.abs(z_hi + z_lo - 2 * np.pi)):.2e} (tol {tol:.0e})"
+    )
+
+    # ell_i = E_i - e sin(E_i) is the exact mean anomaly of E_i, so the inputs
+    # still span ell in [0, 2 pi] but concentrate near periastron, where
+    # zeta(ell) is steepest. On this grid the analytic per-step bound is
+    # dzeta/dE <= sqrt((1+e)/(1-e)); we allow 25% headroom for grid discreteness.
+    eccentric_ano_grid = np.linspace(0.0, 2.0 * np.pi, n_points)
+    mean_ano_grid = eccentric_ano_grid - eccentricity * np.sin(eccentric_ano_grid)
+    z = np.array(
+        [rel_anomaly_from_mean_anomaly(M, eccentricity) for M in mean_ano_grid]
+    )
+    dz = np.diff(z)
+    bound = (
+        1.25
+        * np.sqrt((1 + eccentricity) / (1 - eccentricity))
+        * (2 * np.pi / (n_points - 1))
+    )
+    # strictly monotonic
+    assert bool(np.all(dz > 0.0))
+    assert np.max(dz) <= bound  # dz < sqrt((1+e)/(1-e)) * dE
+
+    # residual of the solver
+    # fsolve is run with xtol = 1.49e-8; near periastron at e -> 1 the equation
+    # is ill-conditioned, hence the looser tier for e = 0.999.
+    Es = np.array(
+        [eccentric_anomaly_from_mean_anomaly(l_, eccentricity) for l_ in ells]
+    )
+    resid = np.max(np.abs(Es - eccentricity * np.sin(Es) - ells))
+    tol = 1e-8 if eccentricity > 0.99 else 1e-9
+    assert resid <= tol, f"max |E - e sinE - ell| = {resid:.2e} (tol {tol:.0e})"
+
+    # --- 1.5 closed-form round trip (independent of fsolve correctness)
+    # Invert zeta -> E analytically with the same stable formula (beta -> -beta),
+    # then E -> ell exactly through Kepler's equation. Any systematic error of
+    # the shipped ell -> zeta chain would show up here.
+    eccentric_ano_grid = np.linspace(0.0, 2.0 * np.pi, n_points)
+    mean_ano_grid = eccentric_ano_grid - eccentricity * np.sin(eccentric_ano_grid)
+
+    beta = eccentricity / (1 + np.sqrt(1 - eccentricity**2))
+    z = z = np.array(
+        [rel_anomaly_from_mean_anomaly(M, eccentricity) for M in mean_ano_grid]
+    )
+    E_rec = z - 2 * np.arctan2(beta * np.sin(z), 1 + beta * np.cos(z))
+    M_rec = E_rec - eccentricity * np.sin(E_rec)
+    err = np.max(np.abs(M_rec - mean_ano_grid))
+    assert err <= 1e-8, f"max |ell_rec - ell| = {err:.2e}"
+
+    # zero-eccentricity degeneracy: zeta(ell) == ell exactly
+    # At e = 0, beta = 0 makes the arctan2 term exactly zero and fsolve returns
+    # its initial guess untouched (the residual is already 0.0), so the identity
+    # holds. Relax to <= 1e-15 if a scipy change ever perturbs this.
+    err0 = np.max(
+        np.abs(np.array([rel_anomaly_from_mean_anomaly(l_, 0) for l_ in ells]) - ells)
+    )
+    assert err0 == 0.0
