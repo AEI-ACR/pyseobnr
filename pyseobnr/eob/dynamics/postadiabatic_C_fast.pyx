@@ -504,7 +504,7 @@ cpdef compute_combined_dynamics(
         PA_success = True
         ode_y_init = postadiabatic_dynamics[-1, 1:]
     except Exception as e:
-        print("PA failed unexpectedly. Will solve the ODEs instead.")
+
         PA_success = False
         ode_y_init = None
 
