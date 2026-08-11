@@ -1030,8 +1030,9 @@ def compute_tidal_tapering_v5T(
             amp_for_compute = np.abs(mode)
             phase_for_compute = np.unwrap(np.angle(mode))
 
-            amp = np.abs(hlms[ell_m])
-            phase = np.unwrap(np.angle(hlms[ell_m]))
+            mode_tapering = hlms[ell_m][idx_tapering:]
+            amp = np.abs(mode_tapering)
+            phase = np.unwrap(np.angle(mode_tapering))
 
             idx_interp_freq = np.argmin(np.abs(t_for_compute - t_a + 12))
 
@@ -1069,11 +1070,11 @@ def compute_tidal_tapering_v5T(
             )
 
             # Keep the original phase up till t_a - 12M
-            new_phase[: idx_freq - idx_tapering] = phase[idx_tapering:idx_freq]
+            new_phase[: idx_freq - idx_tapering] = phase[: idx_freq - idx_tapering]
 
             # Keep the original amplitude times the windowing function up to the end
             new_amp[: idx - idx_tapering] = (
-                amp[idx_tapering:idx]
+                amp[: idx - idx_tapering]
                 * 1.0
                 / (1 + np.exp((t_IMR[idx_tapering:idx] - t_a - 15) / tau))
             )
