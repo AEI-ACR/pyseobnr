@@ -14,6 +14,9 @@ stages:
   - test
   - deploy
 
+variables:
+  CONDA_PYSEOBNR: "gcc=15.2.0 gxx=15.2.0 lalsuite pygsl_lite"
+
 # -- EOB code itself
 python:build:
   extends: .python:build
@@ -73,14 +76,9 @@ docs:
     - *conda_prepare_before_script
     - conda create -n docs
           python=3.9
-          gcc
-          gxx
-          swig
-          gsl
-          fftw
+          $CONDA_PYSEOBNR
           make
           pandoc
-          pygsl_lite
     - conda activate docs
     # already in the REQUIREMENTS
     - pip install ".[docs]"
@@ -118,18 +116,12 @@ test:
     - *conda_prepare_before_script
     - conda create -n tests
           python=3.9
-          gcc
-          gxx
-          swig
-          gsl
-          fftw
-          make
+          $CONDA_PYSEOBNR
           pytest
-          lalsuite
           scipy
           pycbc
-          pygsl_lite
-          pandas pyarrow
+          pandas
+          pyarrow
 
   script:
     - conda activate tests
