@@ -1,0 +1,4 @@
+# Constraints applied to pip's isolated build environments via PIP_CONSTRAINT
+# (see tox.ini). pygsl-lite relies on distutils/setuptools `spawn`, which was
+# removed in setuptools 84.0.0.
+setuptools<84.0.0
