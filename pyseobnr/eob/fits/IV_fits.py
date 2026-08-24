@@ -829,3 +829,246 @@ class InputValueFits:
             - 0.00530816071704910165
         )
         return omegadot_modes
+
+
+class BNSInputValueFits:
+    """
+    Fits for the so-called waveform input values.
+    These are the amplitude and its derivatives as well as frequency and its derivative.
+    These are used in several places in the model, including NQC construction,
+    merger-ringdown attachment and special calibration coefficients in some odd-m modes.
+    This class wraps all necessary fits as methods. Each method returns a dict with keys being the desired mode.
+    See also Appendix A of the https://dcc.ligo.org/DocDB/0186/T2300060/001/SEOBNRv5HM.pdf.
+
+    Args:
+        m1 (float): mass of the primary
+        m2 (float): mass of the secondary
+        chi1 (list): dimensionless spin components of the primary
+        chi2 (list): dimensionless spin components of the secondary
+        kappaT (float): Tidal deformability kappa_2^T = 3*nu*[(m_1/M)^3*Lambda_1 + (1 <-> 2)]
+    """
+
+    def __init__(self, m1, m2, chi1, chi2, kappaT):
+        self.m1 = m1
+        self.m2 = m2
+        self.chi1 = chi1
+        self.chi2 = chi2
+
+        # Variables used in the fits
+        self.q = m1 / m2
+        self.nu = self.q / (1 + self.q) ** 2
+        self.dm = (self.q - 1) / (self.q + 1)
+        self.chiAS = (chi1[2] - chi2[2]) / 2
+        self.chiS = (chi1[2] + chi2[2]) / 2
+        self.chi = self.chiS + self.chiAS * self.dm / (1 - 2 * self.nu)
+        self.chi33 = self.chiS * self.dm + self.chiAS
+        self.chi21A = self.chiS * self.dm / (1 - 1.3 * self.nu) + self.chiAS
+        self.chi44A = (1 - 5 * self.nu) * self.chiS + self.chiAS * self.dm
+        self.chi21D = self.chiS * self.dm / (1 - 2 * self.nu) + self.chiAS
+        self.chi44D = (1 - 7 * self.nu) * self.chiS + self.chiAS * self.dm
+        # Possible additional variables
+        self.nuprime = 0.25 - self.nu
+        self.chi33abs = np.abs(self.chi33)
+        self.chi21Aabs = np.abs(self.chi21A)
+        self.chi44Aabs = np.abs(self.chi44A)
+
+        # Fit variables
+        self.X = 1 - 4 * self.nu
+        self.S = self.m1**2 * self.chi1[2] + self.m2**2 * self.chi2[2]
+        self.kappaT = kappaT
+
+    def merger_quantity_fit(
+        self, a0, aM1, aS1, bS1, aT1, aT2, aT3, aT4, bT1, bT2, bT3, bT4
+    ):
+        """Factorized fitting function as described in https://arxiv.org/pdf/2205.09112.pdf
+        and further used in http://arxiv.org/abs/2307.15125.
+
+        Args:
+            X (float): Mass ratio parameter X = 1 - 4*nu
+            S (float): _description_
+            kappaT (float): Tidal deformability kappa_2^T = 3*nu*[(m_1/M)^3*Lambda_1 + (1 <-> 2)]
+            a0 (float): Fitting parameter for the scale
+            aM1 (float): Fitting parameter for the mass ratio
+            aS1 (float): Fitting parameter for the spin
+            bS1 (float): Fitting parameter for the spin
+            aT1 (float): Fitting parameter for the tidal effects
+            aT2 (float): Fitting parameter for the tidal effects
+            aT3 (float): Fitting parameter for the tidal effects
+            aT4 (float): Fitting parameter for the tidal effects
+            bT1 (float): Fitting parameter for the tidal effects
+            bT2 (float): Fitting parameter for the tidal effects
+            bT3 (float): Fitting parameter for the tidal effects
+            bT4 (float): Fitting parameter for the tidal effects
+
+        Returns:
+            float: factorized merger quantity fit from BAM and SACRA simulations
+        """
+        return (
+            a0
+            * self.Q_M(aM1)
+            * self.Q_S(aS1, bS1)
+            * self.Q_T(aT1, aT2, aT3, aT4, bT1, bT2, bT3, bT4)
+        )
+
+    def p(self, a, b):
+        return a * (1 + b * self.X)
+
+    def Q_M(self, aM1):
+        return 1 + aM1 * self.X
+
+    def Q_S(self, aS1, bS1):
+        return 1 + self.p(aS1, bS1) * self.S
+
+    def Q_T(self, aT1, aT2, aT3, aT4, bT1, bT2, bT3, bT4):
+        return (
+            1 + self.p(aT1, bT1) * self.kappaT + self.p(aT2, bT2) * self.kappaT**2
+        ) / (1 + self.p(aT3, bT3) * self.kappaT + self.p(aT4, bT4) * self.kappaT**2)
+
+    def habs(self):
+        """Generate the merger amplitude of a BNS signal
+        as described in https://arxiv.org/pdf/2205.09112.pdf
+
+        Args:
+            X (float): Mass ratio parameter X = 1 - 4*nu
+            S (float): _description_
+            kappaT (float): Tidal deformability kappa_2^T = 3*nu*[(m_1/M)^3*Lambda_1 + (1 <-> 2)]
+
+        Returns:
+            float: the merger amplitude of a BNS signal
+        """
+        result = self.merger_quantity_fit(
+            0.3948,
+            -1.133,
+            -0.02992,
+            -2.593,
+            0.03902,
+            5.1846e-5,
+            0.06033,
+            1.380e-4,
+            10.41,
+            54.51,
+            10.83,
+            54.54,
+        )
+        # if result < .159 or result > 0.313:
+        #     print(f'Amplitude at merger A_mrg/M = {result:.4f} is outside of range covered by NR [0.159, 0.313]. NQCs are extrapolated.')
+        return result
+
+    def hdot(self):
+        return 0.0
+
+    def hdotdot(self):
+        """Generate the merger amplitude of a BNS signal
+        as described in https://arxiv.org/pdf/2205.09112.pdf
+
+        Args:
+            X (float): Mass ratio parameter X = 1 - 4*nu
+            S (float): _description_
+            kappaT (float): Tidal deformability kappa_2^T = 3*nu*[(m_1/M)^3*Lambda_1 + (1 <-> 2)]
+
+        Returns:
+            float: the merger amplitude of a BNS signal
+        """
+        result = self.merger_quantity_fit(
+            3.26301313e-04,
+            -1.13077252e00,
+            0.0,
+            0.0,
+            2.68719578e-06,
+            -3.26714345e-04,
+            -8.09090954e-02,
+            1.12016206e-03,
+            -1.16937476e07,
+            -9.69093360e01,
+            -5.40979547e02,
+            2.74617493e02,
+        )
+        # if result < .159 or result > 0.313:
+        #     print(f'Amplitude at merger A_mrg/M = {result:.4f} is outside of range covered by NR [0.159, 0.313]. NQCs are extrapolated.')
+        return result
+
+    def omega(self):
+        """Generate the merger frequency $\\omega_{22}$ of a BNS signal
+        as described in https://arxiv.org/pdf/2205.09112.pdf
+
+        Args:
+            X (float): Mass ratio parameter X = 1 - 4*nu
+            S (float): _description_
+            kappaT (float): Tidal deformability kappa_2^T = 3*nu*[(m_1/M)^3*Lambda_1 + (1 <-> 2)]
+
+        Returns:
+            float: the merger frequency of a BNS signal
+        """
+        result = self.merger_quantity_fit(
+            0.2276,
+            0.9233,
+            0.5938,
+            -1.994,
+            0.03445,
+            5.58e-6,
+            0.08405,
+            1.133e-4,
+            13.83,
+            517.4,
+            12.75,
+            139.8,
+        )
+        # if result < .0554 or result > 0.141:
+        #     print(f'Frequency at merger M*f_mrg/nu = {result:.4f} is outside of range covered by NR [0.0554, 0.141]. NQCs are extrapolated.')
+        return result * 2 * np.pi * self.nu
+
+    def omegadot(self):
+        """Generate the first derivative of the merger frequency $\\dot\\omega_{22}$ of a BNS signal
+        as described in http://arxiv.org/abs/2307.15125.
+
+        Args:
+            X (float): Mass ratio parameter X = 1 - 4*nu
+            S (float): _description_
+            kappaT (float): Tidal deformability kappa_2^T = 3*nu*[(m_1/M)^3*Lambda_1 + (1 <-> 2)]
+
+        Returns:
+            float: the merger frequency of a BNS signal
+        """
+        result = self.merger_quantity_fit(
+            3.77579668e-03,
+            1.03878267e03,
+            0.0,
+            0.0,
+            2.75648033e-02,
+            -9.63546192e-06,
+            3.09746692e-02,
+            2.21968735e-04,
+            -1.84060312e01,
+            -1.07391613e01,
+            1.90108414e03,
+            8.90140480e02,
+        )
+        return result
+
+    def f_2(self):
+        """Generate the post-merger peak frequency $\f_2$ of a BNS signal
+        as described in https://arxiv.org/pdf/2205.09112.pdf
+
+        Args:
+            X (float): Mass ratio parameter X = 1 - 4*nu
+            S (float): _description_
+            kappaT (float): Tidal deformability kappa_2^T = 3*nu*[(m_1/M)^3*Lambda_1 + (1 <-> 2)]
+
+        Returns:
+            float: the merger frequency of a BNS signal
+        """
+        result = self.merger_quantity_fit(
+            0.0881,
+            22.81,
+            0.2925,
+            25.0,
+            0.007023,
+            -1.782e-6,
+            0.02587,
+            6.58e-6,
+            5.428,
+            0.0,
+            39.29,
+            0.0,
+        )
+        return result

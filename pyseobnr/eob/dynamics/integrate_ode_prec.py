@@ -647,7 +647,6 @@ def compute_dynamics_quasiprecessing(
     """
 
     # Step 1: Compute PN dynamics
-
     if initial_conditions == "postadiabatic":
         combined_t, combined_y = compute_quasiprecessing_PNdynamics_opt(
             omega_ref, 0.9 * omega_start, m_1, m_2, chi_1, chi_2
@@ -664,7 +663,7 @@ def compute_dynamics_quasiprecessing(
     splines = build_splines_PN(combined_t, combined_y, m_1, m_2, omega_start)
 
     # Step 3: Evolve the non-precessing EOB evolution equations
-    (dynamics_low, dynamics_fine, dynamics, idx_restart) = compute_dynamics_prec_opt(
+    dynamics_low, dynamics_fine, dynamics, idx_restart = compute_dynamics_prec_opt(
         omega_ref,
         omega_start,
         omegaPN_f,
@@ -683,7 +682,6 @@ def compute_dynamics_quasiprecessing(
         initial_conditions=initial_conditions,
         initial_conditions_postadiabatic_type=initial_conditions_postadiabatic_type,
     )
-
     return (
         dynamics_low,
         dynamics_fine,

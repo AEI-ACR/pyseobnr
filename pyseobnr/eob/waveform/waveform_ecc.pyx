@@ -44,7 +44,7 @@ I.real = 0
 I.imag = 1
 
 cdef extern from "eob_parameters.h":
-    const int PN_limit
+    const int PN_limit_max
     const int ell_max
 
 cdef inline double cabs(complex z) noexcept nogil:
@@ -473,7 +473,12 @@ cdef double compute_flux_ecc(
         rho_coeffs_log,
         f_coeffs,
         f_coeffs_vh,
-        extra_PN_terms)
+        extra_PN_terms,
+        False,
+        None,
+        0,
+        0
+    )
     compute_rholm(v, vh, nu, eob_pars)
 
     # Updates all the modes at once in an efficient way
@@ -534,8 +539,9 @@ cpdef compute_hlms_ecc(
 
     cdef double pphi, v, H, vh, phi
     cdef (double, double, double) Kep = (0, 0, 0)
-    cdef double vs[PN_limit]
-    cdef double vhs[PN_limit]
+    cdef double vs[PN_limit_max]
+    cdef double vhs[PN_limit_max]
+    cdef int current_pn_limit = eob_pars.flux_params.PN_limit
 
     # Source term
     cdef double Slm = 0.0
@@ -566,8 +572,13 @@ cpdef compute_hlms_ecc(
         rho_coeffs_log,
         f_coeffs,
         f_coeffs_vh,
-        extra_PN_terms)
-    compute_delta_coeffs(nu, delta, a, chi_S, chi_A, delta_coeffs, delta_coeffs_vh)
+        extra_PN_terms,
+        False,
+        None,
+        0,
+        0
+    )
+    compute_delta_coeffs(nu, delta, a, chi_S, chi_A, delta_coeffs, delta_coeffs_vh, False, None, 0, 0)
 
     # Modes
     cdef int nb_modes = len(eob_pars.mode_array)
@@ -600,7 +611,7 @@ cpdef compute_hlms_ecc(
             raise ValueError("Domain error")
 
         # Various powers of v that enter the computation of rholm and deltalm
-        for j in range(1, PN_limit):
+        for j in range(1, current_pn_limit):
             vs[j] = v**j
             vhs[j] = vh**j
 
@@ -755,8 +766,9 @@ cpdef compute_special_coeffs_ecc(
     cdef int i, j, l, m, power
     cdef double phi, pphi, H, v, vh, vphi, vphi2, source1, source2, Slm
     cdef double rholm, hlm, K, amp, min_amp
-    cdef double vs[PN_limit]
-    cdef double vhs[PN_limit]
+    cdef double vs[PN_limit_max]
+    cdef double vhs[PN_limit_max]
+    cdef int current_pn_limit = eob_pars.flux_params.PN_limit
 
     cdef cnp.ndarray[DTYPE_T, ndim=1] dynamics_all = np.zeros(dynamics.shape[1]-1)
 
@@ -774,7 +786,11 @@ cpdef compute_special_coeffs_ecc(
         eob_pars.flux_params.rho_coeffs_log,
         eob_pars.flux_params.f_coeffs,
         eob_pars.flux_params.f_coeffs_vh,
-        eob_pars.flux_params.extra_PN_terms
+        eob_pars.flux_params.extra_PN_terms,
+        False,
+        None,
+        0,
+        0
     )
 
     compute_delta_coeffs(
@@ -784,7 +800,11 @@ cpdef compute_special_coeffs_ecc(
         eob_pars.p_params.chi_S,
         eob_pars.p_params.chi_A,
         eob_pars.flux_params.delta_coeffs,
-        eob_pars.flux_params.delta_coeffs_vh
+        eob_pars.flux_params.delta_coeffs_vh,
+        False,
+        None,
+        0.,
+        0.,
     )
 
     # Now, loop over every mode of interest
@@ -802,7 +822,7 @@ cpdef compute_special_coeffs_ecc(
         vphi = v  # omega/omega_circ**(2./3)
         vphi2 = vphi*vphi
 
-        for j in range(PN_limit):
+        for j in range(current_pn_limit):
             vs[j] = v**j
             vhs[j] = vh**j
         source1 = (H * H - 1.0) / (2.0 * eob_pars.p_params.nu) + 1.0  # H_eff

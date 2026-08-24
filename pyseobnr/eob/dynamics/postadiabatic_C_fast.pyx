@@ -23,6 +23,10 @@ from .initial_conditions_aligned_opt import computeIC_opt as computeIC
 from .integrate_ode import compute_dynamics_opt as compute_dynamics
 from .rhs_aligned cimport augment_dynamics
 from .postadiabatic_C cimport fin_diff_derivative, cumulative_integral, Kerr_ISCO, compute_adiabatic_solution
+from .integrate_ode_tidal import compute_dynamics_opt_tidal
+from pyseobnr.eob.utils.containers cimport EOBParams
+from pyseobnr.eob.hamiltonian.Hamiltonian_C cimport Hamiltonian_C
+from pyseobnr.eob.waveform.waveform cimport RadiationReactionForce
 
 
 @cython.wraparound(False)
@@ -345,7 +349,8 @@ cpdef cnp.ndarray[double, ndim=2] compute_postadiabatic_dynamics(
     double m_2,
     double tol=1e-12,
     EOBParams params=None,
-    int order=8
+    int order=8,
+    bint Tidal=False
 ):
     """Compute the dynamics using PA procedure starting from omega0
 
@@ -378,6 +383,8 @@ cpdef cnp.ndarray[double, ndim=2] compute_postadiabatic_dynamics(
     cdef double r_final_prefactor = 2.7+chi_eff*(1-4.*nu)
     cdef double r_ISCO = Kerr_ISCO(chi_1, chi_2, m_1, m_2)[0]
     cdef double r_final = max(10, r_final_prefactor * r_ISCO)
+    if Tidal:
+        r_final *= 2.
 
     cdef double dr0 = 0.2
     cdef int r_size = int(ceil((r0 - r_final) / dr0))
@@ -465,7 +472,10 @@ cpdef compute_combined_dynamics(
     double step_back=50,
     str backend="ode",
     int PA_order=8,
-    double r_stop = -1
+    double r_stop = -1,
+    bint Tidal = False,
+    float omega_stop_NR = 1.,
+    float omega_stop_resonance = 1.,
 ):
     """
     Compute the full inspiral dynamics by combining PA + ODE
@@ -488,7 +498,8 @@ cpdef compute_combined_dynamics(
             m_2,
             tol=tol,
             params=params,
-            order=PA_order
+            order=PA_order,
+            Tidal=Tidal
         )
         PA_success = True
         ode_y_init = postadiabatic_dynamics[-1, 1:]
@@ -497,24 +508,46 @@ cpdef compute_combined_dynamics(
         PA_success = False
         ode_y_init = None
 
-    ode_dynamics_low, ode_dynamics_high = compute_dynamics(
-        omega0,
-        H,
-        RR,
-        chi_1,
-        chi_2,
-        m_1,
-        m_2,
-        rtol=rtol_ode,
-        atol=atol_ode,
-        backend=backend,
-        params=params,
-        step_back=step_back,
-        max_step=0.5,
-        min_step=1.0e-9,
-        y_init=ode_y_init,
-        r_stop=r_stop
-    )
+    if Tidal:
+        ode_dynamics_low, ode_dynamics_high = compute_dynamics_opt_tidal(
+            omega0,
+            H,
+            RR,
+            chi_1,
+            chi_2,
+            m_1,
+            m_2,
+            rtol=rtol_ode,
+            atol=atol_ode,
+            backend=backend,
+            params=params,
+            step_back=step_back,
+            max_step=0.5,
+            min_step=1.0e-9,
+            y_init=ode_y_init,
+            r_stop=r_stop,
+            omega_stop_NR = omega_stop_NR,
+            omega_stop_resonance = omega_stop_resonance,
+        )
+    else:
+        ode_dynamics_low, ode_dynamics_high = compute_dynamics(
+            omega0,
+            H,
+            RR,
+            chi_1,
+            chi_2,
+            m_1,
+            m_2,
+            rtol=rtol_ode,
+            atol=atol_ode,
+            backend=backend,
+            params=params,
+            step_back=step_back,
+            max_step=0.5,
+            min_step=1.0e-9,
+            y_init=ode_y_init,
+            r_stop=r_stop
+        )
 
     if PA_success is True:
         postadiabatic_dynamics = augment_dynamics(postadiabatic_dynamics, chi_1, chi_2, m_1, m_2, H)

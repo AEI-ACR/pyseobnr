@@ -27,6 +27,19 @@ extensions = [
         define_macros=[_numpy_no_deprecated_api],
     ),
     Extension(
+        "pyseobnr.eob.utils.utils_tidal_opt_C",
+        ["pyseobnr/eob/utils/utils_tidal_opt_C.pyx"],
+        include_dirs=[np.get_include(), "pyseobnr/eob/utils"],
+        extra_compile_args=["-O3"],
+    ),
+    Extension(
+        "pyseobnr.eob.hamiltonian.Ham_align_v5T",
+        ["pyseobnr/eob/hamiltonian/Ham_align_v5T.pyx"],
+        include_dirs=[np.get_include(), "pyseobnr/eob/utils"],
+        extra_compile_args=["-O3"],
+        define_macros=[("CYTHON_TRACE", "1")],
+    ),
+    Extension(
         "pyseobnr.eob.hamiltonian.Hamiltonian_C",
         ["pyseobnr/eob/hamiltonian/Hamiltonian_C.pyx"],
         include_dirs=[np.get_include(), "pyseobnr/eob/utils"],

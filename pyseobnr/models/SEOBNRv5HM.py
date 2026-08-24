@@ -486,7 +486,10 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
             # Step 3: compute the special calibration coefficients to tame zeros in some odd-m modes
             input_value_fits = InputValueFits(
-                self.m_1, self.m_2, [0.0, 0.0, self.chi_1], [0.0, 0.0, self.chi_2]
+                self.m_1,
+                self.m_2,
+                [0.0, 0.0, self.chi_1],
+                [0.0, 0.0, self.chi_2],
             )
             amp_fits = input_value_fits.hsign()
             # The following values were determined *empirically*
@@ -529,6 +532,7 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 dA_dict=self.dA_dict,
                 dw_dict=self.dw_dict,
             )
+
             self.nqc_coeffs = nqc_coeffs
             # Apply NQC corrections to high sampling modes
             apply_nqc_corrections(hlms_fine, nqc_coeffs, polar_dynamics_fine)
@@ -902,7 +906,6 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
         # Whether one is including QNM deviations in the precession rate computation
         self.omega_prec_deviation = self.settings.get("omega_prec_deviation", True)
-
         self.eob_pars.aligned = False
 
     def _set_H_coeffs(self):

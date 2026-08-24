@@ -1,6 +1,7 @@
 *.c
 *.so
 *.cpp
+*.pyc
 pyseobnr/_version.py
 build/
 dist/

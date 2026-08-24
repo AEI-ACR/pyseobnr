@@ -2,6 +2,7 @@
 """
 Contains functions associated with evolving the equations of motion
 """
+
 import enum
 
 import numpy as np

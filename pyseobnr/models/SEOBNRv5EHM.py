@@ -742,12 +742,12 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                 )
 
             elif self.nqc_method == "no_nqc":
-                (r_av_low, omega_av_low, pr_av_low) = (
+                r_av_low, omega_av_low, pr_av_low = (
                     dynamics_low[:, 1],
                     dynamics_low[:, -1],
                     dynamics_low[:, 3],
                 )
-                (r_av_fine, omega_av_fine, pr_av_fine) = (
+                r_av_fine, omega_av_fine, pr_av_fine = (
                     dynamics_fine[:, 1],
                     dynamics_fine[:, -1],
                     dynamics_fine[:, 3],

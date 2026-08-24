@@ -24,9 +24,11 @@ from pyseobnr.generate_waveform import (
     SupportedApproximants,
     generate_modes_opt,
 )
+from pyseobnr.models import SEOBNRv5THM
 from pyseobnr.models.common import VALID_MODES, VALID_MODES_ECC
 from pyseobnr.models.SEOBNRv5EHM import SEOBNRv5EHM_opt
 from pyseobnr.models.SEOBNRv5HM import SEOBNRv5HM_opt, SEOBNRv5PHM_opt
+from pyseobnr.models.SEOBNRv5THM import SEOBNRv5THM_opt
 
 
 @pytest.fixture
@@ -1239,6 +1241,7 @@ def test_generate_modes_opt_precessing_chi_array_float_int():
         "SEOBNRv5HM": pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5HM_opt,
         "SEOBNRv5PHM": pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5PHM_opt,
         "SEOBNRv5EHM": pyseobnr.generate_waveform.SEOBNRv5EHM.SEOBNRv5EHM_opt,
+        "SEOBNRv5THM": SEOBNRv5THM.SEOBNRv5THM_opt,
     }
 
     for chi_2 in (0, 0.3):
@@ -1502,6 +1505,7 @@ def test_post_adiabatic_settings(get_exit_stack):
     all_classes = [
         pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5PHM_opt,
         pyseobnr.generate_waveform.SEOBNRv5HM.SEOBNRv5HM_opt,
+        SEOBNRv5THM.SEOBNRv5THM_opt,
     ]
     all_mocks = []
     for current_class in all_classes:
@@ -1519,7 +1523,7 @@ def test_post_adiabatic_settings(get_exit_stack):
     approx: SupportedApproximants
     approximants_supporting_adiabatic: list[SupportedApproximants] = cast(
         list[SupportedApproximants],
-        list(set(get_args(SupportedApproximants)) - {"SEOBNRv5EHM"}),
+        list(set(get_args(SupportedApproximants)) - {"SEOBNRv5EHM", "SEOBNRv5THM"}),
     )
     for approx in approximants_supporting_adiabatic:
         print(approx)

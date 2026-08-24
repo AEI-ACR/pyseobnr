@@ -3,10 +3,11 @@ cimport cython
 cimport numpy as np
 import numpy as np
 
+
 cdef class PhysicalParams:
     @cython.cdivision(True)
     @cython.embedsignature(True)
-    def __cinit__(self,dict dc):
+    def __cinit__(self, dict dc):
         self.m_1 = dc["m_1"]
         self.m_2 = dc["m_2"]
         self.M = self.m_1+self.m_2
@@ -14,19 +15,20 @@ cdef class PhysicalParams:
         self.X_1 = self.m_1/self.M
         self.X_2 = self.m_2/self.M
         self.delta = self.m_1 - self.m_2
-        self.a1 =  dc["a1"]
-        self.a2 =  dc["a2"]
+        self.a1 = dc["a1"]
+        self.a2 = dc["a2"]
         self.chi_1 = dc["chi_1"]
         self.chi_2 = dc["chi_2"]
         self.chi1_v = dc["chi1_v"]
         self.chi2_v = dc["chi2_v"]
         self.lN = dc["lN"]
+
         self.omega = dc["omega"]
         self.omega_circ = dc["omega"]
         self.H_val = dc["H_val"]
         self._compute_derived_quants()
 
-    cpdef void update_spins(self,double chi_1,double chi_2):
+    cpdef void update_spins(self, double chi_1, double chi_2):
         """
         Update the aligned spins and the derived quantities
         """
@@ -49,7 +51,6 @@ cdef class PhysicalParams:
         self.ap = self.X_1*self.chi_1+self.X_2*self.chi_2
         self.am = self.X_1*self.chi_1-self.X_2*self.chi_2
 
-
 cdef class CalibCoeffs():
     def __cinit__(self, dc):
         self.a6 = dc.get("a6", 0)
@@ -59,27 +60,29 @@ cdef class CalibCoeffs():
 
 cdef class FluxParams:
     @cython.embedsignature(True)
-    def __cinit__(self,special_modes,extra_PN_terms):
-        self.Tlm = np.zeros((ell_max+1,ell_max+1),dtype=np.float64)
-        self.rho_coeffs = np.zeros((ell_max+1,ell_max+1,PN_limit),dtype=np.float64)
-        self.rho_coeffs_log = np.zeros((ell_max+1,ell_max+1,PN_limit),dtype=np.float64)
-        self.f_coeffs = np.zeros((ell_max+1,ell_max+1,PN_limit),dtype=np.float64)
-        self.f_coeffs_vh = np.zeros((ell_max+1,ell_max+1,PN_limit),dtype=np.complex128)
-        self.delta_coeffs = np.zeros((ell_max+1,ell_max+1,PN_limit),dtype=np.complex128)
-        self.delta_coeffs_vh = np.zeros((ell_max+1,ell_max+1,PN_limit),dtype=np.complex128)
-        self.rholm = np.zeros((ell_max+1,ell_max+1),dtype=np.complex128)
-        self.deltalm = np.zeros((ell_max+1,ell_max+1),dtype=np.complex128)
-        self.prefixes = np.zeros((ell_max+1,ell_max+1),dtype=np.complex128)
-        self.prefixes_abs = np.zeros((ell_max+1,ell_max+1),dtype=np.float64)
-        self.nqc_coeffs = np.zeros((ell_max+1,ell_max+1,3),dtype=np.float64)
-        self.extra_coeffs = np.zeros((ell_max+1,ell_max+1,PN_limit),dtype=np.float64)
-        self.extra_coeffs_log = np.zeros((ell_max+1,ell_max+1,PN_limit),dtype=np.float64)
+    def __cinit__(self, special_modes, extra_PN_terms, extra_tidal_terms):
+        self.Tlm = np.zeros((ell_max + 1, ell_max + 1), dtype=np.float64)
+        self.rho_coeffs = np.zeros((ell_max + 1, ell_max + 1, PN_limit_max), dtype=np.float64)
+        self.rho_coeffs_log = np.zeros((ell_max + 1, ell_max + 1, PN_limit_max), dtype=np.float64)
+        self.f_coeffs = np.zeros((ell_max + 1, ell_max + 1, PN_limit_max), dtype=np.float64)
+        self.f_coeffs_vh = np.zeros((ell_max + 1, ell_max + 1, PN_limit_max), dtype=np.complex128)
+        self.delta_coeffs = np.zeros((ell_max + 1, ell_max + 1, PN_limit_max), dtype=np.complex128)
+        self.delta_coeffs_vh = np.zeros((ell_max + 1, ell_max + 1, PN_limit_max), dtype=np.complex128)
+        self.rholm = np.zeros((ell_max + 1, ell_max + 1), dtype=np.complex128)
+        self.deltalm = np.zeros((ell_max + 1, ell_max + 1), dtype=np.complex128)
+        self.prefixes = np.zeros((ell_max + 1, ell_max + 1), dtype=np.complex128)
+        self.prefixes_abs = np.zeros((ell_max + 1, ell_max + 1), dtype=np.float64)
+        self.nqc_coeffs = np.zeros((ell_max + 1, ell_max + 1, 3), dtype=np.float64)
+        self.extra_coeffs = np.zeros((ell_max + 1, ell_max + 1, PN_limit_max), dtype=np.float64)
+        self.extra_coeffs_log = np.zeros((ell_max + 1, ell_max + 1, PN_limit_max), dtype=np.float64)
         self.special_modes = special_modes
         self.extra_PN_terms = extra_PN_terms
+        self.extra_tidal_terms = extra_tidal_terms
+        self.PN_limit = PN_limit_max if extra_tidal_terms else PN_limit_default
 
 cdef class Dynamics:
     def __cinit__(self):
-        self.p_circ = np.zeros(2,dtype=np.float64)
+        self.p_circ = np.zeros(2, dtype=np.float64)
 
 
 cdef class EccParams:
@@ -105,7 +108,8 @@ cdef class EccParams:
 
     def __init__(
         self,
-        dc: dict):
+        dc: dict
+    ):
         """
         Initializes the eccentric parameters.
 
@@ -151,7 +155,37 @@ cdef class EccParams:
         self.x_avg = 0.0
 
 
-#@cython.embedsignature(True)
+cdef class TidalParams:
+    """
+    Contains the tidal parametrization.
+    """
+    def __cinit__(self, dict dc):
+
+        # Handling the tidal parameters
+        self.lambda2Tidal1 = dc.get("lambda2Tidal1", 0)
+        self.lambda2Tidal2 = dc.get("lambda2Tidal2", 0)
+        self.omega02Tidal1 = dc.get("omega02Tidal1", 0)
+        self.omega02Tidal2 = dc.get("omega02Tidal2", 0)
+        self.sqrtepsilon2Tidal1 = dc.get("sqrtepsilon2Tidal1", 0)
+        self.sqrtepsilon2Tidal2 = dc.get("sqrtepsilon2Tidal2", 0)
+        self.spinshiftomega02Tidal1 = dc.get("spinshiftomega02Tidal1", 0)
+        self.spinshiftomega02Tidal2 = dc.get("spinshiftomega02Tidal2", 0)
+        self.lambda3Tidal1 = dc.get("lambda3Tidal1", 0)
+        self.lambda3Tidal2 = dc.get("lambda3Tidal2", 0)
+        self.omega03Tidal1 = dc.get("omega03Tidal1", 0)
+        self.omega03Tidal2 = dc.get("omega03Tidal2", 0)
+        self.sqrtepsilon3Tidal1 = dc.get("sqrtepsilon3Tidal1", 0)
+        self.sqrtepsilon3Tidal2 = dc.get("sqrtepsilon3Tidal2", 0)
+        self.spinshiftomega03Tidal1 = dc.get("spinshiftomega03Tidal1", 0)
+        self.spinshiftomega03Tidal2 = dc.get("spinshiftomega03Tidal2", 0)
+        self.CES21 = dc.get("CES21", 1)
+        self.CES22 = dc.get("CES22", 1)
+        self.CES41 = dc.get("CES41", 1)
+        self.CES42 = dc.get("CES42", 1)
+        self.CBS31 = dc.get("CBS31", 1)
+        self.CBS32 = dc.get("CBS32", 1)
+
+# @cython.embedsignature(True)
 cdef class EOBParams:
     """
     Holds EOB quantities
@@ -165,7 +199,9 @@ cdef class EOBParams:
         extra_PN_terms=True,
         mode_array=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)],
         special_modes=[(2, 1), (4, 3), (5, 5)],
-        ecc_model=False):
+        ecc_model=False,
+        tidal_model=False
+    ):
         """
         Initializes the EOB parameters.
 
@@ -174,6 +210,12 @@ cdef class EOBParams:
             :py:class:`.EccParams`.
             This would require the ``physical_params`` to contain the keys required
             by the instantiation of :py:class:`.EccParams`.
+
+        :param bool tidal_model: if set to ``True``, the EOB params are associated
+            to the tidal model and will initialize the class
+            :py:class:`.TidalParams`.
+            This would require the ``physical_params`` to contain the keys required
+            by the instantiation of :py:class:`.TidalParams`.
         """
         # Needed to get the signature to embed
         pass
@@ -186,14 +228,16 @@ cdef class EOBParams:
         extra_PN_terms=True,
         mode_array=[(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3), (5, 5)],
         special_modes=[(2, 1), (4, 3), (5, 5)],
-        ecc_model=False):
+        ecc_model=False,
+        tidal_model=False
+    ):
 
         # Physical params (e.g. spins)
         self.p_params = PhysicalParams(physical_params)
         # Calibration coefficients
         self.c_coeffs = CalibCoeffs(coeffs)
         # Flux/waveform quantities
-        self.flux_params = FluxParams(special_modes,extra_PN_terms)
+        self.flux_params = FluxParams(special_modes, extra_PN_terms, tidal_model)
         # Dynamics related quantities
         self.dynamics = Dynamics()
         # Mode array to use for generating modes
@@ -203,3 +247,6 @@ cdef class EOBParams:
         # Parameters for the eccentric model
         if ecc_model:
             self.ecc_params = EccParams(physical_params)
+
+        if tidal_model:
+            self.tidal_params = TidalParams(physical_params)

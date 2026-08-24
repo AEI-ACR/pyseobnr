@@ -1,8 +1,9 @@
 # cython: language_level=3
-from pyseobnr.eob.utils.containers cimport EOBParams, FluxParams, qp_param_t
+from pyseobnr.eob.utils.containers cimport EOBParams, FluxParams, TidalParams, qp_param_t
 
 cdef extern from "eob_parameters.h":
-    const int PN_limit
+    const int PN_limit_default
+    const int PN_limit_max
     const int ell_max
 
 cpdef (double, double) RR_force(
@@ -57,7 +58,12 @@ cpdef void compute_rho_coeffs(
     double[:, :, :] rho_coeffs_log,
     double[:, :, :] f_coeffs,
     double complex[:, :, :] f_coeffs_vh,
-    bint extra_PN_terms)
+    bint extra_PN_terms,
+    bint extra_tidal_terms,  # = *
+    TidalParams tidal_params,  # = *
+    double X_1,  # = 0,
+    double X_2,  # = 0,
+)
 
 cdef double complex compute_rholm_single(
     double[] vs,
@@ -81,9 +87,14 @@ cdef public void compute_delta_coeffs(
     double chiS,
     double chiA,
     double complex[:, :, :] delta_coeffs,
-    double complex[:, :, :] delta_coeffs_vh)
+    double complex[:, :, :] delta_coeffs_vh,
+    bint extra_tidal_terms,
+    TidalParams tidal_params,
+    double X_1,
+    double X_2,
+)
 
-cpdef double  EOBFluxCalculateNewtonianMultipoleAbs(
+cpdef double EOBFluxCalculateNewtonianMultipoleAbs(
     double x,
     double phi,
     int l,
