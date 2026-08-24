@@ -132,6 +132,7 @@ class SEOBNRv5EHM(GWSignalPySEOBNRMixin, CompactBinaryCoalescenceGenerator):
         "warning_bwd_int",
         "convention_coprecessing_phase22_set_to_0_at_reference_frequency",
         "convention_t0_set_to_0_at_coprecessing_amplitude22_peak",
+        "radial_anomaly_type",
     )
 
     def __init__(self, **kwargs):
@@ -170,13 +171,44 @@ class SEOBNRv5EHM(GWSignalPySEOBNRMixin, CompactBinaryCoalescenceGenerator):
         self.waveform_dict = self._strip_units(self.waveform_dict)
         self.waveform_dict["approximant"] = self.metadata["approximant"]
         self.waveform_dict["f_ref"] = self.waveform_dict["f22_ref"]
+
         # overriding of the function because of this
-        self.waveform_dict["rel_anomaly"] = self.waveform_dict["meanPerAno"]
+
+        # Interpretation of "meanPerAno" as the relativistic anomaly or
+        # as the mean anomaly (this is decided within the pyseobnr code);
+        # the default is to interpret it as the relativistic anomaly
+        self.waveform_dict["radial_anomaly_type"] = parameters_extra.get(
+            "radial_anomaly_type", "rel_anomaly"
+        )
+        if self.waveform_dict["radial_anomaly_type"] == "rel_anomaly":
+            self.waveform_dict["rel_anomaly"] = self.waveform_dict["meanPerAno"]
+        elif self.waveform_dict["radial_anomaly_type"] == "mean_anomaly":
+            self.waveform_dict["mean_anomaly"] = self.waveform_dict["meanPerAno"]
+        else:
+            raise NotImplementedError(
+                "Need to specify 'radial_anomaly_type'. Supported options: "
+                "'rel_anomaly' (default) and 'mean_anomaly'."
+            )
+        self.waveform_dict.pop("meanPerAno")
 
         # Make sure to update the waveform dictionary with extra parameters
         self.waveform_dict.update(**parameters_extra)
 
         return GenerateWaveform(self.waveform_dict)
+
+    def _generate_td_polarizations(self, **parameters):
+        # overriding the conditioning employed
+        gen_wf = self._generate_waveform_class(**parameters)
+        if self.waveform_dict.get("condition"):
+            hp, hc = gen_wf.generate_td_polarizations_conditioned_1()
+        else:
+            hp, hc = gen_wf.generate_td_polarizations()
+        epoch = hp.epoch.gpsSeconds + hp.epoch.gpsNanoSeconds / 1e9
+        times = hp.deltaT * arange(hp.data.length) + epoch
+        return (
+            TimeSeries(hp.data.data, times=times, name="hp"),
+            TimeSeries(hc.data.data, times=times, name="hc"),
+        )
 
 
 class SEOBNRv5HM(GWSignalPySEOBNRMixin, CompactBinaryCoalescenceGenerator):

@@ -17,6 +17,7 @@ from pyseobnr.eob.hamiltonian.Ham_align_a6_apm_AP15_DP23_gaugeL_Tay_C import (
 from pyseobnr.eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
     Ham_AvgS2precess_simple_cython_PA_AD as Ham_prec_pa_cy,
 )
+from pyseobnr.eob.utils.utils_eccentric import rel_anomaly_from_mean_anomaly
 from pyseobnr.eob.waveform.waveform import SEOBNRv5RRForce
 from pyseobnr.eob.waveform.waveform_ecc import SEOBNRv5RRForceEcc
 from pyseobnr.generate_waveform import (
@@ -189,6 +190,215 @@ def test_default_settings_EHM():
     #   current : MTSUN_SI = 4.925490947641266978197229498498379006e-6
     assert cls.dt == 2.4627454738206332e-05  # 2.4627455127717882e-05
     assert cls.return_modes == [(2, 2), (2, 1), (3, 3), (3, 2), (4, 4), (4, 3)]
+
+
+def test_radial_anomaly_settings_EHM():
+    """
+    Checks the resolution of the radial-anomaly parameters in
+    GenerateWaveform, including the compatibility with the current
+    GWsignal interface of lalsuite.
+    """
+
+    base = {
+        "mass1": 30.0,
+        "mass2": 20.0,
+        "eccentricity": 0.3,
+        "approximant": "SEOBNRv5EHM",
+    }
+    zeta = rel_anomaly_from_mean_anomaly(0.6, 0.3)
+
+    # no anomaly: 'rel_anomaly' defaults to zero
+    wfm_gen = GenerateWaveform({**base})
+    assert wfm_gen.parameters["rel_anomaly"] == 0.0
+    assert wfm_gen.parameters["radial_anomaly_type"] == "rel_anomaly"
+
+    # 'rel_anomaly' passes through unchanged
+    wfm_gen = GenerateWaveform({**base, "rel_anomaly": 0.6})
+    assert wfm_gen.parameters["rel_anomaly"] == 0.6
+    assert wfm_gen.parameters["radial_anomaly_type"] == "rel_anomaly"
+
+    # 'mean_anomaly' is transformed to the relativistic anomaly, and the
+    # anomaly type is inferred when 'radial_anomaly_type' is not provided
+    wfm_gen = GenerateWaveform({**base, "mean_anomaly": 0.6})
+    assert wfm_gen.parameters["rel_anomaly"] == zeta
+    assert wfm_gen.parameters["radial_anomaly_type"] == "mean_anomaly"
+
+    # an explicit 'radial_anomaly_type' selects the anomaly parameter
+    wfm_gen = GenerateWaveform(
+        {**base, "rel_anomaly": 0.6, "radial_anomaly_type": "rel_anomaly"}
+    )
+    assert wfm_gen.parameters["rel_anomaly"] == 0.6
+    wfm_gen = GenerateWaveform(
+        {**base, "mean_anomaly": 0.6, "radial_anomaly_type": "mean_anomaly"}
+    )
+    assert wfm_gen.parameters["rel_anomaly"] == zeta
+
+    # the current GWsignal interface of lalsuite copies the value of
+    # 'meanPerAno' into 'rel_anomaly', leaves 'meanPerAno' in the
+    # parameters and does not send 'radial_anomaly_type': 'meanPerAno'
+    # must be ignored and 'rel_anomaly' employed
+    wfm_gen = GenerateWaveform(
+        {
+            **base,
+            "rel_anomaly": 0.6,
+            "meanPerAno": 0.6,
+            "gwsignal_environment": True,
+        }
+    )
+    assert wfm_gen.parameters["rel_anomaly"] == 0.6
+    assert wfm_gen.parameters["radial_anomaly_type"] == "rel_anomaly"
+
+    # an updated GWsignal interface may instead send exactly one anomaly
+    # parameter together with the matching 'radial_anomaly_type'
+    wfm_gen = GenerateWaveform(
+        {
+            **base,
+            "mean_anomaly": 0.6,
+            "radial_anomaly_type": "mean_anomaly",
+            "gwsignal_environment": True,
+        }
+    )
+    assert wfm_gen.parameters["rel_anomaly"] == zeta
+
+
+def test_radial_anomaly_settings_errors_EHM():
+    """
+    Checks the error handling of the radial-anomaly parameters in
+    GenerateWaveform.
+    """
+
+    base = {
+        "mass1": 30.0,
+        "mass2": 20.0,
+        "eccentricity": 0.3,
+        "approximant": "SEOBNRv5EHM",
+    }
+
+    with pytest.raises(ValueError, match="Only one parameter can be specified between"):
+        GenerateWaveform(base | {"rel_anomaly": 0.2, "mean_anomaly": 0.6})
+
+    with pytest.raises(ValueError, match="'mean_anomaly' was provided"):
+        GenerateWaveform(
+            base | {"mean_anomaly": 0.6, "radial_anomaly_type": "rel_anomaly"}
+        )
+
+    with pytest.raises(ValueError, match="'rel_anomaly' was provided"):
+        GenerateWaveform(
+            base | {"rel_anomaly": 0.6, "radial_anomaly_type": "mean_anomaly"}
+        )
+
+    with pytest.raises(ValueError, match="'rel_anomaly' was provided"):
+        GenerateWaveform(
+            base | {"rel_anomaly": 0.6, "radial_anomaly_type": "mean_anomaly"}
+        )
+
+    # this error is not implemented
+    # with pytest.raises(NotImplementedError):
+    #     GenerateWaveform(base | {"meanPerAno": 0.1})
+
+    with pytest.raises(NotImplementedError, match="valid approximant"):
+        GenerateWaveform(base | {"mean_anomaly": 0.6, "anomaly_approximant": "1PN"})
+
+    with pytest.raises(ValueError, match="has to be a real number"):
+        GenerateWaveform(base | {"mean_anomaly": "0.6"})
+    with pytest.raises(ValueError, match="has to be a real number"):
+        GenerateWaveform(base | {"mean_anomaly": True})
+
+    # non-eccentric approximants keep rejecting anomaly inputs
+    with pytest.raises(ValueError, match="Use the approximant 'SEOBNRv5EHM'"):
+        GenerateWaveform(
+            {
+                "mass1": 30.0,
+                "mass2": 20.0,
+                "approximant": "SEOBNRv5HM",
+                "mean_anomaly": 0.5,
+            }
+        )
+
+
+def test_mean_anomaly_scan():
+    # scan the mean anomaly over a full period through the
+    # native mean-anomaly path and track two scalar summaries (peak time, peak amplitude).
+    # The waveform must vary smoothly and return to (numerically) the same configuration at
+    # $\ell = 2\pi$. Note that $\zeta(2\pi) = 2\pi$ enters the initial conditions as a
+    # *different float* than $\zeta(0) = 0$ (it is not reduced mod $2\pi$ beforehand), so the
+    # periodicity checks are soft, with measured values recorded.
+
+    ELL_SCAN = np.array([0.0, np.pi / 2, np.pi, 3 * np.pi / 2, 2 * np.pi])
+    t_peaks, A_peaks = [], []
+
+    m1, m2 = 30.0, 30.0  # [Msun]
+    s1z, s2z = 0.5, -0.2
+    deltaT = 1.0 / 4096.0  # [s]
+    f_min = 20.0  # f22_start = f22_ref [Hz]
+    f_max = 512.0  # [Hz]
+    distance = 100.0  # [Mpc]
+    inclination = 0.0  # [rad]
+    phase = 0.0  # [rad]
+
+    base = {
+        "mass1": m1,
+        "mass2": m2,
+        "spin1z": s1z,
+        "spin2z": s2z,
+        "deltaT": deltaT,
+        "f22_start": f_min,
+        "f_ref": f_min,
+        "f_max": f_max,
+        "phi_ref": phase,
+        "distance": distance,
+        "inclination": inclination,
+        "eccentricity": 0.0,
+        "approximant": "SEOBNRv5EHM",
+    }
+
+    for ell in ELL_SCAN:
+        wf_s = GenerateWaveform(base | dict(eccentricity=0.3, mean_anomaly=float(ell)))
+        hp_s, hc_s = wf_s.generate_td_polarizations_conditioned_1()
+        h = hp_s.data.data - 1j * hc_s.data.data
+        amp = np.abs(h)
+        i_pk = int(np.argmax(amp))
+        t_s = float(hp_s.epoch) + hp_s.deltaT * np.arange(len(amp))
+        assert (
+            len(amp) > 0
+            and bool(np.all(np.isfinite(hp_s.data.data)))
+            and bool(np.all(np.isfinite(hc_s.data.data)))
+        )
+        t_peaks.append(t_s[i_pk])
+        A_peaks.append(amp[i_pk])
+
+    t_peaks = np.array(t_peaks)
+    A_peaks = np.array(A_peaks)
+    rel_amp = abs(A_peaks[0] - A_peaks[-1]) / A_peaks[0]
+    dt_peak = abs(t_peaks[0] - t_peaks[-1])
+
+    assert rel_amp <= 1e-3, f"rel diff = {rel_amp:.2e} (tol 1e-3)"
+    assert (
+        dt_peak <= 2 * deltaT
+    ), f"|dt| = {dt_peak:.2e} s (tol 2*deltaT = {2 * deltaT:.2e})"
+
+    # at $e = 0$ the anomaly is physically irrelevant; the waveform must be
+    # (numerically) independent of it. This is a soft check with the measured value reported.
+
+    hps = {}
+    for z0 in [0.0, 1.5, 4.0]:
+        wf_e0 = GenerateWaveform(base | dict(eccentricity=0.0, rel_anomaly=z0))
+        hp_e0, _ = wf_e0.generate_td_polarizations_conditioned_1()
+        hps[z0] = hp_e0.data.data
+
+    # align at the end (merger) in case the lengths differ slightly
+    n_min = min(len(v) for v in hps.values())
+    scale = np.max(np.abs(hps[0.0]))
+    worst = 0.0
+    for z0 in [1.5, 4.0]:
+        a = hps[0.0][len(hps[0.0]) - n_min :]
+        b = hps[z0][len(hps[z0]) - n_min :]
+        worst = max(worst, np.max(np.abs(a - b)) / scale)
+    lengths = {z0: len(v) for z0, v in hps.items()}
+    assert (
+        worst <= 1e-2
+    ), f"max rel sup-norm diff = {worst:.2e} (tol 1e-2); lengths = {lengths}"
+    assert all(_ == lengths[0] for _ in lengths.values())
 
 
 def test_mode_arrays_settings_with_lmax_HM(basic_settings):
