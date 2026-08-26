@@ -9,6 +9,10 @@ from gwpy.timeseries import TimeSeries
 
 import pytest
 
+from pyseobnr.eob.utils.utils_eccentric import rel_anomaly_from_mean_anomaly
+from pyseobnr.generate_waveform import GenerateWaveform
+from pyseobnr.plugins.gwsignal_plugin import SEOBNRv5EHM, SEOBNRv5HM, SEOBNRv5PHM
+
 
 @pytest.fixture
 def basic_settings():
@@ -51,7 +55,6 @@ def basic_settings():
 
 
 def test_gwsignal_plugin_td_v5phm(basic_settings):
-    from pyseobnr.plugins.gwsignal_plugin import SEOBNRv5HM, SEOBNRv5PHM
 
     arguments_dict = {
         "mass1": basic_settings["mass1"] * u.solMass,
@@ -227,7 +230,6 @@ def test_gwsignal_plugin_td_v5phm(basic_settings):
 
 
 def test_gwsignal_plugin_td_v5ehm(basic_settings):
-    from pyseobnr.plugins.gwsignal_plugin import SEOBNRv5EHM
 
     arguments_dict = {
         "mass1": basic_settings["mass1"] * u.solMass,
@@ -380,3 +382,223 @@ def test_gwsignal_plugin_td_v5ehm(basic_settings):
 
             for k, v in dict_convention.items():
                 assert p_generate_init.call_args.args[1][k] == v
+
+
+def test_gwsignal_plugin_td_v5ehm_mean_per_ano_vs_rel_ano(basic_settings):
+
+    arguments_dict = {
+        "mass1": basic_settings["mass1"] * u.solMass,
+        "mass2": basic_settings["mass2"] * u.solMass,
+        "spin1x": basic_settings["spin1x"] * u.dimensionless_unscaled,
+        "spin1y": basic_settings["spin1y"] * u.dimensionless_unscaled,
+        "spin1z": basic_settings["spin1z"] * u.dimensionless_unscaled,
+        "spin2x": basic_settings["spin2x"] * u.dimensionless_unscaled,
+        "spin2y": basic_settings["spin2y"] * u.dimensionless_unscaled,
+        "spin2z": basic_settings["spin2z"] * u.dimensionless_unscaled,
+        "deltaF": basic_settings["deltaF"] * u.Hz,
+        "deltaT": basic_settings["deltaT"] * u.s,
+        "f22_start": basic_settings["f22_start"] * u.Hz,
+        "f22_ref": basic_settings["f_ref"] * u.Hz,
+        "f_max": basic_settings["f_max"] * u.Hz,
+        "phi_ref": basic_settings["phi_ref"] * u.rad,
+        "distance": basic_settings["distance"] * u.Mpc,
+        "inclination": basic_settings["inclination"] * u.rad,
+        "eccentricity": basic_settings["eccentricity"] * u.dimensionless_unscaled,
+        "meanPerAno": basic_settings["rel_anomaly"] * u.rad,
+        "condition": 0,
+    }
+
+    arguments_dict_aligned_spin = arguments_dict | {
+        f"spin{k}{o}": 0.0 * u.dimensionless_unscaled
+        for k in (1, 2)
+        for o in ("x", "y")
+    }
+
+    arguments_dict_aligned_spin_start_freq = arguments_dict_aligned_spin | {
+        "f22_start": arguments_dict_aligned_spin["f22_ref"]
+    }
+
+    generator = SEOBNRv5EHM()
+
+    # wrong types
+    with pytest.raises(
+        NotImplementedError,
+        match=re.escape(
+            "Need to specify 'radial_anomaly_type'. Supported options: 'rel_anomaly' "
+            "(default) and 'mean_anomaly'."
+        ),
+    ):
+        _ = wfm.GenerateTDModes(
+            arguments_dict | {"radial_anomaly_type": "test"}, generator
+        )
+
+    class MyException(Exception):
+        pass
+
+    # capturing parameters passed to the underlying GenerateWaveform
+    with patch(
+        "pyseobnr.generate_waveform.GenerateWaveform.generate_td_polarizations",
+        autospec=True,
+    ) as p_generate_td_polarizations:
+
+        inst: GenerateWaveform | None = None
+
+        def _side_effect(self, *args, **kwargs):
+            nonlocal inst
+            inst = self
+            raise MyException()
+
+        p_generate_td_polarizations.side_effect = _side_effect
+
+        with pytest.raises(MyException):
+            _ = wfm.GenerateTDWaveform(
+                arguments_dict_aligned_spin_start_freq, generator
+            )
+
+        assert inst.parameters["eccentricity"] == basic_settings["eccentricity"]
+        assert inst.parameters["rel_anomaly"] == basic_settings["rel_anomaly"]
+        # "meanPerAno" always removed from the parameters
+        assert "meanPerAno" not in inst.parameters
+
+        # calling with type=rel_anomaly has the same effect
+        with pytest.raises(MyException):
+            with patch("pyseobnr.generate_waveform.rel_anomaly_from_mean_anomaly") as p:
+                p.side_effect = RuntimeError
+                _ = wfm.GenerateTDWaveform(
+                    arguments_dict_aligned_spin_start_freq
+                    | {"radial_anomaly_type": "rel_anomaly"},
+                    generator,
+                )
+                p.assert_not_called()
+
+        assert inst.parameters["eccentricity"] == basic_settings["eccentricity"]
+        assert inst.parameters["rel_anomaly"] == basic_settings["rel_anomaly"]
+        # "meanPerAno" always removed from the parameters
+        assert "meanPerAno" not in inst.parameters
+
+        # calling with type=rel_anomaly transforms the input inside GenerateWaveform
+        with pytest.raises(MyException):
+
+            with patch("pyseobnr.generate_waveform.rel_anomaly_from_mean_anomaly") as p:
+                p.side_effect = rel_anomaly_from_mean_anomaly
+                _ = wfm.GenerateTDWaveform(
+                    arguments_dict_aligned_spin_start_freq
+                    | {"radial_anomaly_type": "mean_anomaly"},
+                    generator,
+                )
+                p.assert_called_once()
+
+        assert inst.parameters["eccentricity"] == basic_settings["eccentricity"]
+        assert inst.parameters["rel_anomaly"] != basic_settings["rel_anomaly"]
+        assert inst.parameters["rel_anomaly"] == pytest.approx(
+            rel_anomaly_from_mean_anomaly(
+                basic_settings["rel_anomaly"], basic_settings["eccentricity"]
+            )
+        )
+        # "meanPerAno" always removed from the parameters
+        assert "meanPerAno" not in inst.parameters
+
+
+def test_gwsignal_plugin_conditioning(basic_settings):
+
+    arguments_dict = {
+        "mass1": basic_settings["mass1"] * u.solMass,
+        "mass2": basic_settings["mass2"] * u.solMass,
+        "spin1x": basic_settings["spin1x"] * u.dimensionless_unscaled,
+        "spin1y": basic_settings["spin1y"] * u.dimensionless_unscaled,
+        "spin1z": basic_settings["spin1z"] * u.dimensionless_unscaled,
+        "spin2x": basic_settings["spin2x"] * u.dimensionless_unscaled,
+        "spin2y": basic_settings["spin2y"] * u.dimensionless_unscaled,
+        "spin2z": basic_settings["spin2z"] * u.dimensionless_unscaled,
+        "deltaF": basic_settings["deltaF"] * u.Hz,
+        "deltaT": basic_settings["deltaT"] * u.s,
+        "f22_start": basic_settings["f22_start"] * u.Hz,
+        "f22_ref": basic_settings["f_ref"] * u.Hz,
+        "f_max": basic_settings["f_max"] * u.Hz,
+        "phi_ref": basic_settings["phi_ref"] * u.rad,
+        "distance": basic_settings["distance"] * u.Mpc,
+        "inclination": basic_settings["inclination"] * u.rad,
+        "eccentricity": 0 * u.dimensionless_unscaled,
+        "meanPerAno": basic_settings["rel_anomaly"] * u.rad,
+        "condition": 0,
+    }
+
+    arguments_dict_aligned_spin = arguments_dict | {
+        f"spin{k}{o}": 0.0 * u.dimensionless_unscaled
+        for k in (1, 2)
+        for o in ("x", "y")
+    }
+
+    arguments_dict_aligned_spin_start_freq = arguments_dict_aligned_spin | {
+        "f22_start": arguments_dict_aligned_spin["f22_ref"]
+    }
+
+    class MyException(Exception):
+        pass
+
+    with patch(
+        "pyseobnr.generate_waveform.GenerateWaveform.generate_td_polarizations",
+        autospec=True,
+    ) as p_generate_td_polarizations, patch(
+        "pyseobnr.generate_waveform.GenerateWaveform.generate_td_polarizations_conditioned_1",
+        autospec=True,
+    ) as p_generate_td_polarizations_conditioned_1, patch(
+        "pyseobnr.generate_waveform.GenerateWaveform.generate_td_polarizations_conditioned_2",
+        autospec=True,
+    ) as p_generate_td_polarizations_conditioned_2:
+
+        def _reset_all():
+            p_generate_td_polarizations.reset_mock()
+            p_generate_td_polarizations_conditioned_1.reset_mock()
+            p_generate_td_polarizations_conditioned_2.reset_mock()
+
+        p_generate_td_polarizations.side_effect = MyException
+        p_generate_td_polarizations_conditioned_1.side_effect = MyException
+        p_generate_td_polarizations_conditioned_2.side_effect = MyException
+
+        # EHM: conditioned 1
+        generator = SEOBNRv5EHM()
+        with pytest.raises(MyException):
+            _ = wfm.GenerateTDWaveform(
+                arguments_dict_aligned_spin_start_freq | {"condition": 0}, generator
+            )
+
+        p_generate_td_polarizations.assert_called_once()
+        p_generate_td_polarizations_conditioned_1.assert_not_called()
+        p_generate_td_polarizations_conditioned_2.assert_not_called()
+
+        _reset_all()
+
+        with pytest.raises(MyException):
+            _ = wfm.GenerateTDWaveform(
+                arguments_dict_aligned_spin_start_freq | {"condition": 1}, generator
+            )
+
+        p_generate_td_polarizations.assert_not_called()
+        p_generate_td_polarizations_conditioned_1.assert_called_once()
+        p_generate_td_polarizations_conditioned_2.assert_not_called()
+
+        # HM / PHM: conditioned 2
+        for generator_cls, settings in (SEOBNRv5HM, arguments_dict_aligned_spin), (
+            SEOBNRv5PHM,
+            arguments_dict,
+        ):
+            generator = generator_cls()
+
+            _reset_all()
+
+            with pytest.raises(MyException):
+                _ = wfm.GenerateTDWaveform(settings | {"condition": 0}, generator)
+
+            p_generate_td_polarizations.assert_called_once()
+            p_generate_td_polarizations_conditioned_1.assert_not_called()
+            p_generate_td_polarizations_conditioned_2.assert_not_called()
+
+            _reset_all()
+
+            with pytest.raises(MyException):
+                _ = wfm.GenerateTDWaveform(settings | {"condition": 1}, generator)
+
+            p_generate_td_polarizations.assert_not_called()
+            p_generate_td_polarizations_conditioned_1.assert_not_called()
+            p_generate_td_polarizations_conditioned_2.assert_called_once()
