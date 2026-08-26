@@ -73,6 +73,10 @@ class PySEOBNRv5PyCBCPlugin:
         hp = FrequencySeries(hp.data.data[:], delta_f=hp.deltaF, epoch=hp.epoch)
         hc = FrequencySeries(hc.data.data[:], delta_f=hc.deltaF, epoch=hp.epoch)
 
+        # Align the pyseobnr time convention so that the waveform peak occurs at t=0
+        hp = hp.cyclic_time_shift(hp.start_time + hp.duration)
+        hc = hc.cyclic_time_shift(hc.start_time + hc.duration)
+
         return hp, hc
 
 
