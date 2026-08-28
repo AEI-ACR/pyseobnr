@@ -1665,7 +1665,11 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     final_state=[final_mass, final_spin],
                     qnm_rotation=qnm_rotation,
                     ivs_mrd=mrd_ivs,
-                    dtau_22_asym=self.dtau_dict["2,2"],
+                    # The ringdown waveform of the anti-symmetric modes
+                    # is dominated by same complex QNM frequencies as the
+                    # symmetric modes, so we apply the same deviations
+                    domega_dict=self.domega_dict,
+                    dtau_dict=self.dtau_dict,
                 )
 
                 # Construct full co-precessing modes (symm + asymm)

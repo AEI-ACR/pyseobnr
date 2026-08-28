@@ -47,12 +47,12 @@ from ..eob.waveform.waveform_ecc import (
 )
 from .common import VALID_MODES_ECC
 from .model import Model
-from .SEOBNRv5Base import SEOBNRv5ModelBase
+from .SEOBNRv5Base import SEOBNRv5ModelBaseWithpSEOBSupport
 
 logger = logging.getLogger(__name__)
 
 
-class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
+class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
     """
     Represents an aligned-spin eccentric waveform model, whose
     eccentricity-zero limit is the SEOBNRv5HM model.
@@ -381,7 +381,7 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
 
         # Compute the shift from reference point to peak of (2,2) mode
         NR_deltaT_fit = NR_deltaT_NS(self.nu) + NR_deltaT(self.nu, self.ap, self.am)
-        self.NR_deltaT = NR_deltaT_fit
+        self.NR_deltaT = NR_deltaT_fit + self.dTpeak
 
         # Set the Hamiltonian coefficients
         self._set_H_coeffs()
@@ -412,7 +412,10 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
         to quasicircular NR waveforms.
         """
 
-        dc = {"a6": a6_NS(self.nu), "dSO": dSO(self.nu, self.ap, self.am)}
+        dc = {
+            "a6": a6_NS(self.nu) + self.da6,
+            "dSO": dSO(self.nu, self.ap, self.am) + self.ddSO,
+        }
         self.H.calibration_coeffs.a6 = dc["a6"]
         self.H.calibration_coeffs.dSO = dc["dSO"]
         assert self.H.eob_params.c_coeffs.a6 == dc["a6"]
@@ -701,7 +704,13 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                 self.t_attach_ecc = self.t_ISCO_ecc - self.NR_deltaT
 
             if self.t_attach_ecc > dynamics_fine[-1, 0]:
-                self.t_attach_ecc = dynamics_fine[-1, 0]
+                if self.deltaT_sampling is True:
+                    raise ValueError(
+                        "Error: NR_deltaT too negative, attaching the MR at the last point of the dynamics "
+                        "is not allowed if deltaT_sampling is set to True."
+                    )
+                else:
+                    self.t_attach_ecc = dynamics_fine[-1, 0]
 
             if self.t_attach_ecc < dynamics_fine[0, 0]:
                 self.t_attach_ecc = dynamics_fine[0, 0]
@@ -818,6 +827,8 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                     self.m_2,
                     self.chi_1,
                     self.chi_2,
+                    dA_dict=self.dA_dict,
+                    dw_dict=self.dw_dict,
                 )
                 self.nqc_coeffs = nqc_coeffs
                 # Apply NQC corrections to high sampling eccentric modes
@@ -895,6 +906,9 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
                 self.lmax_nyquist,
                 mixed_modes=self.mixed_modes,
                 align=False,
+                dw_dict=self.dw_dict,
+                domega_dict=self.domega_dict,
+                dtau_dict=self.dtau_dict,
             )
 
             # Shift the time so that t = 0 corresponds to the last peak
