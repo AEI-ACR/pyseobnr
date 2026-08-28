@@ -17,6 +17,10 @@ waveform information. This class then allows one to:
   <pyseobnr.generate_waveform.GenerateWaveform.generate_td_polarizations>`
 - compute the frequency-domain polarizations via :py:meth:`generate_fd_polarizations
   <pyseobnr.generate_waveform.GenerateWaveform.generate_fd_polarizations>`
+- compute the frequency-domain polarizations at multiple coalescence phases — sharing a
+  single evaluation of the co-precessing dynamics — via
+  :py:meth:`generate_multi_phase_fd_polarizations
+  <pyseobnr.generate_waveform.GenerateWaveform.generate_multi_phase_fd_polarizations>`
 
 The input parameters to :py:class:`GenerateWaveform
 <pyseobnr.generate_waveform.GenerateWaveform>` are expected to be in the so-called `cosmo`

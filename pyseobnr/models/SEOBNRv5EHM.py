@@ -229,6 +229,9 @@ class SEOBNRv5EHM_opt(Model, SEOBNRv5ModelBase):
         # validate some of the parameters as the settings have been set
         self._validate_convention_parameters()
 
+        if self.settings.get("coprecessing_modes_only", False):
+            raise RuntimeError("coprecessing_modes_only not supported")
+
     @property
     def RR(self) -> RadiationReactionForceEcc:
         if not self._radiation_reaction_is_initialized:
