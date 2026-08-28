@@ -234,3 +234,34 @@ def test_compute_special_coeffs_not_called():
             p_compute_special_coeffs.assert_called_once()
             assert array_fcoeffs is not None
             assert bool(np.any(np.isnan(array_fcoeffs))) is False
+
+
+def test_coprecessing_modes_only_returns_early():
+    omega_start = 0.025216785328447282
+    omega_ref = 0.08304037180901577
+    q = 1.0000003704854963
+
+    with patch(
+        "pyseobnr.models.SEOBNRv5HM.SEOBRotatehIlmFromhJlm_opt_v1"
+    ) as p_rotation_probe, patch(
+        "pyseobnr.models.SEOBNRv5HM.SEOBNRv5PHM_opt.compute_hpc_from_coprec_modes"
+    ) as p_polarization_probe:
+
+        t, modes, inst = generate_modes_opt(
+            q=q,
+            chi1=0,
+            chi2=0,
+            omega_start=omega_start,
+            omega_ref=omega_ref,
+            approximant="SEOBNRv5PHM",
+            settings=dict(coprecessing_modes_only=True),
+            debug=True,
+        )
+        p_rotation_probe.assert_not_called()
+        p_polarization_probe.assert_not_called()
+
+    assert inst is not None
+    assert inst.success
+    assert hasattr(inst, "hpc") and inst.hpc is None
+    assert hasattr(inst, "imr_full") and inst.imr_full is not None
+    assert hasattr(inst, "waveform_modes") and inst.waveform_modes is None

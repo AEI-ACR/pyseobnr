@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import numbers
+from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Any, Dict, Final, Literal, Union, cast, get_args
 
 import lal
@@ -299,6 +301,17 @@ def generate_modes_opt(
         return model.t, model.waveform_modes, model
     else:
         return model.t, model.waveform_modes
+
+
+@dataclass(frozen=True)
+class _Conditioning2:
+    """Container for the conditioning quantities"""
+
+    f22_start: float
+    f_min: float
+    extra_time_fraction: float
+    tchirp: float
+    textra: float
 
 
 class GenerateWaveform:
@@ -1298,6 +1311,11 @@ class GenerateWaveform:
             if self.swap_masses:
                 phi += np.pi
             settings.update(phiref=np.pi / 2 - phi)
+
+            # Forward coprecessing_modes_only if requested
+            if self.parameters.get("coprecessing_modes_only", False):
+                settings["coprecessing_modes_only"] = True
+
             times, hpc, self._model = generate_prec_hpc_opt(
                 q,
                 chi1,
@@ -1307,8 +1325,14 @@ class GenerateWaveform:
                 settings=settings,
                 debug=True,
             )
-            hpc *= fac
             times *= Mtot * lal.MTSUN_SI
+
+            # In coprecessing_modes_only mode, hpc is None: return early.
+            # We then accesses model internals (imr_full, qt_array, etc.) directly.
+            if hpc is None:
+                return None, None
+
+            hpc *= fac
 
         hp = np.real(hpc)
         hc = -np.imag(hpc)
@@ -1420,6 +1444,112 @@ class GenerateWaveform:
 
         return hp_lal, hc_lal
 
+    @contextmanager
+    def _mutate_settings(self, settings_name, settings_value, settings=None):
+        """Applies changes to the model settings (or parameter) within a context manager
+
+        The changes are rolled back at the end of the opened context.
+        """
+        _settings = settings
+        if _settings is None:
+            raise ValueError("The settings to mutate have to be specified")
+        _save_setting = _settings.get(settings_name, None)
+        _settings[settings_name] = settings_value
+
+        yield
+
+        if _save_setting is not None:
+            _settings[settings_name] = _save_setting
+        else:
+            _settings.pop(settings_name)
+
+    def _deltaT_from_fd_convention(self) -> float:
+        """Sampling interval implied by the ``SimInspiralFD`` convention.
+
+        ``f_max`` is taken as the Nyquist frequency of the time-domain waveform; if
+        ``deltaF`` is set and ``f_max / deltaF`` is not a power of 2, ``f_max`` is raised
+        to the next power-of-2 multiple of ``deltaF``. See
+        :py:meth:`.generate_fd_polarizations`.
+
+        Single definition shared by :py:meth:`.evaluate_model` and
+        :py:meth:`.generate_fd_polarizations` so that the two cannot disagree.
+        """
+        f_nyquist = self.parameters["f_max"]
+        deltaF = self.parameters.get("deltaF", 0)
+        if deltaF != 0:
+            n = int(np.round(f_nyquist / deltaF))
+            if n & (n - 1):
+                f_nyquist = np.ldexp(1, int(np.frexp(n)[1])) * deltaF
+        return 0.5 / f_nyquist
+
+    def _compute_conditioning_2_parameters(
+        self,
+    ) -> _Conditioning2:
+        """Computes the quantities for conditioning the waveform.
+
+        This conditioning involves a lower starting frequency as well as additional parameters
+        """
+        # General SimInspiralFD procedure, with extra time at the beginning
+        # if self._model and self._use_model_with_non_uniform_time_arrays:
+        #     raise RuntimeError(
+        #         "Conditioning not available for the delayed evaluation of waveforms"
+        #     )
+
+        if self.parameters["approximant"] == "SEOBNRv5EHM":
+            raise ValueError(
+                "The approximant 'SEOBNRv5EHM' cannot be used with the "
+                "conditioning routine '2' (starting and reference frequency different)."
+                "Please use instead the routine "
+                "'generate_td_polarizations_conditioned_1'."
+            )
+
+        extra_time_fraction = (
+            0.1  # fraction of waveform duration to add as extra time for tapering
+        )
+        extra_cycles = (
+            3.0  # more extra time measured in cycles at the starting frequency
+        )
+
+        f_min = self.parameters["f22_start"]
+        m1 = self.parameters["mass1"]
+        m2 = self.parameters["mass2"]
+        S1z = self.parameters["spin1z"]
+        S2z = self.parameters["spin2z"]
+
+        fisco = 1.0 / (pow(9.0, 1.5) * np.pi * (m1 + m2) * lal.MTSUN_SI)
+        if f_min > fisco:
+            f_min = fisco
+
+        # upper bound on the chirp time starting at f_min
+        tchirp = lalsim.SimInspiralChirpTimeBound(
+            f_min, m1 * lal.MSUN_SI, m2 * lal.MSUN_SI, S1z, S2z
+        )
+        # upper bound on the final black hole spin */
+        spinkerr = lalsim.SimInspiralFinalBlackHoleSpinBound(S1z, S2z)
+        # upper bound on the final plunge, merger, and ringdown time */
+        tmerge = lalsim.SimInspiralMergeTimeBound(
+            m1 * lal.MSUN_SI, m2 * lal.MSUN_SI
+        ) + lalsim.SimInspiralRingdownTimeBound((m1 + m2) * lal.MSUN_SI, spinkerr)
+
+        # extra time to include for all waveforms to take care of situations where the
+        # frequency is close to merger (and is sweeping rapidly): this is a few cycles
+        # at the low frequency
+        textra = extra_cycles / f_min
+        # compute a new lower frequency
+        fstart = lalsim.SimInspiralChirpStartFrequencyBound(
+            (1.0 + extra_time_fraction) * tchirp + tmerge + textra,
+            m1 * lal.MSUN_SI,
+            m2 * lal.MSUN_SI,
+        )
+
+        return _Conditioning2(
+            f22_start=fstart,
+            extra_time_fraction=extra_time_fraction,
+            f_min=f_min,
+            tchirp=tchirp,
+            textra=textra,
+        )
+
     def generate_fd_polarizations(self):
         """
         Generate Fourier-domain polarizations, returned as LAL COMPLEX16FrequencySeries
@@ -1510,3 +1640,170 @@ class GenerateWaveform:
         lal.REAL8TimeFreqFFT(hptilde, hp, plan)
 
         return hptilde, hctilde
+
+    def generate_multi_phase_fd_polarizations(self, phi_c_values):
+        """
+        Generate FD polarizations at a caller-supplied list of phi_c offsets
+        relative to ``self.parameters['phi_ref']``. Co-precessing modes are
+        computed once and re-projected at each entry of ``phi_c_values``,
+        conditioned, and FFT'd in a batched operation.
+        This is used for an optimized phase reconstruction procedure with DINGO.
+
+        Unlike :meth:`generate_fd_polarizations` — which returns a LAL
+        ``COMPLEX16FrequencySeries`` whose data is the raw rfft of the
+        conditioned TD signal and whose start time is stored separately in
+        the LAL ``epoch`` metadata — this method returns plain ``np.ndarray``s
+        with no metadata slot. The conditioned-signal start time is therefore
+        absorbed into a per-frequency phase factor
+        ``exp(-2 pi i f * conditioned_epoch)`` applied to the FFT output, so
+        the returned arrays are ready to use without an external epoch.
+        Comparing against :meth:`generate_fd_polarizations` requires applying
+        the same shift to its data buffer.
+
+        Parameters
+        ----------
+        phi_c_values : array-like of float
+            Phase offsets (radians) at which to evaluate the polarizations.
+            Each entry is interpreted as an additive shift of ``phi_ref``.
+
+        Returns
+        -------
+        hpc_fd_list : list of dict
+            ``[{"h_plus": np.ndarray, "h_cross": np.ndarray}, ...]`` on
+            frequencies ``[0, delta_f, ..., f_max]`` with the epoch included
+            as a phase shift. One entry per element of ``phi_c_values``.
+
+        .. note::
+
+            This method is only available for models with precession which support
+            second type of conditioning.
+        """
+        if self.parameters["approximant"] not in ["SEOBNRv5PHM"]:
+            raise RuntimeError(
+                "This method can be called only for precessing approximants: "
+                f"{self.parameters['approximant']}"
+            )
+
+        phi_c_values = np.asarray(phi_c_values, dtype=float)
+        n_phases = len(phi_c_values)
+
+        # Conditioning parameters
+        conditioning = self._compute_conditioning_2_parameters()
+        extra_time = (
+            conditioning.extra_time_fraction * conditioning.tchirp + conditioning.textra
+        )
+        f_min = conditioning.f_min
+        original_f_min = self.parameters["f22_start"]
+
+        # FFT parameters
+        deltaF = self.parameters["deltaF"]
+        delta_t = self._deltaT_from_fd_convention()
+        self.parameters["deltaT"] = delta_t
+        chirplen = int(1.0 / (deltaF * delta_t))
+
+        # Generate model (co-precessing modes only)
+        with self._mutate_settings(
+            "polarizations_from_coprec", True, self.parameters
+        ), self._mutate_settings(
+            "coprecessing_modes_only", True, self.parameters
+        ), self._mutate_settings(
+            "f22_start", conditioning.f22_start, self.parameters
+        ):
+            self.generate_td_polarizations()
+
+        model = self._model
+        iota = self.parameters["inclination"]
+
+        # Physical unit conversion
+        m1 = self.parameters["mass1"]
+        m2 = self.parameters["mass2"]
+        Mtot = m1 + m2
+        dist = self.parameters["distance"]
+        Mpc_to_meters = lal.PC_SI * 1e6
+        fac = -1 * Mtot * lal.MRSUN_SI / (dist * Mpc_to_meters)
+
+        # Schwarzschild ISCO frequency, for Stage2 conditioning
+        f_isco = 1.0 / (pow(6.0, 1.5) * np.pi * Mtot * lal.MTSUN_SI)
+
+        phi_offset = np.pi if self.swap_masses else 0.0
+        times_phys = model.t  # already in physical units (seconds)
+        epoch = lal.LIGOTimeGPS(times_phys[0])
+        n_samples = len(times_phys)
+
+        phi_ref = self.parameters["phi_ref"]
+
+        # Multi-phase projection + conditioning loop
+        hp_conditioned = []
+        hc_conditioned = []
+
+        for phi_c_offset in phi_c_values:
+            phiref_k = np.pi / 2 - (phi_ref + phi_c_offset + phi_offset)
+
+            # Project co-precessing modes via model's rotation + SWSH
+            hpc_geom = model.compute_hpc_from_coprec_modes(
+                phiref=phiref_k, inclination=iota
+            )
+
+            # Convert to physical units
+            hpc_phys = hpc_geom * fac
+
+            # Create LAL timeseries for conditioning
+            hp_lal = lal.CreateREAL8TimeSeries(
+                "hplus",
+                epoch,
+                0,
+                delta_t,
+                lal.DimensionlessUnit,
+                n_samples,
+            )
+            hc_lal = lal.CreateREAL8TimeSeries(
+                "hcross",
+                epoch,
+                0,
+                delta_t,
+                lal.DimensionlessUnit,
+                n_samples,
+            )
+            hp_lal.data.data = np.real(hpc_phys)
+            hc_lal.data.data = -np.imag(hpc_phys)
+
+            # Apply conditioning
+            lalsim.SimInspiralTDConditionStage1(
+                hp_lal, hc_lal, extra_time, original_f_min
+            )
+            lalsim.SimInspiralTDConditionStage2(hp_lal, hc_lal, f_min, f_isco)
+
+            hp_conditioned.append(hp_lal.data.data.copy())
+            hc_conditioned.append(hc_lal.data.data.copy())
+
+        # Batched resize + FFT (all phi_c at once)
+        # Resize replicates lal.ResizeREAL8TimeSeries(ts, ts.length - chirplen, chirplen)
+        hp_stack = np.array(hp_conditioned)
+        hc_stack = np.array(hc_conditioned)
+        n_cond = hp_stack.shape[1]
+
+        if chirplen <= n_cond:
+            hp_batch = hp_stack[:, n_cond - chirplen :]
+            hc_batch = hc_stack[:, n_cond - chirplen :]
+        else:
+            hp_batch = np.zeros((n_phases, chirplen), dtype=np.float64)
+            hc_batch = np.zeros((n_phases, chirplen), dtype=np.float64)
+            hp_batch[:, chirplen - n_cond :] = hp_stack
+            hc_batch[:, chirplen - n_cond :] = hc_stack
+
+        # Batched rfft (matches LAL REAL8TimeFreqFFT normalization: deltaT factor)
+        hp_tilde = np.fft.rfft(hp_batch, axis=1) * delta_t
+        hc_tilde = np.fft.rfft(hc_batch, axis=1) * delta_t
+
+        # Time shift to account for non-zero epoch
+        # (in generate_fd_polarizations this is stored as LAL epoch metadata instead)
+        conditioned_epoch = float(hp_lal.epoch) + (n_cond - chirplen) * delta_t
+        dt = 1.0 / deltaF + conditioned_epoch
+        freqs = np.arange(hp_tilde.shape[1]) * deltaF
+        time_shift = np.exp(-1j * 2 * np.pi * dt * freqs)
+        hp_tilde *= time_shift[np.newaxis, :]
+        hc_tilde *= time_shift[np.newaxis, :]
+
+        return [
+            {"h_plus": hp_tilde[k], "h_cross": hc_tilde[k]} for k in range(n_phases)
+        ]

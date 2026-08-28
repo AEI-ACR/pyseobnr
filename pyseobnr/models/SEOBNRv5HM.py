@@ -238,6 +238,9 @@ class SEOBNRv5HM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         # This does not allow attaching the merger-ringdown at the last point of the dynamics.
         self.deltaT_sampling = self.settings.get("deltaT_sampling", False)
 
+        if self.settings.get("coprecessing_modes_only", False):
+            raise RuntimeError("coprecessing_modes_only not supported")
+
     def _default_settings(self) -> dict[str, Any]:
 
         M_default: Final = 50
@@ -987,18 +990,66 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         assert i == n_elem
         return np.column_stack(result)
 
+    def compute_hpc_from_coprec_modes(
+        self,
+        phiref: float | None = None,
+        inclination: float | None = None,
+    ) -> np.ndarray:
+        """Project co-precessing modes to polarizations for given angles.
+
+        Uses the stored co-precessing modes (``self.imr_full``), quaternions
+        (``self.quatP2J``, ``self.quatI2J``), and convention shift
+        (``self.alpha_diff``) to compute the full rotation, evaluate
+        spin-weighted spherical harmonics, and project onto polarizations.
+
+        Parameters
+        ----------
+        phiref : float, optional
+            Reference phase. Defaults to ``self.settings["phiref"]``.
+        inclination : float, optional
+            Inclination angle. Defaults to ``self.settings["inclination"]``.
+
+        Returns
+        -------
+        hpc : np.ndarray
+            Complex polarization h_+ - i h_x in geometric units.
+        """
+        # Construct full rotation
+        alphaTot, betaTot, gammaTot = self._compute_full_rotation(
+            self.quatP2J, self.quatI2J, phiref=phiref, inclination=inclination
+        )
+
+        # alpha_diff set for the conventions
+        sYlm = custom_swsh(betaTot, alphaTot + self.alpha_diff, self.max_ell_returned)
+
+        # Construct polarizations
+        mode_keys = list(self.imr_full.keys())
+        hpc = sYlm[mode_keys[0]] * self.imr_full[mode_keys[0]]
+        for k in mode_keys[1:]:
+            hpc += sYlm[k] * self.imr_full[k]
+
+        hpc *= np.exp(2j * gammaTot)
+        return hpc
+
     def _compute_full_rotation(
-        self, qt: np.ndarray, quat_i2j: np.ndarray
+        self,
+        qt: np.ndarray,
+        quat_i2j: np.ndarray,
+        phiref: float | None = None,
+        inclination: float | None = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+
+        if phiref is None:
+            phiref = self.settings["phiref"]
+        if inclination is None:
+            inclination = self.settings["inclination"]
 
         # warning: parenthesis on the right of qt.conj() as
         # we want to multiply qt (big) only once on the right
 
         q_tot = qt.conj() * (  # qJ2P
             quat_i2j.conj()
-            * quaternion.from_euler_angles(  # qI02I
-                self.settings["phiref"], self.settings["inclination"], 0.0
-            )
+            * quaternion.from_euler_angles(phiref, inclination, 0.0)  # qI02I
         )
 
         return quaternion.as_euler_angles(q_tot).T
@@ -1715,10 +1766,27 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     precision=0.001,
                 )
 
+            # Update self.imr_full to include negative-m modes (added after
+            # the initial assignment at self.imr_full = imr_full)
+            self.imr_full = imr_full
+            self.quatP2J = qt
+            self.quatI2J = quatI2J
+
+            # Fast exit: return co-precessing modes and quaternions only,
+            # skip polarization/mode rotation. Useful for optimized computation
+            # at multiple phase values.
+            if self.settings.get("coprecessing_modes_only", False):
+                self.hpc = None
+                self.success = True
+                self.waveform_modes = None
+                return
+
             if self.settings["polarizations_from_coprec"] is False:
 
                 # We only need to package modes here
-                imr_full = self._package_modes(imr_full, ell_max=self.max_ell_returned)
+                imr_full = self._package_modes(
+                    self.imr_full, ell_max=self.max_ell_returned
+                )
                 # iii) Create a co-precessing frame scri waveform
                 w = scri.WaveformModes(
                     dataType=scri.h,
@@ -1745,8 +1813,6 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                 # Store all the angles
                 # For posterity store the rotation as Euler angles
                 anglesJ2P = quaternion.as_euler_angles(qt).T
-                # self.anglesI2J = [alphaI2J, betaI2J, gammaI2J]
-                self.quatI2J = quatI2J
                 self.anglesJ2P = anglesJ2P
 
                 modes_lmax = self.max_ell_returned
@@ -1764,21 +1830,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
 
                 self.success = True
             else:
-                # Construct full rotation
-                alphaTot, betaTot, gammaTot = self._compute_full_rotation(qt, quatI2J)
-
-                # alpha_diff set for the conventions
-                sYlm = custom_swsh(
-                    betaTot, alphaTot + self.alpha_diff, self.max_ell_returned
-                )
-                # Construct polarizations
-                hpc = np.zeros(imr_full[(2, 2)].size, dtype=complex)
-                for ell, emm in imr_full.keys():
-                    # sYlm = SWSH(qTot,-2,[ell,emm])
-                    hpc += sYlm[ell, emm] * imr_full[(ell, emm)]
-
-                hpc *= np.exp(2j * gammaTot)
-                self.hpc = hpc
+                self.hpc = self.compute_hpc_from_coprec_modes()
                 self.success = True
 
         except Exception as e:

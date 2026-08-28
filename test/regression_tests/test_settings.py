@@ -401,6 +401,47 @@ def test_mean_anomaly_scan():
     assert all(_ == lengths[0] for _ in lengths.values())
 
 
+def test_coprecessing_modes_only_for_PHM_only():
+    RR_f = SEOBNRv5RRForce()
+    _ = SEOBNRv5PHM_opt(
+        q=1,
+        chi1_x=0,
+        chi1_y=0,
+        chi1_z=0.1,
+        chi2_x=0,
+        chi2_y=0,
+        chi2_z=0.1,
+        omega_start=0.15,
+        H=Ham_prec_pa_cy,
+        RR=RR_f,
+        settings=dict(coprecessing_modes_only=True),
+    )
+
+    with pytest.raises(RuntimeError, match="coprecessing_modes_only not supported"):
+        _ = SEOBNRv5HM_opt(
+            q=1,
+            chi_1=0.1,
+            chi_2=0.1,
+            omega0=0.15,
+            H=Ham_aligned_opt,
+            RR=RR_f,
+            settings=dict(coprecessing_modes_only=True),
+        )
+
+    with pytest.raises(RuntimeError, match="coprecessing_modes_only not supported"):
+        _ = SEOBNRv5EHM_opt(
+            q=1,
+            chi_1=0.1,
+            chi_2=0.1,
+            omega_start=0.15,
+            H=Ham_aligned_opt,
+            RR=RR_f,
+            eccentricity=0.1,
+            rel_anomaly=0,
+            settings=dict(coprecessing_modes_only=True),
+        )
+
+
 def test_mode_arrays_settings_with_lmax_HM(basic_settings):
     approximant: SupportedApproximants = "SEOBNRv5HM"
 
