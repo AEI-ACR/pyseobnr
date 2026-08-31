@@ -118,6 +118,7 @@ def get_all_dynamics(
     v = omega ** (1.0 / 3)
 
     L_N = dyn["L_N"]
+    L_N = L_N / np.linalg.norm(L_N, axis=-1, keepdims=True)
     q = dyn["q_copr"]
     chiA = dyn["chiA"]
     chiB = dyn["chiB"]
@@ -132,6 +133,12 @@ def get_all_dynamics(
     x = quaternion.as_float_array(q2_times_q * quaternion.x * q2_times_q.conjugate())[
         :, 1:
     ]
+
+    # L_N and q_copr are interpolated independently, so their associated frames
+    # can acquire a small relative error. Project n_hat back into the orbital
+    # plane and normalize it to restore an orthonormal triad.
+    x -= project(x, L_N)[:, None] * L_N
+    x /= np.linalg.norm(x, axis=-1, keepdims=True)
 
     lamb = np.cross(L_N, x)
     Sigma = sigma(chiA, chiB, mA, mB)
@@ -710,12 +717,12 @@ def fits_iv_mrd_antisymmetric(
         X = np.array(
             [
                 nu,
-                params_for_fits.S_n,
-                params_for_fits.S_lamb,
+                S_inplane,
+                Sigma_inplane,
                 params_for_fits.chi_eff,
-                params_for_fits.Sigma_n,
-                params_for_fits.Sigma_lamb,
                 params_for_fits.chi_a,
+                cos_2phiSigma,
+                sin_2phiSigma,
             ]
         )
         omega_peak = np.abs(
