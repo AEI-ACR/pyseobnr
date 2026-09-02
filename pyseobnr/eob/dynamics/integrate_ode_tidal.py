@@ -213,17 +213,6 @@ def compute_dynamics_opt_tidal(
                 h = h_small
             """
 
-            if omega < omega_previous:
-                # Reached peak in frequency
-                peak_omega = True
-                break
-            # if omega > omega_stop_resonance:
-            #     # Tidal disruption
-            #     peak_omega = True
-            #     break
-            if peak_omega and ((t - ts[-2]) < 0.1):
-                # got stuck
-                break
             if drdt > 0:
                 # Outspiral?!
                 break

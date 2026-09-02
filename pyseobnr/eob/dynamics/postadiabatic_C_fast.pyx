@@ -8,7 +8,7 @@ cimport cython
 import numpy as np
 cimport numpy as cnp
 
-from libc.math cimport sqrt, fabs, ceil
+from libc.math cimport sqrt, fabs, ceil, pow
 
 from ..utils.containers cimport EOBParams, qp_param_t
 from ..hamiltonian.Hamiltonian_C cimport (
@@ -487,6 +487,8 @@ cpdef compute_combined_dynamics(
         cnp.ndarray[double, ndim=2] postadiabatic_dynamics
         cnp.ndarray[double, ndim=2] ode_dynamics_low
         cnp.ndarray[double, ndim=2] ode_dynamics_high
+        double r_resonance
+        int n_keep
     try:
         postadiabatic_dynamics = compute_postadiabatic_dynamics(
             omega0,
@@ -502,6 +504,33 @@ cpdef compute_combined_dynamics(
             Tidal=Tidal
         )
         PA_success = True
+
+        if Tidal:
+            # The PA solution assumes an adiabatic inspiral. That assumption
+            # breaks down around the f-mode resonance, where the dynamical
+            # tides excite eccentricity that only the ODE integration can
+            # follow: handing over to the ODE inside that region starts the
+            # integration off the adiabatic trajectory, and the frequency turns
+            # over within one or two steps, leaving too few points for the fine
+            # dynamics. Keep only the part of the PA solution that stays
+            # outside the resonance and let the ODE integrate through it.
+            #
+            # The factor is the margin the PA needs, not the resonance width:
+            # cutting at 1.1 * r_resonance (the radius below which the tidal
+            # ODE evaluates its termination conditions) leaves the hand-over on
+            # the edge of the region and reproduces the pure-ODE waveform only
+            # to a mismatch of ~1e-3; 1.5 brings that to ~1e-9 while still
+            # leaving the PA solution of every quasi-universal-relation binary
+            # untouched (those need >= 2.4 before any point is discarded).
+            r_resonance = pow(omega_stop_resonance, -2. / 3.)
+            n_keep = int(np.count_nonzero(
+                postadiabatic_dynamics[:, 1] > max(5., 1.5 * r_resonance)))
+            if n_keep < postadiabatic_dynamics.shape[0]:
+                if n_keep < 4:
+                    # nothing usable left: fall back to pure ODE integration
+                    raise ValueError("PA solution starts inside the resonance region")
+                postadiabatic_dynamics = postadiabatic_dynamics[:n_keep]
+
         ode_y_init = postadiabatic_dynamics[-1, 1:]
     except Exception as e:
 
