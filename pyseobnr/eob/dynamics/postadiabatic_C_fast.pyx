@@ -350,7 +350,8 @@ cpdef cnp.ndarray[double, ndim=2] compute_postadiabatic_dynamics(
     double tol=1e-12,
     EOBParams params=None,
     int order=8,
-    bint Tidal=False
+    bint Tidal=False,
+    double omega_stop_resonance=1.
 ):
     """Compute the dynamics using PA procedure starting from omega0
 
@@ -384,7 +385,32 @@ cpdef cnp.ndarray[double, ndim=2] compute_postadiabatic_dynamics(
     cdef double r_ISCO = Kerr_ISCO(chi_1, chi_2, m_1, m_2)[0]
     cdef double r_final = max(10, r_final_prefactor * r_ISCO)
     if Tidal:
+        # A binary neutron star leaves the adiabatic regime earlier than a
+        # black hole binary: the matter effects, and the dynamical tides above
+        # all, grow steeply as the stars approach, and the system merges well
+        # before the point-mass plunge. The PA is therefore stopped twice as
+        # far out here as for a BBH. The f-mode resonance is the extreme form
+        # of this. The dynamical tide is resonantly driven and excites
+        # eccentricity that only the ODE integration can follow accurately. A
+        # PA solution carried into that region hands the ODE a state off the
+        # adiabatic trajectory: the orbital frequency turns over within one or
+        # two steps, the frequency-peak check cuts the trajectory back, and the
+        # fine dynamics is left with too few points to interpolate, so the
+        # waveform generation fails outright.
+        #
+        # For an ordinary binary the second line below does nothing. A neutron
+        # star on the quasi-universal relations has its resonance near r ~ 6 M,
+        # far inside the r ~ 20 M where the PA already stops. It only takes
+        # effect when the resonance is strong and early for a soft star, with a
+        # low f-mode frequency, in particular due to large retrograde spins
+        # chi <~ -0.5. The PA does not degrade gradually there but falls off a
+        # cliff: measured against a pure-ODE trajectory its radial momentum is
+        # accurate to ~1e-6 down to 1.4 r_resonance, ~1e-3 at 1.2, and is O(1)
+        # wrong at 1.1. The factor 1.4 sits just outside that cliff, whereas
+        # the ODE, which only needs to start outside the pole, uses a softer
+        # 1.1 prefactor in front of the resonance.
         r_final *= 2.
+        r_final = max(r_final, 1.4 * pow(omega_stop_resonance, -2. / 3.))
 
     cdef double dr0 = 0.2
     cdef int r_size = int(ceil((r0 - r_final) / dr0))
@@ -487,8 +513,6 @@ cpdef compute_combined_dynamics(
         cnp.ndarray[double, ndim=2] postadiabatic_dynamics
         cnp.ndarray[double, ndim=2] ode_dynamics_low
         cnp.ndarray[double, ndim=2] ode_dynamics_high
-        double r_resonance
-        int n_keep
     try:
         postadiabatic_dynamics = compute_postadiabatic_dynamics(
             omega0,
@@ -501,36 +525,10 @@ cpdef compute_combined_dynamics(
             tol=tol,
             params=params,
             order=PA_order,
-            Tidal=Tidal
+            Tidal=Tidal,
+            omega_stop_resonance=omega_stop_resonance
         )
         PA_success = True
-
-        if Tidal:
-            # The PA solution assumes an adiabatic inspiral. That assumption
-            # breaks down around the f-mode resonance, where the dynamical
-            # tides excite eccentricity that only the ODE integration can
-            # follow: handing over to the ODE inside that region starts the
-            # integration off the adiabatic trajectory, and the frequency turns
-            # over within one or two steps, leaving too few points for the fine
-            # dynamics. Keep only the part of the PA solution that stays
-            # outside the resonance and let the ODE integrate through it.
-            #
-            # The factor is the margin the PA needs, not the resonance width:
-            # cutting at 1.1 * r_resonance (the radius below which the tidal
-            # ODE evaluates its termination conditions) leaves the hand-over on
-            # the edge of the region and reproduces the pure-ODE waveform only
-            # to a mismatch of ~1e-3; 1.5 brings that to ~1e-9 while still
-            # leaving the PA solution of every quasi-universal-relation binary
-            # untouched (those need >= 2.4 before any point is discarded).
-            r_resonance = pow(omega_stop_resonance, -2. / 3.)
-            n_keep = int(np.count_nonzero(
-                postadiabatic_dynamics[:, 1] > max(5., 1.5 * r_resonance)))
-            if n_keep < postadiabatic_dynamics.shape[0]:
-                if n_keep < 4:
-                    # nothing usable left: fall back to pure ODE integration
-                    raise ValueError("PA solution starts inside the resonance region")
-                postadiabatic_dynamics = postadiabatic_dynamics[:n_keep]
-
         ode_y_init = postadiabatic_dynamics[-1, 1:]
     except Exception as e:
 
