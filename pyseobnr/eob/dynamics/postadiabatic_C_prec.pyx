@@ -1345,7 +1345,7 @@ cpdef compute_postadiabatic_dynamics(
         only_first_n (int): Compute the postadiabatic only on a specified number of points.
 
     Returns:
-        (postadiabatic_dynamics, omega, lN_dyn, splines) where postadiabatic_dynamics includes
+        (postadiabatic_dynamics, omega) where postadiabatic_dynamics includes
             also the quantities needed to compute the waveform modes =
             [t,r,phi,pr,pphi,H,omega,omega_circ,chi1LN,chi2LN].
 
@@ -1405,7 +1405,6 @@ cpdef compute_postadiabatic_dynamics(
     # Compute now the number of precessing cycles (only in the aligned-spin limit)
     cdef double chi_in_plane = chi1_v[0]**2. + chi1_v[1]**2. + chi2_v[0]**2. + chi2_v[1]**2.
     cdef int r_size_new = 0
-    # cdef double precessiong_cycles = 0.0
     cdef double dr0_new = 0.1
 
     omega_pn = dynamics_pn[:, -1]
@@ -1632,9 +1631,6 @@ cpdef compute_combined_dynamics_exp_v1(
                 assembled dynamics and the index splitting the low and high sampling rate dynamics.
 
     """
-    # Save initial frequency to use it afterwards for the roll-off
-    cdef double omega_start_0 = omega_start
-
     combined_t, combined_y = compute_quasiprecessing_PNdynamics_opt(
         omega_ref,
         0.9*omega_start,
@@ -1725,22 +1721,14 @@ cpdef compute_combined_dynamics_exp_v1(
         # timestep until it reaches the one obtained solving ODEs
         t_ode_low = ode_dynamics_low[:, 0]
 
-        dt_pa_first = t_pa[1] - t_pa[0]
-        dt_ode_init = t_ode_low[1] - t_ode_low[0]
-
-        # Estimate initial delta_t from the starting orbital frequency (this should
-        # correspond to the maximum timestep in the PA dynamics)
-        dt0 = 2.*np.pi/omega_start_0
-
-        while dt_pa_first > 500:
-            if dt_pa_first > dt0:
-                dt_pa_first = dt0/5.
-            else:
-                dt_pa_first = dt0/10.
-            dt0 = dt_pa_first
-
         t_pa_first = t_pa[0]
         t_ode_init = t_ode_low[0]
+        dt_ode_init = t_ode_low[1] - t_ode_low[0]
+
+        # Adaptive limit on dt: at each step, limit dt to ~1/N_per_orb
+        # We find N_per_orb = 1 to be sufficiently accurate
+        omega_pa_interp = CubicSpline(t_pa, omega_pa)
+        N_per_orb = 1
 
         dt = dt_ode_init
         t = t_ode_init - dt
@@ -1749,9 +1737,12 @@ cpdef compute_combined_dynamics_exp_v1(
 
         while True:
             t_new.append(t)
+            dt_max_local = 2.0 * np.pi / (omega_pa_interp(t) * N_per_orb)
 
-            if step_multiplier * dt < dt_pa_first:
+            if step_multiplier * dt < dt_max_local:
                 dt *= step_multiplier
+            else:
+                dt = dt_max_local
 
             t -= dt
 

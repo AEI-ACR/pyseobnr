@@ -4,6 +4,7 @@ import lal
 import numpy as np
 
 from pyseobnr import GenerateWaveform
+from pyseobnr.eob.dynamics.integrate_ode_prec import compute_dynamics_quasiprecessing
 from pyseobnr.eob.dynamics.postadiabatic_C import (
     compute_combined_dynamics,
     cumulative_integral,
@@ -16,7 +17,13 @@ from pyseobnr.eob.dynamics.postadiabatic_C import (
 from pyseobnr.eob.dynamics.postadiabatic_C_fast import (
     compute_combined_dynamics as compute_combined_dynamics_fast,
 )
+from pyseobnr.eob.dynamics.postadiabatic_C_prec import compute_combined_dynamics_exp_v1
+from pyseobnr.eob.hamiltonian.Ham_AvgS2precess_simple_cython_PA_AD import (
+    Ham_AvgS2precess_simple_cython_PA_AD as Ham_prec_pa_cy,
+)
+from pyseobnr.eob.waveform.waveform import SEOBNRv5RRForce
 from pyseobnr.generate_waveform import generate_modes_opt
+from pyseobnr.models import SEOBNRv5HM
 
 
 class TestPAOptimizations:
@@ -365,3 +372,92 @@ class TestPAIntegration:
         assert chi_2_root == chi_2_analytic
         assert m_1_root == m_1_analytic
         assert m_2_root == m_2_analytic
+
+
+class TestPAPrecessingGrid:
+
+    @staticmethod
+    def _make_initialized_model(q, chi1, chi2, f_min, Mtot=30.0):
+        omega_start = np.pi * f_min * Mtot * lal.MTSUN_SI
+        settings = {
+            "M": Mtot,
+            "dt": Mtot * lal.MTSUN_SI / 10,
+            "postadiabatic": False,
+            "postadiabatic_type": "analytic",
+            "polarizations_from_coprec": True,
+            "inclination": np.pi / 3,
+            "phiref": 0.0,
+        }
+        RR_f = SEOBNRv5RRForce()
+        model = SEOBNRv5HM.SEOBNRv5PHM_opt(
+            q,
+            *chi1,
+            *chi2,
+            omega_start,
+            Ham_prec_pa_cy,
+            RR_f,
+            omega_ref=omega_start,
+            settings=settings,
+        )
+        model._initialize_params(phys_pars=model.phys_pars)
+        model._set_H_coeffs()
+        return model
+
+    def test_prec_PA_grid_properties(self):
+        q = 1.0
+        chi1 = np.array([0.3, 0.1, 0.2])
+        chi2 = np.array([-0.1, 0.2, 0.1])
+        f_min = 5.0
+
+        model = self._make_initialized_model(q, chi1, chi2, f_min)
+
+        res_pa = compute_combined_dynamics_exp_v1(
+            model.omega_ref,
+            model.omega_start,
+            model.H,
+            model.RR,
+            model.m_1,
+            model.m_2,
+            model.chi1_v,
+            model.chi2_v,
+            tol=1e-12,
+            backend=model.backend,
+            params=model.eob_pars,
+            step_back=model.step_back,
+            postadiabatic_type="analytic",
+        )
+        dyn_low_pa = res_pa[0]
+
+        res_nopa = compute_dynamics_quasiprecessing(
+            model.omega_ref,
+            model.omega_start,
+            model.H,
+            model.RR,
+            model.m_1,
+            model.m_2,
+            model.chi1_v,
+            model.chi2_v,
+            model.eob_pars,
+            rtol=1e-8,
+            atol=1e-8,
+            step_back=model.step_back,
+            initial_conditions=model.settings["initial_conditions"],
+            initial_conditions_postadiabatic_type=model.settings[
+                "initial_conditions_postadiabatic_type"
+            ],
+        )
+        dyn_low_nopa = res_nopa[0]
+
+        t_pa = dyn_low_pa[:, 0]
+
+        # Time grid must be monotonic
+        assert np.all(np.diff(t_pa) > 0)
+
+        # dt in the early-inspiral is larger than dt near the end
+        n = len(t_pa)
+        dt_early = np.diff(t_pa[: n // 4])
+        dt_late = np.diff(t_pa[-n // 4 :])
+        assert np.median(dt_early) > np.median(dt_late)
+
+        # No pathologically dense output vs the ODE path
+        assert len(dyn_low_pa) < 2 * len(dyn_low_nopa)
