@@ -43,6 +43,7 @@ def test_pSEOB_settings_passed_to_underlying_models():
                         "M": 154.2059835575123,
                         "dt": 6.103515625e-05,
                         current_dict: random_dict,
+                        "enable_antisymmetric_modes": False,
                     },
                 )
 
@@ -141,6 +142,7 @@ def test_pSEOB_settings_passed_with_missing_modes():
                         "M": 154.2059835575123,
                         "dt": 6.103515625e-05,
                         current_dict: random_dict,
+                        "enable_antisymmetric_modes": False,
                     },
                 )
 
