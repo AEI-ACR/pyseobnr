@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numbers
+import warnings
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, Final, Literal, Union, cast, get_args
@@ -767,11 +768,25 @@ class GenerateWaveform:
                     f"{parameters['approximant']}."
                 )
 
-            # left for posterity
-            # if parameters.get("gwsignal_environment", False):
-            #     warnings.warn(
-            #         "This code is currently UNREVIEWED, use with caution!!", UserWarning
-            #     )
+        if parameters.get("gwsignal_environment", False):
+            if parameters.get("enable_antisymmetric_modes", False):
+                assert parameters["approximant"] == "SEOBNRv5PHM"
+                if any(
+                    v != 0
+                    for _ in (
+                        "dA_dict",
+                        "dtau_dict",
+                        "dw_dict",
+                        "domega_dict",
+                        "dtau_dict",
+                    )
+                    for v in parameters[_].values()
+                ) or any(parameters[_] != 0 for _ in ("dTpeak", "da6", "ddSO")):
+                    warnings.warn(
+                        "The use of antisymmetric modes together with GR deviation is "
+                        "currently UNREVIEWED, use with caution!!",
+                        UserWarning,
+                    )
 
         return parameters
 

@@ -1,11 +1,19 @@
 import random
+import warnings
 from typing import get_args
 from unittest import mock
+
+import lal
+import numpy as np
 
 import pytest
 
 from pyseobnr.eob.waveform.compute_hlms import NQC_correction, compute_IMR_modes
-from pyseobnr.generate_waveform import SupportedApproximants, generate_modes_opt
+from pyseobnr.generate_waveform import (
+    GenerateWaveform,
+    SupportedApproximants,
+    generate_modes_opt,
+)
 
 
 def test_pSEOB_settings_passed_to_underlying_models():
@@ -224,3 +232,65 @@ def test_pSEOB_settings_compatible_with_PHM_antisymmetric():
             p_compute_IMR_modes.call_args_list[1].kwargs["dtau_22_asym"]
             == random_dict["2,2"]
         )
+
+
+def test_pSEOB_with_PHM_antisymmetric_raise_warning_when_used_through_gwsignal():
+    m1 = 50.0
+    m2 = 30.0
+    Mt = m1 + m2
+    f_min = 0.0157 / (Mt * np.pi * lal.MTSUN_SI)
+    params_dict = {
+        "mass1": m1,
+        "mass2": m2,
+        "spin1x": 0.5,
+        "spin1y": 0.3,
+        "spin1z": 0.2,
+        "spin2x": 0.3,
+        "spin2y": 0.7,
+        "spin2z": -0.1,
+        "deltaT": 1 / 2048.0,
+        "deltaF": 0.125,
+        "f_ref": 20,
+        "f22_start": f_min,
+        "phi_ref": 0.0,
+        "distance": 1.0,
+        "inclination": np.pi / 3.0,
+        "f_max": 1024.0,
+        "approximant": "SEOBNRv5PHM",
+        "postadiabatic": True,
+    }
+
+    for dict_dev in "dA_dict", "dw_dict", "domega_dict", "dtau_dict":
+        params_dict_dev = params_dict | {
+            dict_dev: {
+                "2,2": 1e-10,
+                "2,1": 0.0,
+                "3,3": 0.0,
+                "3,2": 0.0,
+                "4,4": 0.0,
+                "4,3": 0.0,
+                "5,5": 0.0,
+            }
+        }
+        with pytest.warns(UserWarning):
+            _ = GenerateWaveform(params_dict_dev | {"gwsignal_environment": True})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            _ = GenerateWaveform(params_dict_dev | {"gwsignal_environment": False})
+            _ = GenerateWaveform(
+                params_dict_dev
+                | {"gwsignal_environment": True, "enable_antisymmetric_modes": False}
+            )
+
+    for scalar_devs in "dTpeak", "da6", "ddSO":
+        params_dict_dev = params_dict | {scalar_devs: 1e-10}
+        with pytest.warns(UserWarning):
+            _ = GenerateWaveform(params_dict_dev | {"gwsignal_environment": True})
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            _ = GenerateWaveform(params_dict_dev | {"gwsignal_environment": False})
+            _ = GenerateWaveform(
+                params_dict_dev
+                | {"gwsignal_environment": True, "enable_antisymmetric_modes": False}
+            )
