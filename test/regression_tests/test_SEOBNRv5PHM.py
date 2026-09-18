@@ -8,10 +8,10 @@ It should be regenerated using regenerate_SEOBNRv5PHM.py whenever
 understood changes to the model are made.
 """
 
-import pytest
-import numpy as np
-from pyseobnr.generate_waveform import generate_modes_opt, GenerateWaveform
 import lal
+import numpy as np
+
+from pyseobnr.generate_waveform import GenerateWaveform
 
 
 def get_amp_phase(h):
@@ -65,6 +65,7 @@ def gen_test_data(test_type):
         "f_max": f_max,
         "approximant": approximant,
         "postadiabatic": True,
+        "enable_antisymmetric_modes": False,
     }
     wfm_gen = GenerateWaveform(params_dict)  # We call the generator with the parameters
     params_dict2 = params_dict.copy()

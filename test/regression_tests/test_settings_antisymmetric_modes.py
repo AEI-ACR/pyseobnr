@@ -121,10 +121,10 @@ def prepare_mock_class_and_call(basic_settings):
         yield basic_settings, p_model_call, instance_model, MyException
 
 
-def test_generate_modes_opt_without_explicit_antisymmetric_modes_defaults_to_22(
+def test_generate_modes_opt_without_explicit_antisymmetric_modes_defaults_to_all_modes(
     prepare_mock_class_and_call,
 ):
-    """If `antisymmetric_modes` is not provided, defaults to the 22 mode"""
+    """If `antisymmetric_modes` is not provided, defaults to all the supported modes"""
 
     (
         current_params,
@@ -146,7 +146,11 @@ def test_generate_modes_opt_without_explicit_antisymmetric_modes_defaults_to_22(
     p_model_call.assert_called_once()
     assert "model" in instance_model
     assert "antisymmetric_modes" in instance_model["model"].settings
-    assert instance_model["model"].settings["antisymmetric_modes"] == [(2, 2)]
+    assert instance_model["model"].settings["antisymmetric_modes"] == [
+        (2, 2),
+        (3, 3),
+        (4, 4),
+    ]
 
 
 def test_generate_modes_opt_explicit_antisymmetric_modes_correctness(
