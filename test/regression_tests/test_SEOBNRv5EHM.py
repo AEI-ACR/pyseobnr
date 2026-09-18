@@ -13,7 +13,9 @@ import numpy as np
 import pandas as pd
 from pycbc.filter.matchedfilter import match
 from pycbc.psd.analytical import aLIGOZeroDetHighPowerGWINC
+from scipy.interpolate import CubicSpline
 from scipy.optimize import RootResults, root, root_scalar
+from scipy.signal import find_peaks
 
 import pytest
 
@@ -761,6 +763,144 @@ def test_regression_nan_captured_in_dynamics_and_hamiltonians():
         rel_anomaly=0.0,
         approximant="SEOBNRv5EHM",
     )
+
+
+@pytest.mark.parametrize(
+    "chi_1, omega_peak_expected",
+    [
+        pytest.param(-0.9, True, id="with_omega_peak"),
+        pytest.param(+0.9, False, id="without_omega_peak"),
+    ],
+)
+def test_secular_phase_shift_e0_omega_peak(chi_1, omega_peak_expected):
+    """Checks the case when peaks are not found on omega_avg for e = 0
+
+    Only when there is a secular backward integration.
+
+    When the predicted starting separation falls below ``r_start_min``, the model
+    integrates a set of secular evolution equations backwards in time and then shifts
+    the orbital phase so that ``phi = 0`` at the reference point. For a vanishing
+    reference eccentricity that shift comes from interpolating ``phi`` against the
+    orbit-averaged orbital frequency ``omega``, which requires ``omega`` to be strictly
+    increasing over the interpolation range.
+
+    Whether ``omega`` is monotonic over the whole dynamics is decided by ``r_stop``:
+
+    * ``NR_deltaT <= 0`` (here ``q = 5``, ``chi_1 = -0.9``) leaves ``r_stop = None``, the
+      integration runs past the frequency peak and ``omega`` turns over. ``find_peaks``
+      reports that peak and the interpolation is restricted to ``[:idx_peak]``.
+    * ``NR_deltaT > 0`` (here ``q = 5``, ``chi_1 = +0.9``) stops the integration at
+      ``0.98 r_ISCO``, ``omega`` grows monotonically, ``find_peaks`` returns nothing and
+      the ``except`` branch falls back to ``idx_peak = -1``.
+
+    Before the fix, the admissibility of the reference frequency was checked against the
+    *last* value of ``omega`` instead of its peak. The first case therefore compared
+    ``0.04 <= 0.0170`` and raised a spurious "The reference frequency is larger than the
+    highest frequency in the inspiral", even though the reference frequency is well
+    inside the inspiral (the peak sits at ``0.1041``).
+    """
+
+    q: Final = 5.0
+    # r_start is 8.71 M (chi_1 = -0.9) and 8.38 M (chi_1 = +0.9), both below
+    # r_start_min = 10 M, which triggers the backwards integration of the secular
+    # evolution equations
+    omega_start: Final = 0.04
+
+    # saving the original functions
+    _find_peaks = find_peaks
+    params = []
+
+    def _cubic_spline(x, y, *args, **kwargs):
+        nonlocal params
+        # we need to take a copy because some arrays are modified in place
+        params.append((np.copy(x), np.copy(y)))
+        return CubicSpline(x, y, *args, **kwargs)
+
+    with mock.patch(
+        "pyseobnr.generate_waveform.SEOBNRv5EHM.find_peaks",
+    ) as p_find_peaks, mock.patch(
+        "pyseobnr.generate_waveform.SEOBNRv5EHM.CubicSpline"
+    ) as p_cubic_spline:
+        # without the fix, the "with_omega_peak" case raises a ValueError here
+        p_find_peaks.side_effect = _find_peaks
+        p_cubic_spline.side_effect = _cubic_spline
+        _, _, model_ehm = generate_modes_opt(
+            q=q,
+            chi1=chi_1,
+            chi2=0.0,
+            omega_start=omega_start,
+            omega_ref=omega_start,
+            eccentricity=0.0,
+            rel_anomaly=0.0,
+            approximant="SEOBNRv5EHM",
+            settings={},
+            debug=True,
+        )
+
+        # the block under test is reached only for a vanishing reference eccentricity
+        # and after a secular backwards integration
+        assert model_ehm.eccentricity_ref == 0.0
+        assert model_ehm.t_bwd_secular != 0.0
+        p_find_peaks.assert_called()
+        idx_find_peaks = []
+        for idx, (arg, kwargs) in enumerate(p_find_peaks.call_args_list):
+            if len(arg) == 1 and len(kwargs) == 0:
+                # this condition identifies the find_peaks we are looking for
+                idx_find_peaks.append(idx)
+        assert len(idx_find_peaks) == 1, "No relevant find_peaks call found"
+
+        omega_arr = p_find_peaks.call_args_list[idx_find_peaks[0]].args[0]
+        peaks, _ = find_peaks(omega_arr)
+
+        # the case we are finding the peaks or not
+        assert (len(peaks) > 0) == omega_peak_expected
+
+        # reference freq
+        omega_ref = model_ehm.omega_avg_ref
+
+        # this is the condition selecting one branch or the other
+        idx_peak = peaks[-1] if len(peaks) else -1
+
+        if omega_peak_expected:
+            assert idx_peak != -1
+
+            # omega is non monotonic (we have a peak, which does not include borders)
+            assert not bool(np.all(np.diff(omega_arr) > 0))
+            # and the reference frequency lies between the final and the peak frequency
+            assert omega_arr[-1] < omega_ref <= omega_arr[idx_peak]
+        else:
+            # in this case, we run until the end of the array
+            assert idx_peak == -1
+
+            # in case omega is monotonic increasing, we cannot find a peak and so we take the last point
+            assert bool(np.all(np.diff(omega_arr) > 0))
+
+            # the reference frequency is below the last freq.
+            assert omega_ref <= omega_arr[-1]
+
+        # in all non-errored cases, we call the cubic spline. There is only one in that code right
+        # and would need to be revisited if this starts failing
+        assert p_cubic_spline.call_count == 1
+
+        spline_x, spline_y, *_ = p_cubic_spline.call_args_list[0].args
+        np.testing.assert_equal(spline_x, omega_arr[:idx_peak])
+
+        # monotonic increasing by definition of what is on the two sides of the peak
+        assert bool(np.all(np.diff(spline_x) > 0))
+
+        # the phase shift being applied at reference frequency
+        phi_shift_secular = float(model_ehm.phi_shift_secular)
+
+        # after the phase shift, this is 0 at omega_ref
+        # this does not work in the test because the dynamics are modified after this stage
+        # phi_dyn = model_ehm.dynamics[:, ColsEccDyn.phi]
+        # assert (
+        #     abs(_cubic_spline(omega_arr[:idx_peak], phi_dyn[:idx_peak])(omega_ref))
+        #     < 1e-10
+        # )
+
+        # before the phase shift, we get phi_shift_secular (spline_y is already cut to [:idx_peak]
+        assert _cubic_spline(spline_x, params[0][1])(omega_ref) == phi_shift_secular
 
 
 @pytest.mark.parametrize("eccentricity", [0, 0.1, 0.3, 0.9, 0.9999])
