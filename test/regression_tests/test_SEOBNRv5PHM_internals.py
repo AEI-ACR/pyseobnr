@@ -43,10 +43,26 @@ def test_qnm_rotation_always_positive():
             chi2=chi_2,
             omega_start=omega0,
             approximant="SEOBNRv5PHM",
+            settings={"enable_antisymmetric_modes": False},
         )
 
         p_compute_IMR_modes.assert_called_once()
         assert p_compute_IMR_modes.call_args.kwargs["qnm_rotation"] > 0
+
+        p_compute_IMR_modes.reset_mock()
+
+        generate_modes_opt(
+            q=5.32,
+            chi1=chi_1,
+            chi2=chi_2,
+            omega_start=omega0,
+            approximant="SEOBNRv5PHM",
+            settings={"enable_antisymmetric_modes": True},
+        )
+
+        assert p_compute_IMR_modes.call_count == 2
+        assert p_compute_IMR_modes.call_args_list[0].kwargs["qnm_rotation"] > 0
+        assert p_compute_IMR_modes.call_args_list[1].kwargs["qnm_rotation"] > 0
 
 
 def test_estimate_t_for_max_amplitude_PHM():

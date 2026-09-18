@@ -776,7 +776,9 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         # that are needed even if we will not return them
 
         # All the modes we will need to output
-        self.return_modes = self.settings.get("return_modes", None)
+        self.return_modes: list[tuple[int, int]] | None = self.settings.get(
+            "return_modes", None
+        )
 
         # Check that the modes are valid, i.e. something we
         # can return
@@ -790,7 +792,8 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
         # All the modes we need to compute. This can be a larger list
         # than the returned modes, e.g. when we need certain modes to
         # do mode mixing
-        self.computed_modes = deepcopy(self.return_modes)
+        assert self.return_modes is not None
+        self.computed_modes: list[tuple[int, int]] = deepcopy(self.return_modes)
         # Make sure the array contains what we need
         self._ensure_consistency()
         self._validate_antisymmetric_parameters()
@@ -844,20 +847,24 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             beta_approx=0,
             rd_approx=True,
             rd_smoothing=False,
+            enable_antisymmetric_modes=True,
         )
         return settings
 
     def _validate_antisymmetric_parameters(self) -> None:
         # parameters for anti-symmetries computations
         valid_antisymmetric_modes: Final[set] = {(2, 2), (3, 3), (4, 4)}
+        assert hasattr(self, "computed_modes")
 
         enable_antisymmetric_modes = self.settings.get(
-            "enable_antisymmetric_modes", False
+            "enable_antisymmetric_modes", True
         )
         if enable_antisymmetric_modes:
             antisymmetric_modes = self.settings.get("antisymmetric_modes", [])
             if not antisymmetric_modes:
-                antisymmetric_modes = [(2, 2)]
+                antisymmetric_modes = [
+                    _ for _ in ((2, 2), (3, 3), (4, 4)) if _ in self.computed_modes
+                ]
             else:
                 if len(set(antisymmetric_modes)) != len(antisymmetric_modes):
                     raise RuntimeError(
@@ -869,6 +876,13 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                         f"{sorted(set(antisymmetric_modes) - valid_antisymmetric_modes)}"
                         " is not "
                         f"in the set of valid modes {sorted(valid_antisymmetric_modes)}"
+                    )
+                elif not set(antisymmetric_modes) <= set(self.computed_modes):
+                    raise RuntimeError(
+                        "Incorrect modes in 'antisymmetric_modes' settings: "
+                        f"{sorted(set(antisymmetric_modes) - set(self.computed_modes))}"
+                        " is not "
+                        f"in the set of selected modes {sorted(self.computed_modes)}"
                     )
             self.settings["antisymmetric_modes"] = antisymmetric_modes
         elif not enable_antisymmetric_modes:
@@ -1471,6 +1485,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             )
 
             # Check if convention has to be changed
+            ph22_ref = None
             if self.settings.get(
                 "convention_coprecessing_phase22_set_to_0_at_reference_frequency", False
             ):
@@ -1555,7 +1570,7 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
             qt[idx] = interpolate_quats(quatJ2P_dyn, t_dyn, t_full[idx])
             qt[idx[-1] + 1 :] = quat_postMerger
 
-            # conveniance
+            # convenience
             convention_t0_set_to_0_at_coprecessing_amplitude22_peak: Final[bool] = (
                 self.settings.get(
                     "convention_t0_set_to_0_at_coprecessing_amplitude22_peak", False
@@ -1722,6 +1737,16 @@ class SEOBNRv5PHM_opt(Model, SEOBNRv5ModelBaseWithpSEOBSupport):
                     ivs_mrd=mrd_ivs,
                     dtau_22_asym=self.dtau_dict["2,2"],
                 )
+
+                # Check if convention has to be changed
+                if self.settings.get(
+                    "convention_coprecessing_phase22_set_to_0_at_reference_frequency",
+                    False,
+                ) and not self.settings.get("polarizations_from_coprec", False):
+                    # ph22_ref gets a value as soon as
+                    # convention_coprecessing_phase22_set_to_0_at_reference_frequency is true
+                    assert ph22_ref is not None
+                    rotate_modes_to_waveform_based_convention(imr_asym, ph22_ref)
 
                 # Construct full co-precessing modes (symm + asymm)
                 imr_full = self._add_negative_m_modes(imr_full)

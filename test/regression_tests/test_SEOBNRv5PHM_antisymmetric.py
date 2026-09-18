@@ -397,7 +397,10 @@ def test_PHM_with_antisymmetries_smoke_fits_function():
                 chi2=chi_2,
                 omega_start=omega0,
                 approximant="SEOBNRv5PHM",
-                settings={"enable_antisymmetric_modes": True},
+                settings={
+                    "enable_antisymmetric_modes": True,
+                    "antisymmetric_modes": [(2, 2)],
+                },
             )
 
         # basic check that we are actually running the anti-symmetric calculations
